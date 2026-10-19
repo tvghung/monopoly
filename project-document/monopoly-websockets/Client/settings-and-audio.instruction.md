@@ -92,6 +92,7 @@ A reset button restores every default (Vietnamese, fullscreen off).
   in `SettingsContext.ts`, the panel, and `settings.test.ts`; bump the storage version only with a migration.
 - FPS uses `GameSettings.fpsLimit` in the existing V2 record; missing or invalid values become 60, and changing it does not
   alter `graphicsQuality`. The game scene scheduler retains demand invalidation and stops while idle or while the document is hidden.
+  The selected number is an upper bound on actual scene submissions: display refresh and GPU capacity can lower achieved FPS. During active animation the cap uses a fractional deadline across display refreshes, so 60 on a 144 Hz display is not rounded down to 48.
 
 ## Change impact
 

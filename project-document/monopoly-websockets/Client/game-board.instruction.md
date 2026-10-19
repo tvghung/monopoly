@@ -74,7 +74,10 @@ Pipeline display state: [presentation-pipeline.instruction.md](./presentation-pi
 - Scene dùng fixed orthographic camera và một `DemandFrameScheduler` dựa trên invalidation. Canvas đặt
   `frameloop="never"`; mọi `state.invalidate()` đi vào cùng scheduler, scheduler gọi R3F `advance` ở FPS cap đã chọn,
   đổi RAF timestamp từ milliseconds sang seconds để giữ `useFrame` delta/time-based animation. Tối đa một frame đang chờ;
-  frame cuối vẫn được render, invalidation được gộp, timer chỉ chờ đến slot kế tiếp, và không có loop khi idle/ẩn tab.
+  frame cuối vẫn được render và invalidation được gộp. During an active animation the scheduler checks each browser
+  refresh and carries a fractional next-frame deadline across draws. It does not delay RAF registration with a timer,
+  never catches up missed frames in a burst, and resumes with a fresh deadline after document visibility returns.
+  Idle, hidden and shader-warm-up-held scenes submit no frames.
   Callback async như SDF text, texture hay post chain vẫn phải `invalidate`. Ánh sáng, môi trường, bàn và preset
   chất lượng nằm ở mục **Lighting, environment và graphics tiers** bên dưới. Budget:
   main pass target 210 draw calls, stress ceiling 240, target 80k triangles và hard

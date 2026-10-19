@@ -72,47 +72,83 @@ describe('DemandFrameScheduler', () => {
     scheduler.dispose();
   });
 
-  it('paces active animation at 30 FPS and keeps elapsed time independent of frame count', () => {
+  it('paces active animation at 30 FPS without changing elapsed time', () => {
     const host = new FakeFrameHost();
     const timestamps: number[] = [];
     const scheduler = new DemandFrameScheduler(30, timestamp => {
       timestamps.push(timestamp);
       if (timestamps.length < 3) scheduler.invalidate();
     }, host);
-
     scheduler.invalidate();
-    host.renderAt(0);
-    host.advanceTo(32);
+    for (let tick = 0; tick <= 8; tick += 1) host.renderAt(tick * (1000 / 120));
+    expect(timestamps).toEqual([0, 4 / 120, 8 / 120]);
     expect(host.frames.size).toBe(0);
-    host.advanceTo(32.34);
-    host.renderAt(33.34);
-    host.advanceTo(66.34);
-    host.renderAt(66.68);
-
-    expect(timestamps).toEqual([0, 0.03334, 0.06668]);
     expect(host.timers.size).toBe(0);
-    expect(host.frames.size).toBe(0);
     scheduler.dispose();
   });
 
-  it.each([60, 240])('re-paces a pending frame immediately when the limit changes to %i FPS', fpsLimit => {
+  it.each([30, 60, 120, 180, 240].flatMap(cap =>
+    [60, 75, 90, 120, 144, 165, 240].map(refreshHz => ({ cap, refreshHz })),
+  ))('maintains fractional cadence at $cap FPS on a $refreshHz Hz display', ({ cap, refreshHz }) => {
     const host = new FakeFrameHost();
-    const advance = vi.fn();
-    const scheduler = new DemandFrameScheduler(30, () => {
-      advance();
-      if (advance.mock.calls.length === 1) scheduler.invalidate();
+    const draws: number[] = [];
+    const scheduler = new DemandFrameScheduler(cap, timestamp => {
+      draws.push(timestamp * 1000);
+      scheduler.invalidate();
+    }, host);
+    scheduler.invalidate();
+    for (let tick = 0; tick <= refreshHz * 10; tick += 1) host.renderAt(tick * 1000 / refreshHz);
+    const achievedFps = (draws.length - 1) / ((draws.at(-1)! - draws[0]) / 1000);
+    expect(achievedFps).toBeGreaterThanOrEqual(Math.min(cap, refreshHz) - 1);
+    expect(achievedFps).toBeLessThanOrEqual(Math.min(cap, refreshHz) + 1);
+    expect(host.timers.size).toBe(0);
+    scheduler.dispose();
+  });
+
+  it('re-paces a pending frame when the limit changes', () => {
+    const host = new FakeFrameHost();
+    const draws: number[] = [];
+    const scheduler = new DemandFrameScheduler(30, timestamp => {
+      draws.push(timestamp * 1000);
+      scheduler.invalidate();
     }, host);
     scheduler.invalidate();
     host.renderAt(0);
-    expect(host.timers.size).toBe(1);
+    host.renderAt(1000 / 120);
+    scheduler.setFpsLimit(120);
+    host.renderAt(2 * 1000 / 120);
+    expect(draws).toEqual([0, 2 * 1000 / 120]);
+    scheduler.dispose();
+  });
 
-    host.advanceTo(20);
-    scheduler.setFpsLimit(fpsLimit);
-    expect(host.timers.size).toBe(0);
-    expect(host.frames.size).toBe(1);
-    host.renderAt(16.7);
+  it('rebases after a long frame without catching up missed draws', () => {
+    const host = new FakeFrameHost();
+    const draws: number[] = [];
+    const scheduler = new DemandFrameScheduler(60, timestamp => {
+      draws.push(timestamp * 1000);
+      scheduler.invalidate();
+    }, host);
+    scheduler.invalidate();
+    host.renderAt(0);
+    host.renderAt(150);
+    host.renderAt(151);
+    host.renderAt(166.7);
+    expect(draws).toEqual([0, 150, 166.7]);
+    scheduler.dispose();
+  });
 
-    expect(advance).toHaveBeenCalledTimes(2);
+  it.each([30, 60, 120, 240])('keeps a one-second effect duration at %i FPS', cap => {
+    const host = new FakeFrameHost();
+    let completedAt: number | null = null;
+    const scheduler = new DemandFrameScheduler(cap, timestamp => {
+      if (timestamp >= 1) completedAt = timestamp * 1000;
+      else scheduler.invalidate();
+    }, host);
+    scheduler.invalidate();
+    for (let tick = 0; tick <= 241; tick += 1) host.renderAt(tick * 1000 / 240);
+    expect(completedAt).not.toBeNull();
+    expect(completedAt!).toBeGreaterThanOrEqual(1000);
+    expect(completedAt!).toBeLessThanOrEqual(1000 + 1000 / cap + 1000 / 240);
     scheduler.dispose();
   });
 

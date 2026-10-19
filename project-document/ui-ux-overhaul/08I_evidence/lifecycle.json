@@ -1,0 +1,290 @@
+{
+  "dist": "uat-dist",
+  "scenarios": {
+    "walk": {
+      "replays": 4,
+      "samples": 810,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 185,
+      "previewSurfaceOpacity": [
+        0.12000003172396176,
+        0.3699999682760238
+      ],
+      "previewEdgeOpacity": [
+        0.42000005837208965,
+        0.8799999416278839
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 154,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    },
+    "dice": {
+      "replays": 4,
+      "samples": 480,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 304,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    },
+    "house-2": {
+      "replays": 4,
+      "samples": 480,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 0,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 1,
+      "puffSamples": 116,
+      "puffProps": [
+        "MeshStandardMaterial/0.86/true/11"
+      ]
+    },
+    "hotel": {
+      "replays": 4,
+      "samples": 565,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 0,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    }
+  },
+  "tierSwitch": [
+    {
+      "tier": "low",
+      "replays": 2,
+      "samples": 405,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.12000003172396176,
+        0.36999920489544835
+      ],
+      "previewEdgeOpacity": [
+        0.42000005837208965,
+        0.8799985370076249
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 100,
+        "textures": 50,
+        "programs": 48,
+        "dpr": 1.0000000149011612
+      }
+    },
+    {
+      "tier": "balanced",
+      "replays": 2,
+      "samples": 404,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.12000019337086158,
+        0.3699999863746676
+      ],
+      "previewEdgeOpacity": [
+        0.4200003558023853,
+        0.8799999749293884
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 78,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 104,
+        "textures": 52,
+        "programs": 51,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "high",
+      "replays": 2,
+      "samples": 383,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 88,
+      "previewSurfaceOpacity": [
+        0.12000000021145849,
+        0.3699999997885415
+      ],
+      "previewEdgeOpacity": [
+        0.4200000003890836,
+        0.8799999996109165
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 4,
+      "trailVisibleSamples": 152,
+      "trailMaxOpacity": 0.10200000000000001,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 106,
+        "textures": 76,
+        "programs": 102,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "balanced",
+      "replays": 2,
+      "samples": 403,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.12000000107047806,
+        0.36999980662908255
+      ],
+      "previewEdgeOpacity": [
+        0.4200000019696796,
+        0.879999644197512
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 78,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 105,
+        "textures": 52,
+        "programs": 91,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "low",
+      "replays": 2,
+      "samples": 404,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 92,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.3699999362880855
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.8799998827700772
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 101,
+        "textures": 50,
+        "programs": 91,
+        "dpr": 1.0000000149011612
+      }
+    }
+  ],
+  "contextLoss": {
+    "fellBackToLegacyBoard": true,
+    "newPageErrors": 0
+  },
+  "pageErrors": [],
+  "consoleWarningsAndErrors": [
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.WebGLProgram: Program Info Log: (85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined valu",
+    "error: Switching to the legacy board fallback after a renderer error. Error: WebGL context was lost\n    at HTMLCanvasElement.onContextLost (http://127.0.0.1:4177/assets/GameScene-DfGYMOtz.js:15468:32)",
+    "warning: THREE.WebGLRenderer: WEBGL_lose_context extension not supported."
+  ]
+}
