@@ -1,6 +1,6 @@
 # 08K — Phase B7: Loading performance optimization
 
-> **CURRENT DEVELOPMENT implementation record — DRAFT / PARTIAL recommendation.** Started from verified post-closeout `main` `2787559ab9e499eb4fdb7dff04b150798be05c46` in isolated worktree `codex/phase-b7-loading-optimization`. B4/B5 are merged and closed; B5 owner visual acceptance is PASS. Current rules belong to [join and bootstrap](../monopoly-websockets/Client/join-room.instruction.md) and the [board contract](../monopoly-websockets/Client/game-board.instruction.md).
+> **CURRENT DEVELOPMENT implementation record — DRAFT / PASS recommendation, pending owner merge approval.** Started from verified post-closeout `main` `2787559ab9e499eb4fdb7dff04b150798be05c46` in isolated worktree `codex/phase-b7-loading-optimization`. The exact B7 implementation head used for packaged acceptance was `caa5c9305333b9057248912a8badd7713be9fe21`; the evidence/report commit advances the PR head without changing shipped code. B4/B5 are merged and closed; B5 owner visual acceptance is PASS. Current rules belong to [join and bootstrap](../monopoly-websockets/Client/join-room.instruction.md) and the [board contract](../monopoly-websockets/Client/game-board.instruction.md).
 
 ## Investigation and choices
 
@@ -43,6 +43,28 @@ The first switch to Low and High took 648 and 812 ms in the final run (baseline 
 - [Real two-browser session](./08K_evidence/real-session-final.json): authoritative host and guest joined; the guest's forced no-WebGL path used the DOM board; roll, camera, visibility recovery, reload/resume, forfeit and Play Again passed. The initial constructor-only experiment failed this test and was corrected before the passing final run.
 - Required local gates: `pnpm typecheck` **PASS**, `pnpm lint` **PASS**, `pnpm test` **PASS**, `pnpm build` **PASS**, `pnpm validate:docs` **PASS**. Focused startup/graphics tests: 32/32 **PASS**. The final fallback correction was followed by focused tests, production build and the browser regression suite; Draft PR CI/Docs are reported in the PR check suite and final integration report.
 
-Packaged Electron startup, other GPUs, long full-match owner UAT and physical high-refresh validation remain **NOT RUN**. The first board frame and first-time tier switch are still costly. No claim is made that B7 meets a universal startup or GPU-memory target.
+### Final packaged Electron acceptance (2026-10-20)
 
-**Recommendation: PARTIAL / DRAFT.** The desktop launcher opens materially sooner in the controlled browser harness and its temporary capability context is released without an observed gameplay, visual, fallback or resource regression. Cold-board and first-tier-switch costs remain. Owner review should focus on packaged launcher-to-room responsiveness and whether this bounded improvement is sufficient for B7 closeout. Do not merge the draft automatically.
+The production package was built from the exact B7 implementation head `caa5c9305333b9057248912a8badd7713be9fe21` with `pnpm desktop:package`. Test machine: Windows 10 x64 build 19044, Intel Core i5-10210U, Electron 43.4.0. The real packaged OwnTheBlock.exe under apps/desktop/out ran with normal packaged settings, without `--no-sandbox`, using fresh temporary profiles. The focused Playwright Electron proof is `scripts/perf/packagedElectronAcceptance.mjs`; its [request/check log](./08K_evidence/packaged-electron-acceptance.json), [launcher capture](./08K_evidence/packaged-launcher.png) and [game capture](./08K_evidence/packaged-game.png) are retained. This is a local Windows packaged run, not a separate physical-device or Online-network test.
+
+| Packaged check | Result |
+| --- | --- |
+| Executable starts and paints the normal `app://own-the-block/index.html` launcher | **PASS** |
+| Idle launcher defers the gameplay `App` JS; opening the Host form loads `App` JS/CSS (HTTP 200) | **PASS** |
+| LAN Host creation reaches a lobby; fresh-profile quality is Balanced in the settings control and renderer; new Host mascot is Dog | **PASS** |
+| Host plus Bot starts a real game; 3D canvas and board are visible; deferred `GameScene` JS and baked studio environment load from the package (HTTP 200) | **PASS** |
+| Forfeit returns to launcher; explicit **Đóng phòng** stops the still-running Host helper; the same app creates a different room | **PASS** |
+| A second packaged Electron instance joins that new LAN room; both leave cleanly | **PASS** |
+| Packaged renderer page errors / failed `app://` resources | **PASS** — zero / zero |
+
+The first proof attempt assumed the human would always take the first turn; the Bot correctly won the server tie-break in that run. The assertion was corrected to accept either legal turn order. A later attempt found the Host button disabled after forfeit because the Host helper intentionally remains live; the proof now uses the launcher's **Đóng phòng** action before creating the next room. Neither finding required a product-code correction.
+
+Additional packaged regression proofs: `pnpm desktop:proof:host` **PASS** (real interface, four clients, reconnect, newest-wins and process-loss checks); packaged size budget **PASS** (365.8 MiB unpacked, 0.3 MiB `app.asar`); packaged card art **PASS** (28), landmark art **PASS** (22), and Ogg/Web Audio decode **PASS** (music plus 25 effects). Audible listening is still **NOT RUN**. These results preserve the previously validated B3 persistent scene, B4/B5 visual and resource behaviors, and B7 lazy-loading/fallback evidence within the tested paths; they do not constitute a new full-match or all-hardware acceptance run.
+
+Local closeout gates: `pnpm typecheck` **PASS**, `pnpm lint` **PASS**, `pnpm build` **PASS**, `pnpm validate:docs` **PASS** (161 Markdown files), desktop typecheck **PASS**, and `pnpm desktop:package` **PASS**. The first `pnpm test` run **FAIL** because two procedural-texture golden tests timed out during an unusually long client run (1,017 s); neither produced a differing hash. The same file then passed 3/3 in 5.3 s, and the full `pnpm test` rerun **PASS** (client 2,623/2,623, server 561/561, desktop 525/525). The stall did not reproduce; its host-machine cause is unproven.
+
+CI/Docs for the packaged-tested implementation head `caa5c9305333b9057248912a8badd7713be9fe21`: GitHub CI run `39277563221` **PASS**, Docs run `39277563232` **PASS**. The report-only commit has its own PR checks; use [PR #23](https://github.com/tvghung/monopoly/pull/23) for its final head SHA and check status.
+
+Remaining limits: cold first board frame and first-time Low/High shader variants are still expensive; physical high-refresh, other GPUs, long full-match owner UAT, independent-network Online hosting, macOS packaged UI and audible playback are **NOT RUN**. No universal startup or GPU-memory target is claimed.
+
+**Recommendation: PASS for the scoped B7 loading and packaged-integration acceptance; keep PR #23 DRAFT.** The packaged launcher, game transition, return/reentry, deferred assets and defaults pass on this Windows machine without an observed regression in the checked B3–B7 paths. Merge remains blocked on explicit owner approval of this final closeout. B8 is not started.

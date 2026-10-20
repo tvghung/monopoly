@@ -46,7 +46,7 @@ These phases are **CURRENT DEVELOPMENT** on `main`, not part of the latest publi
 | B5 GPU graphics | **PARTIAL — CLOSED, MERGED** | [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md); [PR #22](https://github.com/tvghung/monopoly/pull/22) merge `f7e25d7ae717efb5fddba0494a34edc634bc0e28`; **Owner Visual Acceptance — PASS** (owner-reported 2026-10-19); remaining limits stay open |
 | B5 follow-up defaults | **PASS — CLOSED** | Fixed Balanced graphics default and Dog/valid-fallback mascot for new human seats; explicitly chosen Auto remains available; [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md) |
 | B6 Adaptive Graphics | **SKIPPED — owner decision** | No adaptive controller is authorized in this phase |
-| B7 Loading Optimization | **CURRENT DEVELOPMENT — DRAFT / PARTIAL recommendation** | [B7 record](./ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md): faster desktop launcher and released temporary WebGL probe; cold board and first tier-switch costs remain; awaiting owner review |
+| B7 Loading Optimization | **CURRENT DEVELOPMENT — DRAFT / PASS recommendation** | [B7 record](./ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md): packaged Windows launcher, room/game transition, return/reentry and deferred assets pass; cold board and first tier-switch costs remain; owner merge approval pending |
 | B8 animation timing | **NOT STARTED** | No B8 implementation in this closeout |
 
 The current protocol and snapshot numbers are defined only in code: `SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`

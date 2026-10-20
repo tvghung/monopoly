@@ -78,7 +78,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Docs:** [join-room][c-join]; foundation [client][fc].
 - **Client:** `apps/client/src/index.tsx`, `apps/client/src/app/bootstrap/AppBootstrap.tsx`, `apps/client/src/app/bootstrap/bootstrap.ts`, `apps/client/src/app/bootstrap/loadGameApp.ts`, `apps/client/src/app/screens/`.
 - **Server / Shared:** none; protocol constant from `packages/shared/src/types.ts`.
-- **Tests:** `apps/client/src/app/bootstrap/AppBootstrap.test.tsx`, `apps/client/src/app/screens/LoadingScreen.test.tsx`, `apps/client/src/app/screens/AppErrorBoundary.test.tsx`, `apps/client/src/runtime/runtimeConfig.test.ts`.
+- **Tests:** `apps/client/src/app/bootstrap/AppBootstrap.test.tsx`, `apps/client/src/app/screens/LoadingScreen.test.tsx`, `apps/client/src/app/screens/AppErrorBoundary.test.tsx`, `apps/client/src/runtime/runtimeConfig.test.ts`; packaged B7 UI proof `scripts/perf/packagedElectronAcceptance.mjs`.
 - **Manual:** [join checklist][t-join].
 - **Affects:** F02, F41, F45.
 
@@ -88,7 +88,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Client:** `apps/client/src/components/DesktopMultiplayerLauncher.tsx`, `apps/client/src/runtime/joinTargetResolver.ts`, `apps/client/src/runtime/desktopBridge.ts`.
 - **Desktop:** `apps/desktop/src/hostRuntime.ts`, `apps/desktop/src/lanFinder.ts`, `apps/desktop/src/online/`.
 - **Shared:** `packages/shared/src/endpointPolicy.ts`.
-- **Tests:** `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`, `apps/client/src/runtime/joinTargetResolver.test.ts`, `apps/desktop/tests/hostRuntime.test.ts`.
+- **Tests:** `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`, `apps/client/src/runtime/joinTargetResolver.test.ts`, `apps/desktop/tests/hostRuntime.test.ts`; packaged B7 UI proof `scripts/perf/packagedElectronAcceptance.mjs`.
 - **Manual:** [join checklist][t-join], [hosting checklist][t-http].
 - **Affects:** F05, F16, F17, F48.
 

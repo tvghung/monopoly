@@ -5,6 +5,11 @@ Reproducible measurement of the 3D board (Phase B0 of the performance program; b
 [08B Phase B0 + B1](../../project-document/ui-ux-overhaul/08B_PHASE_B0_B1_IMPLEMENTATION.md)). Nothing here ships in the
 game: the probe is injected from outside and the harness is a development/UAT build.
 
+The B7 packaged Electron check is separate from the synthetic performance harness: after `pnpm desktop:package`,
+run `node scripts/perf/packagedElectronAcceptance.mjs` on Windows with an interactive desktop. It drives the real
+packaged executable through launcher, Host/Guest rooms, gameplay and return/reentry, and writes the B7 evidence
+under `project-document/ui-ux-overhaul/08K_evidence/`. It is a focused local acceptance proof, not a benchmark.
+
 | File | Purpose |
 | --- | --- |
 | `runBenchmark.mjs` | Playwright driver: builds or serves the UAT bundle, opens headed Chrome on the real GPU, replays deterministic harness fixtures and writes `results.json` |

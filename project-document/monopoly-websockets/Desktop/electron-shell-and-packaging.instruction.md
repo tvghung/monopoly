@@ -216,6 +216,11 @@ or `Setup.exe` exceeds 175 MiB / the DMG exceeds 195 MiB. It prints the size tab
 | `proof:packaged:cards`, `proof:packaged:landmarks` | none (file checks) | `apps/desktop/scripts/validatePackagedCardArt.mjs`, `apps/desktop/scripts/validatePackagedLandmarkArt.mjs`. |
 | `start:packaged` / `pnpm desktop:run:packaged` | `--launch` | Starts the packaged app normally. |
 
+For B7, `node scripts/perf/packagedElectronAcceptance.mjs` is a focused Windows UI proof after `pnpm desktop:package`.
+It launches the real packaged executable with fresh profiles, checks the launcher, deferred gameplay resources,
+LAN Host/Guest room flow, game board, return/reentry and Balanced/Dog defaults. It writes its local run evidence
+to `project-document/ui-ux-overhaul/08K_evidence/`; this proof is not a CI or release-workflow gate.
+
 `.github/workflows/desktop-build.yml` (manual dispatch, Windows and macOS) runs the release-contract and asset validators,
 desktop typecheck/tests, `pnpm desktop:make`, every packaged proof, the budget gate and the Playwright mobile flows.
 `.github/workflows/release-candidate.yml` (version tags and manual dispatch) builds Windows x64, macOS Intel and macOS Apple
