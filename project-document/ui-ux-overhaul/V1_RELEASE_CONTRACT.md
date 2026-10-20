@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.9.1
+Semantic version: 1.10.0
 Socket protocol: 14
 ```
 
