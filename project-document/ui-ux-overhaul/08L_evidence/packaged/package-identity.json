@@ -1,0 +1,31 @@
+{
+  "sourceHead": "30060c3a3685b3cad6a41baa0df32c67ad61d32c",
+  "asarSha256": "97d2992195850a9f18aee34b4658cd3dcb28dc453b4d5737a29c766f2250cc50",
+  "renderer": [
+    {
+      "path": "index.html",
+      "sha256": "9d67503e9114e840c5115803010f6116be79c23524fe27236e33e70e18110859",
+      "identicalToBuiltClient": true
+    },
+    {
+      "path": "assets/App-BkG2x3Z5.css",
+      "sha256": "2b1b23cdda49d4930dc765e02f3ed0a02adc96d85b02ff66d37941da5f70a565",
+      "identicalToBuiltClient": true
+    },
+    {
+      "path": "assets/App-Cm34s-YE.js",
+      "sha256": "00022abe2c3462c549015c1294185680c755beda28b10e536bc87f725e8a7820",
+      "identicalToBuiltClient": true
+    },
+    {
+      "path": "assets/GameScene-BxAdU6aQ.js",
+      "sha256": "86cf15c5b2bf7f213d5fc0482489bc19213488daa0b79a547e20a3a6302f7d31",
+      "identicalToBuiltClient": true
+    },
+    {
+      "path": "assets/GameScene-CcMviXVX.css",
+      "sha256": "a26126417ee12b21a60ad67a8ad8946567bd28a17086f6aae3e6005534eee53b",
+      "identicalToBuiltClient": true
+    }
+  ]
+}

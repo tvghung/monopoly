@@ -1,0 +1,3817 @@
+{
+  "status": "FAIL",
+  "method": "Two real packaged LAN clients; native Electron BrowserWindow minimize/restore; read-only React state and GL submission observation; no synthetic visibility or gameplay events.",
+  "sourceHead": "30060c3a3685b3cad6a41baa0df32c67ad61d32c",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.19044",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-1245U",
+    "runtime": {
+      "versions": {
+        "node": "24.18.1",
+        "acorn": "8.16.0",
+        "ada": "3.4.4",
+        "amaro": "1.1.9",
+        "ares": "1.34.6",
+        "brotli": "1.2.0",
+        "cldr": "48.0",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "148",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.69.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.4",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.1",
+        "tz": "2025c",
+        "undici": "7.29.0",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.0.245.28-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0",
+        "electron": "43.4.0",
+        "chrome": "150.0.7871.224"
+      },
+      "packaged": true,
+      "gpu": {
+        "2d_canvas": "enabled",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "enabled",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "enabled_on",
+        "rasterization": "enabled",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "disabled_off",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled",
+        "webgpu": "enabled",
+        "webnn": "disabled_off"
+      }
+    }
+  },
+  "executable": "apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe",
+  "executableSha256": "ba0dc00f2d8b8370e956de42d3e8453a6d4b91a95111ee3b4cb38740d495215b",
+  "checks": [
+    {
+      "name": "normal sandboxed package; Balanced graphics and Dog default",
+      "status": "PASS"
+    },
+    {
+      "name": "two actual packaged clients enter a real LAN game",
+      "status": "PASS"
+    },
+    {
+      "name": "native suspension observation bounded after one unsupported minimize",
+      "status": "PASS"
+    },
+    {
+      "name": "normal dice, individual hops, landing feedback and exact final position",
+      "status": "PASS"
+    }
+  ],
+  "interruptions": [
+    {
+      "client": "guest",
+      "stage": "dice",
+      "before": {
+        "version": 6,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 0,
+        "displayDice": {
+          "dice1": 0,
+          "dice2": 0
+        },
+        "authoritativeDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "queue": "playing",
+        "resetEpoch": 1,
+        "diceRolling": true,
+        "movements": [],
+        "moneyTransfers": [],
+        "tileImpacts": [],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "nativeMinimize": {
+        "atEpochMs": 1792488013300,
+        "minimized": true,
+        "visible": false
+      },
+      "nativeHiddenObserved": false,
+      "hiddenSample": {
+        "version": 6,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "queue": "playing",
+        "resetEpoch": 1,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          }
+        ],
+        "moneyTransfers": [
+          {
+            "id": "a7934d90-8228-4f91-bf1c-3b4a089f0c85",
+            "sequence": 1
+          }
+        ],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "countersAtMinimize": {
+        "frames": 12,
+        "drawCalls": 1759
+      },
+      "beforeRestore": {
+        "version": 6,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "queue": "idle",
+        "resetEpoch": 1,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "countersBeforeRestore": {
+        "frames": 14,
+        "drawCalls": 2067
+      },
+      "nativeRestore": {
+        "atEpochMs": 1792488022356,
+        "minimized": false
+      },
+      "coherent": {
+        "version": 6,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "queue": "idle",
+        "resetEpoch": 1,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "coherentObservedAfterMs": 27,
+      "submission": {
+        "firstVisibleDrawEpochMs": 1792488010906.3,
+        "lastDrawEpochMs": 1792488022391.5
+      },
+      "firstVisibleSubmissionAfterMs": null,
+      "eventsAtRestore": 24,
+      "afterQuiet": {
+        "version": 6,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 1,
+          "dice2": 3
+        },
+        "queue": "idle",
+        "resetEpoch": 1,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "events": [
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488013241,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 0,
+          "displayDice": {
+            "dice1": 0,
+            "dice2": 0
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [],
+          "moneyTransfers": [],
+          "tileImpacts": [],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488013241.3,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 0,
+          "displayDice": {
+            "dice1": 0,
+            "dice2": 0
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": true,
+          "movements": [],
+          "moneyTransfers": [],
+          "tileImpacts": [],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488013889.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [],
+          "moneyTransfers": [],
+          "tileImpacts": [],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014039.1,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [],
+          "moneyTransfers": [],
+          "tileImpacts": [],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014272,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014272.1,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 0
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014454.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014455.2,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014455.3,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 1
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014637,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014637.3,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 3
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014637.4001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 3
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 2
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014820.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 3
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 3
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488014821.2,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 3
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488015005.7,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488015007.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488015008.2,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488015008.2,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488015137.7,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [
+            {
+              "id": "a7934d90-8228-4f91-bf1c-3b4a089f0c85",
+              "sequence": 1
+            }
+          ],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488016452.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [
+            {
+              "id": "a7934d90-8228-4f91-bf1c-3b4a089f0c85",
+              "sequence": 1
+            }
+          ],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488016504.1,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488016679.7,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "playing",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488016679.8,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "idle",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        },
+        {
+          "kind": "presentation",
+          "atEpochMs": 1792488016679.9001,
+          "version": 6,
+          "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+          "roomStatus": "IN_PROGRESS",
+          "currentPlayerId": "9a6a8cbb-7db9-4595-84c1-18361bc685eb",
+          "authoritativePositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "displayPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "settledPositions": {
+            "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 0,
+            "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+          },
+          "authoritativeRollSequence": 1,
+          "displayRollSequence": 1,
+          "displayDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "authoritativeDice": {
+            "dice1": 1,
+            "dice2": 3
+          },
+          "queue": "idle",
+          "resetEpoch": 1,
+          "diceRolling": false,
+          "movements": [
+            {
+              "sequence": 1,
+              "phase": "START",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 2,
+              "phase": "COMPLETE",
+              "from": 0,
+              "to": 1,
+              "durationMs": 180,
+              "startedAtMs": 6811.800000000745
+            },
+            {
+              "sequence": 3,
+              "phase": "START",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 4,
+              "phase": "COMPLETE",
+              "from": 1,
+              "to": 2,
+              "durationMs": 180,
+              "startedAtMs": 6991.800000000745
+            },
+            {
+              "sequence": 5,
+              "phase": "START",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 6,
+              "phase": "COMPLETE",
+              "from": 2,
+              "to": 3,
+              "durationMs": 180,
+              "startedAtMs": 7171.800000000745
+            },
+            {
+              "sequence": 7,
+              "phase": "START",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            },
+            {
+              "sequence": 8,
+              "phase": "COMPLETE",
+              "from": 3,
+              "to": 4,
+              "durationMs": 180,
+              "startedAtMs": 7351.800000000745
+            }
+          ],
+          "moneyTransfers": [],
+          "tileImpacts": [
+            {
+              "sequence": 1,
+              "tileId": 1,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 2,
+              "tileId": 2,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 3,
+              "tileId": 3,
+              "kind": "STEP"
+            },
+            {
+              "sequence": 4,
+              "tileId": 4,
+              "kind": "LAND"
+            }
+          ],
+          "pendingCard": null,
+          "pendingLanding": false,
+          "reducedMotion": false,
+          "animationSpeed": 1,
+          "visibility": "visible",
+          "hidden": false
+        }
+      ],
+      "nativeEvents": [
+        {
+          "kind": "blur",
+          "atEpochMs": 1792488009881,
+          "minimized": false
+        },
+        {
+          "kind": "focus",
+          "atEpochMs": 1792488011712,
+          "minimized": false
+        },
+        {
+          "kind": "blur",
+          "atEpochMs": 1792488012010,
+          "minimized": false
+        },
+        {
+          "kind": "minimize",
+          "atEpochMs": 1792488013306,
+          "minimized": true
+        },
+        {
+          "kind": "restore",
+          "atEpochMs": 1792488022366,
+          "minimized": false
+        },
+        {
+          "kind": "show",
+          "atEpochMs": 1792488022369,
+          "minimized": false
+        },
+        {
+          "kind": "focus",
+          "atEpochMs": 1792488022370,
+          "minimized": false
+        },
+        {
+          "kind": "focus",
+          "atEpochMs": 1792488022370,
+          "minimized": false
+        },
+        {
+          "kind": "blur",
+          "atEpochMs": 1792488023165,
+          "minimized": false
+        }
+      ],
+      "status": "BLOCKED"
+    }
+  ],
+  "errors": [],
+  "failedResources": [],
+  "normalMotion": {
+    "client": "guest",
+    "state": {
+      "version": 9,
+      "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+      "roomStatus": "IN_PROGRESS",
+      "currentPlayerId": "f99af8fe-fcea-4794-9b15-cb91c72ef805",
+      "authoritativePositions": {
+        "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+        "f99af8fe-fcea-4794-9b15-cb91c72ef805": 12
+      },
+      "displayPositions": {
+        "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+        "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+      },
+      "settledPositions": {
+        "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+        "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+      },
+      "authoritativeRollSequence": 3,
+      "displayRollSequence": 2,
+      "displayDice": {
+        "dice1": 2,
+        "dice2": 5
+      },
+      "authoritativeDice": {
+        "dice1": 6,
+        "dice2": 2
+      },
+      "queue": "playing",
+      "resetEpoch": 1,
+      "diceRolling": true,
+      "movements": [
+        {
+          "sequence": 1,
+          "phase": "START",
+          "from": 0,
+          "to": 1,
+          "durationMs": 180,
+          "startedAtMs": 6811.800000000745
+        },
+        {
+          "sequence": 2,
+          "phase": "COMPLETE",
+          "from": 0,
+          "to": 1,
+          "durationMs": 180,
+          "startedAtMs": 6811.800000000745
+        },
+        {
+          "sequence": 3,
+          "phase": "START",
+          "from": 1,
+          "to": 2,
+          "durationMs": 180,
+          "startedAtMs": 6991.800000000745
+        },
+        {
+          "sequence": 4,
+          "phase": "COMPLETE",
+          "from": 1,
+          "to": 2,
+          "durationMs": 180,
+          "startedAtMs": 6991.800000000745
+        },
+        {
+          "sequence": 5,
+          "phase": "START",
+          "from": 2,
+          "to": 3,
+          "durationMs": 180,
+          "startedAtMs": 7171.800000000745
+        },
+        {
+          "sequence": 6,
+          "phase": "COMPLETE",
+          "from": 2,
+          "to": 3,
+          "durationMs": 180,
+          "startedAtMs": 7171.800000000745
+        },
+        {
+          "sequence": 7,
+          "phase": "START",
+          "from": 3,
+          "to": 4,
+          "durationMs": 180,
+          "startedAtMs": 7351.800000000745
+        },
+        {
+          "sequence": 8,
+          "phase": "COMPLETE",
+          "from": 3,
+          "to": 4,
+          "durationMs": 180,
+          "startedAtMs": 7351.800000000745
+        },
+        {
+          "sequence": 9,
+          "phase": "START",
+          "from": 0,
+          "to": 1,
+          "durationMs": 180,
+          "startedAtMs": 18320.39999999851
+        },
+        {
+          "sequence": 10,
+          "phase": "COMPLETE",
+          "from": 0,
+          "to": 1,
+          "durationMs": 180,
+          "startedAtMs": 18320.39999999851
+        },
+        {
+          "sequence": 11,
+          "phase": "START",
+          "from": 1,
+          "to": 2,
+          "durationMs": 180,
+          "startedAtMs": 18500.39999999851
+        },
+        {
+          "sequence": 12,
+          "phase": "COMPLETE",
+          "from": 1,
+          "to": 2,
+          "durationMs": 180,
+          "startedAtMs": 18500.39999999851
+        },
+        {
+          "sequence": 13,
+          "phase": "START",
+          "from": 2,
+          "to": 3,
+          "durationMs": 180,
+          "startedAtMs": 18680.39999999851
+        },
+        {
+          "sequence": 14,
+          "phase": "COMPLETE",
+          "from": 2,
+          "to": 3,
+          "durationMs": 180,
+          "startedAtMs": 18680.39999999851
+        },
+        {
+          "sequence": 15,
+          "phase": "START",
+          "from": 3,
+          "to": 4,
+          "durationMs": 180,
+          "startedAtMs": 18860.39999999851
+        },
+        {
+          "sequence": 16,
+          "phase": "COMPLETE",
+          "from": 3,
+          "to": 4,
+          "durationMs": 180,
+          "startedAtMs": 18860.39999999851
+        },
+        {
+          "sequence": 17,
+          "phase": "START",
+          "from": 4,
+          "to": 5,
+          "durationMs": 180,
+          "startedAtMs": 19040.39999999851
+        },
+        {
+          "sequence": 18,
+          "phase": "COMPLETE",
+          "from": 4,
+          "to": 5,
+          "durationMs": 180,
+          "startedAtMs": 19040.39999999851
+        },
+        {
+          "sequence": 19,
+          "phase": "START",
+          "from": 5,
+          "to": 6,
+          "durationMs": 180,
+          "startedAtMs": 19220.39999999851
+        },
+        {
+          "sequence": 20,
+          "phase": "COMPLETE",
+          "from": 5,
+          "to": 6,
+          "durationMs": 180,
+          "startedAtMs": 19220.39999999851
+        },
+        {
+          "sequence": 21,
+          "phase": "START",
+          "from": 6,
+          "to": 7,
+          "durationMs": 180,
+          "startedAtMs": 19400.39999999851
+        },
+        {
+          "sequence": 22,
+          "phase": "COMPLETE",
+          "from": 6,
+          "to": 7,
+          "durationMs": 180,
+          "startedAtMs": 19400.39999999851
+        }
+      ],
+      "moneyTransfers": [],
+      "tileImpacts": [
+        {
+          "sequence": 1,
+          "tileId": 1,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 2,
+          "tileId": 2,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 3,
+          "tileId": 3,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 4,
+          "tileId": 4,
+          "kind": "LAND"
+        },
+        {
+          "sequence": 5,
+          "tileId": 1,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 6,
+          "tileId": 2,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 7,
+          "tileId": 3,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 8,
+          "tileId": 4,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 9,
+          "tileId": 5,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 10,
+          "tileId": 6,
+          "kind": "STEP"
+        },
+        {
+          "sequence": 11,
+          "tileId": 7,
+          "kind": "LAND"
+        }
+      ],
+      "pendingCard": null,
+      "pendingLanding": true,
+      "reducedMotion": false,
+      "animationSpeed": 1,
+      "visibility": "visible",
+      "hidden": false
+    },
+    "events": [
+      {
+        "kind": "presentation",
+        "atEpochMs": 1792488032738,
+        "version": 9,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "f99af8fe-fcea-4794-9b15-cb91c72ef805",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 12
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 3,
+        "displayRollSequence": 2,
+        "displayDice": {
+          "dice1": 2,
+          "dice2": 5
+        },
+        "authoritativeDice": {
+          "dice1": 6,
+          "dice2": 2
+        },
+        "queue": "playing",
+        "resetEpoch": 1,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 9,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 18320.39999999851
+          },
+          {
+            "sequence": 10,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 18320.39999999851
+          },
+          {
+            "sequence": 11,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 18500.39999999851
+          },
+          {
+            "sequence": 12,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 18500.39999999851
+          },
+          {
+            "sequence": 13,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 18680.39999999851
+          },
+          {
+            "sequence": 14,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 18680.39999999851
+          },
+          {
+            "sequence": 15,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 18860.39999999851
+          },
+          {
+            "sequence": 16,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 18860.39999999851
+          },
+          {
+            "sequence": 17,
+            "phase": "START",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 19040.39999999851
+          },
+          {
+            "sequence": 18,
+            "phase": "COMPLETE",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 19040.39999999851
+          },
+          {
+            "sequence": 19,
+            "phase": "START",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 19220.39999999851
+          },
+          {
+            "sequence": 20,
+            "phase": "COMPLETE",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 19220.39999999851
+          },
+          {
+            "sequence": 21,
+            "phase": "START",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 19400.39999999851
+          },
+          {
+            "sequence": 22,
+            "phase": "COMPLETE",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 19400.39999999851
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          },
+          {
+            "sequence": 5,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 6,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 7,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 8,
+            "tileId": 4,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 9,
+            "tileId": 5,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 10,
+            "tileId": 6,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 11,
+            "tileId": 7,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": true,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      {
+        "kind": "presentation",
+        "atEpochMs": 1792488032738.1,
+        "version": 9,
+        "roomId": "14fec1ee-ecd5-43e9-8cc2-a462388c3718",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "f99af8fe-fcea-4794-9b15-cb91c72ef805",
+        "authoritativePositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 12
+        },
+        "displayPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "settledPositions": {
+          "9a6a8cbb-7db9-4595-84c1-18361bc685eb": 7,
+          "f99af8fe-fcea-4794-9b15-cb91c72ef805": 4
+        },
+        "authoritativeRollSequence": 3,
+        "displayRollSequence": 2,
+        "displayDice": {
+          "dice1": 2,
+          "dice2": 5
+        },
+        "authoritativeDice": {
+          "dice1": 6,
+          "dice2": 2
+        },
+        "queue": "playing",
+        "resetEpoch": 1,
+        "diceRolling": true,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 6811.800000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 6991.800000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 7171.800000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 7351.800000000745
+          },
+          {
+            "sequence": 9,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 18320.39999999851
+          },
+          {
+            "sequence": 10,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 18320.39999999851
+          },
+          {
+            "sequence": 11,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 18500.39999999851
+          },
+          {
+            "sequence": 12,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 18500.39999999851
+          },
+          {
+            "sequence": 13,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 18680.39999999851
+          },
+          {
+            "sequence": 14,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 18680.39999999851
+          },
+          {
+            "sequence": 15,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 18860.39999999851
+          },
+          {
+            "sequence": 16,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 18860.39999999851
+          },
+          {
+            "sequence": 17,
+            "phase": "START",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 19040.39999999851
+          },
+          {
+            "sequence": 18,
+            "phase": "COMPLETE",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 19040.39999999851
+          },
+          {
+            "sequence": 19,
+            "phase": "START",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 19220.39999999851
+          },
+          {
+            "sequence": 20,
+            "phase": "COMPLETE",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 19220.39999999851
+          },
+          {
+            "sequence": 21,
+            "phase": "START",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 19400.39999999851
+          },
+          {
+            "sequence": 22,
+            "phase": "COMPLETE",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 19400.39999999851
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "LAND"
+          },
+          {
+            "sequence": 5,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 6,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 7,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 8,
+            "tileId": 4,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 9,
+            "tileId": 5,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 10,
+            "tileId": 6,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 11,
+            "tileId": 7,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": true,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      }
+    ]
+  },
+  "failure": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('canvas').first() to be visible\u001b[22m\n\n    at C:\\Users\\hungtran\\Documents\\ChatGPT\\Own the block (monopoly)\\phase-b8\\scripts\\perf\\packagedB8Acceptance.mjs:157:71"
+}

@@ -1,6 +1,6 @@
 # 08L — Phase B8: Animation cadence and interruption recovery
 
-> **CURRENT DEVELOPMENT — implemented; recommendation PARTIAL, owner review pending.** Branch `codex/phase-b8-animation-timing` starts at verified post-B7 main `4855a0443b74b5e431b44cc438081fa67f11b1e4` in a separate worktree. No owner checkout was modified.
+> **CURRENT DEVELOPMENT — technical review accepted; final packaged recommendation PARTIAL, native suspension BLOCKED and owner experience acceptance pending.** Branch `codex/phase-b8-animation-timing` starts at verified post-B7 main `4855a0443b74b5e431b44cc438081fa67f11b1e4` in a separate worktree. No owner checkout was modified.
 
 ## B7 prerequisite
 
@@ -75,4 +75,46 @@ Simulation evidence: [baseline cadence](./08L_evidence/baseline-simulation.json)
 
 The [actual minimize observation](./08L_evidence/minimize-observation.json) is **BLOCKED**: CDP reported a minimized Chrome window, but native document visibility stayed visible. The optional `B8_MINIMIZE=1` probe failed its bounded visibility observation; it cannot establish suspended-window recovery and is not relabeled PASS. The passing core E2E uses real two-client gameplay with explicit synthetic visibility, plus a separately measured actual WebGL submission. Long suspension is deterministic simulation.
 
-B8 packaged Electron UI/minimize testing, physical high-refresh displays, other GPUs, macOS, long full-match owner motion acceptance and independent-network Online hosting remain **NOT RUN**. Existing B3/B4/B5/B7 accepted limitations remain. Browser spectator/replay contracts are covered deterministically; a new real spectator device session is not claimed. Owner must review the supplied motion evidence and a complete packaged match before accepting B8. Do not merge B8 automatically.
+The original pre-packaged checkpoint left B8 Electron UI/minimize testing **NOT RUN**; the bounded packaged pass below supersedes that item. Physical high-refresh displays, other GPUs, macOS, long full-match owner motion acceptance and independent-network Online hosting remain **NOT RUN**. Existing B3/B4/B5/B7 accepted limitations remain. Browser spectator/replay contracts are covered deterministically; a new real spectator device session is not claimed. Owner must review the supplied motion evidence and a complete packaged match before accepting B8. Do not merge B8 automatically.
+
+## Final packaged acceptance — 20 October 2026
+
+**Recommendation: PARTIAL. Native suspended-window acceptance: BLOCKED.** The owner's technical acceptance of B8 cadence/recovery is retained. No product defect was established by this pass and no application code or timing architecture was changed. PR #24 must remain **DRAFT**, unmerged until explicit owner approval.
+
+### Environment, package and method
+
+Exact tested B8 implementation head: `30060c3a3685b3cad6a41baa0df32c67ad61d32c`, also the final B8 runtime source SHA (this delivery adds only the driver, evidence and this report). The exact acceptance-delivery head and its final CI/Docs receipts are recorded in the [draft PR delivery record](https://github.com/tvghung/monopoly/pull/24); a commit cannot embed its own hash in its contents.
+
+Windows x64 10.0.19044, Intel Core i5-1245U, Electron 43.4.0 / Chromium 150.0.7871.224. `pnpm desktop:package` passed; the executable was `apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe`, with `app.isPackaged === true`, normal sandbox/context isolation/web security, fresh temporary profiles and packaged `app://own-the-block/index.html`. Two actual executable instances hosted/joined one LAN room; no development web server was used. [Package identity](./08L_evidence/packaged/package-identity.json) records app.asar and renderer hashes; the packaged index, App JS/CSS and GameScene JS/CSS exactly match the built client.
+
+Reproduction: `pnpm desktop:package`, then `pnpm exec node scripts/perf/packagedB8Acceptance.mjs`. The [driver](../../scripts/perf/packagedB8Acceptance.mjs) uses Playwright Electron, native main-process `BrowserWindow.minimize()/restore()/show()/focus()`, native minimize/restore events, renderer visibility observations and [test-only read-only instrumentation](../../scripts/perf/packagedB8Probe.mjs). It reads public snapshot/presentation state through React, observes existing WebGL submissions and never synthesizes visibility, socket messages, dice results or game state. It adds no permanent rendering loop. Instrumentation affects timing; submission observations do not measure physical display scan-out.
+
+### Native minimize and restore
+
+[Retained native observation](./08L_evidence/packaged/pre-play-again-observation.json) and [combined final acceptance](./08L_evidence/packaged/acceptance.json):
+
+- Before minimizing, real dice were rolling, the queue was `playing`, displayed dice/position lagged the authoritative roll, and two clients were in a real game.
+- The actual Electron window reported `isMinimized() === true` and `isVisible() === false`; its native `minimize` event fired. Native `restore` fired and `isMinimized() === false` afterward. This is a native application window operation, not a synthetic visibility event or Chrome CDP bounds request.
+- A bounded three-second observation never saw `document.hidden`; visibility stayed `visible`. During a further six seconds minimized, the observed renderer continued submitting work (25,941 instrumented GL calls), and authoritative gameplay progressed. No suspended renderer was reproduced.
+- After restore, an authoritative coherent state was observed by the driver in **505 ms** and remained idle/coherent over the subsequent 1.8-second observation. [Restored screenshot](./08L_evidence/packaged/dice-restored.png) shows a visible board and gameplay feedback. **505 ms is polling/driver observation latency for an already progressing renderer, not measured suspended-state recovery.** A fresh visibility-triggered submission latency was unavailable because no native visibility transition occurred.
+- No stuck queue or incorrect final position was observed. Obsolete replay/duplicated effects after a *real suspension*, and the one-second B8 suspension-recovery target, remain **BLOCKED**, not PASS.
+
+The earlier two driver attempts are retained as [initial predicate observation](./08L_evidence/packaged/initial-driver-observation.json) and [native observation before reconnect-flow correction](./08L_evidence/packaged/native-observation.json). Driver corrections recognized that movement signals retain completed history, reload returns to the desktop launcher, and forfeit can leave the guest spectating. These were test assumptions, not application fixes. The final gameplay run reused the retained native evidence rather than repeatedly trying to force unsupported suspension; `B8_REUSE_NATIVE_OBSERVATION=1` is explicitly recorded in its receipt. There was no open-ended performance experiment.
+
+### Focused packaged regressions
+
+| Check | Result and scope |
+| --- | --- |
+| Real two-client game, dice and normal movement | **PASS**. Real dice, nominal 180 ms individual hops, STEP/LAND signals and coherent settled/display positions equal to the accepted authoritative snapshot. Retained signals are history, not outstanding queue work. |
+| Renderer/gameplay feedback | **PASS** within this short pass. Board, mascot standees, dice/turn UI and landing/card feedback rendered; [normal game screenshot](./08L_evidence/packaged/normal-game.png). No claim of audible or full-match owner acceptance. |
+| Reconnect | **PASS**. Reload the packaged guest, use the launcher to rejoin the same room with its saved session; same room ID, player IDs and authoritative positions, idle hydrated presentation. Host process remained alive. |
+| Forfeit and Play Again | **PASS**. Guest explicitly forfeits, enters spectator mode; host wins and uses Chơi lại, returning to the same room lobby. This is a short forced finish, not full-match UAT. |
+| Defaults | **PASS**. Fresh-profile Balanced radio/HTML quality and Dog mascot, retained after Play Again. |
+| Runtime/resource errors | **PASS**. No renderer page/console errors or failed packaged app-resource requests in the completed run. |
+| B3–B7, Reduced Motion, animation speeds, authority/order | Application source unchanged from the accepted head. Existing regression suites rerun below; prior specialized warm-up/idle/graphics/deferred-loading evidence remains applicable. No new FPS/GPU claim or platform expansion. |
+
+### Validation and remaining acceptance
+
+Local package build, typecheck, lint, test (2,654 client / 561 server / 525 desktop), production build and docs validation (162 Markdown files): **PASS**. These repeat the required regressions without application changes. Head-specific final CI/Docs receipts are recorded in the draft PR. Reviewed implementation-head [CI](https://github.com/tvghung/monopoly/actions/runs/39396630922) and [Docs](https://github.com/tvghung/monopoly/actions/runs/39396630950) were **PASS** before this documentation/evidence delivery.
+
+B8 remains **PARTIAL** because native suspension recovery and final owner experience acceptance are outstanding. The packaged environment limitation does not demonstrate an implementation failure. A supported interactive Windows session must still exercise actual renderer suspension during dice/movement and verify coherent recovery within one second without obsolete effects. Full-match owner UAT, macOS, other GPUs, physical high-refresh and independent-network Online hosting were not performed. Do not merge without explicit owner approval.

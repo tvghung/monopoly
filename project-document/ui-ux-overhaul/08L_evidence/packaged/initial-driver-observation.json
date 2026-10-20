@@ -1,0 +1,559 @@
+{
+  "status": "FAIL",
+  "method": "Two real packaged LAN clients; native Electron BrowserWindow minimize/restore; read-only React state and GL submission observation; no synthetic visibility or gameplay events.",
+  "sourceHead": "30060c3a3685b3cad6a41baa0df32c67ad61d32c",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.19044",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-1245U",
+    "runtime": {
+      "versions": {
+        "node": "24.18.1",
+        "acorn": "8.16.0",
+        "ada": "3.4.4",
+        "amaro": "1.1.9",
+        "ares": "1.34.6",
+        "brotli": "1.2.0",
+        "cldr": "48.0",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "148",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.69.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.4",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.1",
+        "tz": "2025c",
+        "undici": "7.29.0",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.0.245.28-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0",
+        "electron": "43.4.0",
+        "chrome": "150.0.7871.224"
+      },
+      "packaged": true,
+      "gpu": {
+        "2d_canvas": "enabled",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "enabled",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "enabled_on",
+        "rasterization": "enabled",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "disabled_off",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled",
+        "webgpu": "enabled",
+        "webnn": "disabled_off"
+      }
+    }
+  },
+  "executable": "apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe",
+  "executableSha256": "ba0dc00f2d8b8370e956de42d3e8453a6d4b91a95111ee3b4cb38740d495215b",
+  "checks": [
+    {
+      "name": "normal sandboxed package; Balanced graphics and Dog default",
+      "status": "PASS"
+    },
+    {
+      "name": "two actual packaged clients enter a real LAN game",
+      "status": "PASS"
+    }
+  ],
+  "interruptions": [
+    {
+      "client": "host",
+      "stage": "dice",
+      "before": {
+        "version": 6,
+        "roomId": "a2b1eecc-4cda-4f3f-8add-1a2a0f56a78f",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "1ff8bb44-07ad-4e89-be7e-d15cd553e83d",
+        "authoritativePositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "displayPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 0,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "settledPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 0,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 0,
+        "displayDice": {
+          "dice1": 0,
+          "dice2": 0
+        },
+        "authoritativeDice": {
+          "dice1": 5,
+          "dice2": 3
+        },
+        "queue": "playing",
+        "resetEpoch": 2,
+        "diceRolling": true,
+        "movements": [],
+        "moneyTransfers": [],
+        "tileImpacts": [],
+        "pendingCard": null,
+        "pendingLanding": true,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "nativeMinimize": {
+        "atEpochMs": 1792487961102,
+        "minimized": true,
+        "visible": false
+      },
+      "nativeHiddenObserved": false,
+      "hiddenSample": {
+        "version": 6,
+        "roomId": "a2b1eecc-4cda-4f3f-8add-1a2a0f56a78f",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "1ff8bb44-07ad-4e89-be7e-d15cd553e83d",
+        "authoritativePositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "displayPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "settledPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 5,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 5,
+          "dice2": 3
+        },
+        "queue": "idle",
+        "resetEpoch": 2,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 9007.300000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 9007.300000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 9187.300000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 9187.300000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 9367.300000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 9367.300000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 9547.300000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 9547.300000000745
+          },
+          {
+            "sequence": 9,
+            "phase": "START",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 9727.300000000745
+          },
+          {
+            "sequence": 10,
+            "phase": "COMPLETE",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 9727.300000000745
+          },
+          {
+            "sequence": 11,
+            "phase": "START",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 9907.300000000745
+          },
+          {
+            "sequence": 12,
+            "phase": "COMPLETE",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 9907.300000000745
+          },
+          {
+            "sequence": 13,
+            "phase": "START",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 10087.300000000745
+          },
+          {
+            "sequence": 14,
+            "phase": "COMPLETE",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 10087.300000000745
+          },
+          {
+            "sequence": 15,
+            "phase": "START",
+            "from": 7,
+            "to": 8,
+            "durationMs": 180,
+            "startedAtMs": 10267.300000000745
+          },
+          {
+            "sequence": 16,
+            "phase": "COMPLETE",
+            "from": 7,
+            "to": 8,
+            "durationMs": 180,
+            "startedAtMs": 10267.300000000745
+          }
+        ],
+        "moneyTransfers": [],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 5,
+            "tileId": 5,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 6,
+            "tileId": 6,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 7,
+            "tileId": 7,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 8,
+            "tileId": 8,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": true,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "beforeRestore": {
+        "version": 7,
+        "roomId": "a2b1eecc-4cda-4f3f-8add-1a2a0f56a78f",
+        "roomStatus": "IN_PROGRESS",
+        "currentPlayerId": "3e2cc11d-55dd-49e8-b25e-16ea92f899f1",
+        "authoritativePositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "displayPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "settledPositions": {
+          "1ff8bb44-07ad-4e89-be7e-d15cd553e83d": 8,
+          "3e2cc11d-55dd-49e8-b25e-16ea92f899f1": 0
+        },
+        "authoritativeRollSequence": 1,
+        "displayRollSequence": 1,
+        "displayDice": {
+          "dice1": 5,
+          "dice2": 3
+        },
+        "authoritativeDice": {
+          "dice1": 5,
+          "dice2": 3
+        },
+        "queue": "playing",
+        "resetEpoch": 2,
+        "diceRolling": false,
+        "movements": [
+          {
+            "sequence": 1,
+            "phase": "START",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 9007.300000000745
+          },
+          {
+            "sequence": 2,
+            "phase": "COMPLETE",
+            "from": 0,
+            "to": 1,
+            "durationMs": 180,
+            "startedAtMs": 9007.300000000745
+          },
+          {
+            "sequence": 3,
+            "phase": "START",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 9187.300000000745
+          },
+          {
+            "sequence": 4,
+            "phase": "COMPLETE",
+            "from": 1,
+            "to": 2,
+            "durationMs": 180,
+            "startedAtMs": 9187.300000000745
+          },
+          {
+            "sequence": 5,
+            "phase": "START",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 9367.300000000745
+          },
+          {
+            "sequence": 6,
+            "phase": "COMPLETE",
+            "from": 2,
+            "to": 3,
+            "durationMs": 180,
+            "startedAtMs": 9367.300000000745
+          },
+          {
+            "sequence": 7,
+            "phase": "START",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 9547.300000000745
+          },
+          {
+            "sequence": 8,
+            "phase": "COMPLETE",
+            "from": 3,
+            "to": 4,
+            "durationMs": 180,
+            "startedAtMs": 9547.300000000745
+          },
+          {
+            "sequence": 9,
+            "phase": "START",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 9727.300000000745
+          },
+          {
+            "sequence": 10,
+            "phase": "COMPLETE",
+            "from": 4,
+            "to": 5,
+            "durationMs": 180,
+            "startedAtMs": 9727.300000000745
+          },
+          {
+            "sequence": 11,
+            "phase": "START",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 9907.300000000745
+          },
+          {
+            "sequence": 12,
+            "phase": "COMPLETE",
+            "from": 5,
+            "to": 6,
+            "durationMs": 180,
+            "startedAtMs": 9907.300000000745
+          },
+          {
+            "sequence": 13,
+            "phase": "START",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 10087.300000000745
+          },
+          {
+            "sequence": 14,
+            "phase": "COMPLETE",
+            "from": 6,
+            "to": 7,
+            "durationMs": 180,
+            "startedAtMs": 10087.300000000745
+          },
+          {
+            "sequence": 15,
+            "phase": "START",
+            "from": 7,
+            "to": 8,
+            "durationMs": 180,
+            "startedAtMs": 10267.300000000745
+          },
+          {
+            "sequence": 16,
+            "phase": "COMPLETE",
+            "from": 7,
+            "to": 8,
+            "durationMs": 180,
+            "startedAtMs": 10267.300000000745
+          }
+        ],
+        "moneyTransfers": [
+          {
+            "id": "5200b9c5-82be-4219-970e-2c93fa4c369f",
+            "sequence": 1
+          }
+        ],
+        "tileImpacts": [
+          {
+            "sequence": 1,
+            "tileId": 1,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 2,
+            "tileId": 2,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 3,
+            "tileId": 3,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 4,
+            "tileId": 4,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 5,
+            "tileId": 5,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 6,
+            "tileId": 6,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 7,
+            "tileId": 7,
+            "kind": "STEP"
+          },
+          {
+            "sequence": 8,
+            "tileId": 8,
+            "kind": "LAND"
+          }
+        ],
+        "pendingCard": null,
+        "pendingLanding": false,
+        "reducedMotion": false,
+        "animationSpeed": 1,
+        "visibility": "visible",
+        "hidden": false
+      },
+      "nativeRestore": {
+        "atEpochMs": 1792487970160,
+        "minimized": false
+      }
+    }
+  ],
+  "errors": [],
+  "failedResources": [],
+  "failure": "page.waitForFunction: Timeout 1000ms exceeded.\n    at settle (C:\\Users\\hungtran\\Documents\\ChatGPT\\Own the block (monopoly)\\phase-b8\\scripts\\perf\\packagedB8Acceptance.mjs:35:13)\n    at interrupt (C:\\Users\\hungtran\\Documents\\ChatGPT\\Own the block (monopoly)\\phase-b8\\scripts\\perf\\packagedB8Acceptance.mjs:89:22)\n    at async file:///C:/Users/hungtran/Documents/ChatGPT/Own%20the%20block%20(monopoly)/phase-b8/scripts/perf/packagedB8Acceptance.mjs:140:2"
+}
