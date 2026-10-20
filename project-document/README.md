@@ -35,7 +35,7 @@ log is recorded as `OWNER-REPORTED`, never as an automated or independent `PASS`
 | Differences from v1.9.0 | Online public probes use Electron's network stack, bounded DNS/readiness retries, resolver-cache refresh and safe failure diagnostics; gameplay, protocol 14 and snapshot schema 11 are unchanged | [HTTP and hosting](./monopoly-websockets/Api/http-runtime.instruction.md#online), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
 | Release risks | The affected Windows PC failed on rc.1 (`PUBLIC_READINESS` / `DNS`, 39 attempts in 39.6 s). The owner reports repeated rc.2 Online room creation on that PC with Defender enabled, taking about 40–90 s; root cause and timing breakdown are unknown. Cross-network, full-game, upgrade and macOS device checks remain **NOT RUN** | [Hosting checklist](./monopoly-websockets/testcase/http-runtime-and-deployment.md) |
 
-## Performance program status (2026-10-19)
+## Performance program status (2026-10-20)
 
 These phases are **CURRENT DEVELOPMENT** on `main`, not part of the latest published v1.9.1 release. The historical [Phase A roadmap](./ui-ux-overhaul/08A_PERFORMANCE_AUDIT.md) remains an investigation reference; the decisions below govern the current work.
 
@@ -46,7 +46,7 @@ These phases are **CURRENT DEVELOPMENT** on `main`, not part of the latest publi
 | B5 GPU graphics | **PARTIAL — CLOSED, MERGED** | [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md); [PR #22](https://github.com/tvghung/monopoly/pull/22) merge `f7e25d7ae717efb5fddba0494a34edc634bc0e28`; **Owner Visual Acceptance — PASS** (owner-reported 2026-10-19); remaining limits stay open |
 | B5 follow-up defaults | **PASS — CLOSED** | Fixed Balanced graphics default and Dog/valid-fallback mascot for new human seats; explicitly chosen Auto remains available; [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md) |
 | B6 Adaptive Graphics | **SKIPPED — owner decision** | No adaptive controller is authorized in this phase |
-| B7 Loading Optimization | **PASS — CLOSED / MERGE APPROVED** | [B7 record](./ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md): packaged Windows launcher, room/game transition, return/reentry and deferred assets pass; cold board and first tier-switch costs remain; owner merge approval recorded 2026-10-20; merge and integrated checks pending |
+| B7 Loading Optimization | **PASS — CLOSED, MERGED** | [B7 record](./ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md): packaged Windows launcher, room/game transition, return/reentry and deferred assets pass; cold board and first tier-switch costs remain; owner closeout approved 2026-10-20; PR #23 merge `c7d8c0a61e60d53c2bb4f5e3e0b8a628105dcfe3`; integrated [CI](https://github.com/tvghung/monopoly/actions/runs/39392475577) and [Docs](https://github.com/tvghung/monopoly/actions/runs/39392475574) are the B8 start gate |
 | B8 animation timing | **APPROVED TO IMPLEMENT** | Start from verified post-B7 main after integration checks pass |
 
 The current protocol and snapshot numbers are defined only in code: `SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`
