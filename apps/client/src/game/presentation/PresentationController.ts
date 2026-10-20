@@ -30,6 +30,7 @@ export class PresentationController {
   private consumerCount = 0;
   private disposalGeneration = 0;
   private disposed = false;
+  private hidden = false;
   private readonly privateSemanticSequences = new Map<string, number>();
   private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
@@ -54,6 +55,7 @@ export class PresentationController {
       executors,
       reducedMotion,
       speedMultiplier,
+      onStall: () => this.skipAllAndSnap(),
       onReset: snapshot => {
         audio.stopPresentationVoices?.();
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
@@ -83,11 +85,12 @@ export class PresentationController {
   public acceptRoomSnapshot(room: PublicRoomState, source: SnapshotSource): boolean {
     if (this.acceptedRoom
       && this.acceptedRoom.roomId === room.roomId
-      && room.version <= this.acceptedRoom.version) return false;
+      && (room.version < this.acceptedRoom.version
+        || (room.version === this.acceptedRoom.version && source === 'LIVE_UPDATE'))) return false;
 
     const previous = this.acceptedRoom;
     this.acceptedRoom = room;
-    if (!previous || source !== 'LIVE_UPDATE') {
+    if (!previous || source !== 'LIVE_UPDATE' || this.hidden) {
       this.queue.reset(room);
       return true;
     }
@@ -161,7 +164,7 @@ export class PresentationController {
     const previousSequence = this.privateSemanticSequences.get(privateState.playerId);
     const stream = privateState.gameplayEvents;
     this.privateSemanticSequences.set(privateState.playerId, stream.sequence);
-    if (source !== 'LIVE_UPDATE' || previousSequence === undefined) return;
+    if (source !== 'LIVE_UPDATE' || previousSequence === undefined || this.hidden) return;
     const events = stream.events
       .filter(event => event.sequence > previousSequence)
       .sort((left, right) => left.sequence - right.sequence);
@@ -190,6 +193,17 @@ export class PresentationController {
         : []
     ));
     void Promise.all(this.queue.enqueueMany(presentationEvents));
+  }
+
+  /** Hidden clients hydrate snapshots without replaying obsolete effects on restore. */
+  public setVisibility(hidden: boolean): void {
+    if (this.disposed || this.hidden === hidden) return;
+    this.hidden = hidden;
+    this.skipAllAndSnap();
+  }
+
+  public recoverFromInterruption(): void {
+    if (!this.disposed) this.skipAllAndSnap();
   }
 
   public setPreferences(reducedMotion: boolean, speedMultiplier: number): void {

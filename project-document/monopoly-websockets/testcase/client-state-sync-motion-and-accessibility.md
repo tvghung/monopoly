@@ -469,3 +469,14 @@ Evidence: [08K B7 record](../../ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md); 
 - [x] `[PROBE]` Four settled Low/Balanced/High/property images are pixel identical; warm-up 7/7 and lifecycle/resource/context-loss checks pass. Three-run late board heap is 17.688 → 17.688 MB with the same 103/52/26 geometry/texture/program count.
 - [ ] `[MANUAL][OWNER]` Review launcher, form, join, lobby and first board in a packaged desktop build, including a first visit to each graphics tier; compare perceived responsiveness and the approved B5 appearance.
 - [ ] `[NOT RUN]` B7 packaged Electron startup on other GPUs, battery mode, long full-match memory soak and the original Phase A reference laptop.
+## Performance program B8 checks (CURRENT DEVELOPMENT)
+
+Evidence: [08L B8 record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md).
+
+- [x] `[AUTO][CLIENT]` `movementCadence.test.ts` and `movementExecutor.test.ts`: single/multi-hop, all five FPS settings, irregular/below-cap samples, four animation speeds, exact destination, GO hold, STEP/LAND ordering and Reduced Motion.
+- [x] `[AUTO][CLIENT]` `interruptionRecovery.test.tsx` and `interruptionMeasurements.test.tsx`: hidden updates, freeze/resume, page lifecycle, long blur/focus, suspended timers, equal-version reconnect/spectator sync, fresh events after recovery and Play Again. Existing controller/executor regressions cover card, money, ownership and queue-error ordering.
+- [x] `[PROBE]` Browser traces at all five caps: final tile 6, zero nominal hop gaps and callback boundaries below 2 ms on the available approximately 60 Hz Iris Xe display.
+- [x] `[BROWSER]` Two real clients: roll, active guest reload/resume, visibility recovery through an actual scene submission, camera, forfeit and Play Again. Exact scope and hardware limits are in 08L.
+- [x] `[PROBE]` Warm-up and renderer lifecycle/context-loss checks; stable idle fixture submits zero scene frames.
+- [ ] `[MANUAL][OWNER]` Compare character/dice/camera/feedback in a complete packaged match, including reduced motion and preferred animation speeds; confirm B5 appearance.
+- [ ] `[NOT RUN]` B8 packaged Electron minimize/restore, other GPUs, physical high-refresh displays, macOS and independent-network Online hosting.

@@ -39,7 +39,7 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 | `SPECTATOR_SYNC` | spectator admission ACK | same reset/snap |
 | `REPLAY_SYNC` | the same room goes `FINISHED` → `LOBBY` (`play again`) | same reset/snap; private state and private offers are cleared first |
 
-A snapshot whose `version` is not newer than the accepted one (same room) is ignored. Even a `LIVE_UPDATE` resets
+An older snapshot is ignored. Equal-version `LIVE_UPDATE` is ignored; equal-version session/spectator/replay sync still resets active presentation. Even a `LIVE_UPDATE` resets
 instead of animating when: a player disappeared while the queue was busy, a player appeared (2v2 revive), the
 `rollSequence` jumped by more than one, or the public semantic tail has a gap (`semanticEventsSince` returns `null`).
 The private lane (`acceptPrivatePlayerState`) only animates `MONEY_TRANSFER` events for `LIVE_UPDATE`; a sequence gap there
@@ -134,6 +134,18 @@ Manual: [../testcase/client-state-sync-motion-and-accessibility.md](../testcase/
 
 Movement `START` signals carry the monotonic start timestamp and roll sequence. `CharacterBillboard` consumes them in a layout effect and starts from its last rendered world position; hop progress uses elapsed monotonic time rather than the first R3F delta. This keeps an idle period out of the first sample while retaining queue-resolved durations and authoritative tile order.
 
-For a local development trace, add `?motion-trace=1` to the game URL and inspect `window.__OWN_THE_BLOCK_MOVEMENT_TRACE__`. Entries include store/billboard START, COMPLETE and SNAP, roll and movement sequences, reset epoch, display/settled tile, target anchor, rendered XYZ, elapsed/duration, raw frame delta, scheduler time/frame sequence, scene lifecycle and queue/presentation resets. First and later hops can be separated by roll sequence and movement sequence. The trace is opt-in and capped at 512 records.
+For a local development trace, add `?motion-trace=1` to the game URL and inspect `window.__OWN_THE_BLOCK_MOVEMENT_TRACE__`. Entries include store/billboard START, COMPLETE and SNAP, roll and movement sequences, reset epoch, display/settled tile, target anchor, rendered XYZ, elapsed/duration, raw frame delta, scheduler time/frame sequence, scene lifecycle and queue/presentation resets. First and later hops can be separated by roll sequence and movement sequence. The trace is opt-in in development or explicit UAT builds and capped at 512 records. Ordinary production builds disable it. START records expose nominal timestamps; resets expose only public settled positions.
 
 Source inspection found that the store advances the display tile and publishes START together, while the billboard formerly handled START in a passive effect. A demand-rendered frame could therefore observe the new tile anchor before the hop was initialized; the next frame then returned to the origin. The first frame after `frameloop="never"` could also carry idle time in its delta. Layout-phase signal consumption, the rendered-position origin and the signal timestamp remove those two ordering/timing hazards. Confirm the full visual result with the owner checklist before acceptance.
+
+## B8 interruption and cadence policy (CURRENT DEVELOPMENT)
+
+Walk hops carry nominal monotonic boundaries; late timer delivery consumes remaining time instead of adding drift to every hop. The deliberate GO checkpoint hold rebases the next hop, preserving its overlapping coin effect and subsequent LAND ordering.
+
+The provider snaps to the latest accepted authoritative snapshot on hidden/visible, page hide/show and freeze/resume. Hidden public updates hydrate directly; private sequence cursors advance without emitting obsolete effects. A visible blur lasting at least one second snaps on focus return; brief blur leaves ordinary movement intact.
+
+An existing queue wait delivered at least one second late invokes the same reset. There is no recurring watchdog or idle polling. Reset aborts stale continuations and resolves pending promises. Equal-version reconnect sync also resets active presentation; older snapshots remain rejected.
+
+Recovery may omit interrupted cosmetic feedback. Positions, balances, buildings, pending card and activity tail hydrate from the snapshot. No authoritative command is dropped or replayed. The existing three-second card-reading policy remains. Server authority, socket protocol and persistence do not change.
+
+Evidence: [B8 record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md). Tests: `apps/client/src/game/presentation/movementCadence.test.ts`, `apps/client/src/game/presentation/interruptionRecovery.test.tsx`, `apps/client/src/game/presentation/interruptionMeasurements.test.tsx`.

@@ -1,0 +1,1245 @@
+[
+  {
+    "stage": "QUEUE_RESET",
+    "playerId": "*",
+    "queueGeneration": 2,
+    "atMs": 6460.5999999996275
+  },
+  {
+    "stage": "PRESENTATION_RESET",
+    "playerId": "*",
+    "resetEpoch": 2,
+    "rollSequence": 0,
+    "atMs": 6460.5999999996275
+  },
+  {
+    "stage": "STORE_START",
+    "playerId": "player-a",
+    "sequence": 1,
+    "transition": "TILE_HOP",
+    "fromTileId": 1,
+    "toTileId": 2,
+    "durationMs": 180,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 7662.0999999996275
+  },
+  {
+    "stage": "BILLBOARD_START",
+    "playerId": "player-a",
+    "sequence": 1,
+    "transition": "TILE_HOP",
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "position": [
+      6.4,
+      0.813,
+      8.43
+    ],
+    "atMs": 7665.0999999996275
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 72,
+    "schedulerTimestampMs": 7665.1,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 3.799999998882413,
+    "frameDeltaMs": 33.40000000000121,
+    "durationMs": 180,
+    "position": [
+      6.366222222232157,
+      0.8275802580837182,
+      8.43
+    ],
+    "atMs": 7665.89999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 73,
+    "schedulerTimestampMs": 7698.4,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 37.399999998509884,
+    "frameDeltaMs": 33.299999999998775,
+    "durationMs": 180,
+    "position": [
+      6.067555555568801,
+      0.9466226847345777,
+      8.43
+    ],
+    "atMs": 7699.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 74,
+    "schedulerTimestampMs": 7731.7,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 71.29999999888241,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      5.766222222232156,
+      1.0213862611027504,
+      8.43
+    ],
+    "atMs": 7733.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 75,
+    "schedulerTimestampMs": 7765.1,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 104,
+    "frameDeltaMs": 33.40000000000032,
+    "durationMs": 180,
+    "position": [
+      5.475555555555555,
+      1.0264650597807192,
+      8.43
+    ],
+    "atMs": 7766
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 76,
+    "schedulerTimestampMs": 7798.4,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 137.09999999962747,
+    "frameDeltaMs": 33.29999999999966,
+    "durationMs": 180,
+    "position": [
+      5.181333333336644,
+      0.9627585911720098,
+      8.43
+    ],
+    "atMs": 7799.0999999996275
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 1,
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 2,
+    "displayTileId": 2,
+    "settledTileId": 1,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 77,
+    "schedulerTimestampMs": 7831.7,
+    "targetAnchor": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 1,
+    "pendingSignal": false,
+    "elapsedMs": 170.89999999850988,
+    "frameDeltaMs": 33.29999999999966,
+    "durationMs": 180,
+    "position": [
+      4.880888888902135,
+      0.847794774801636,
+      8.43
+    ],
+    "atMs": 7833.0999999996275
+  },
+  {
+    "stage": "STORE_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 2,
+    "transition": "TILE_HOP",
+    "fromTileId": 1,
+    "toTileId": 2,
+    "durationMs": 180,
+    "displayTileId": 2,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 7849.699999999255
+  },
+  {
+    "stage": "STORE_START",
+    "playerId": "player-a",
+    "sequence": 3,
+    "transition": "TILE_HOP",
+    "fromTileId": 2,
+    "toTileId": 3,
+    "durationMs": 180,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 7849.799999998882
+  },
+  {
+    "stage": "BILLBOARD_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 2,
+    "transition": "TILE_HOP",
+    "fromTileId": 1,
+    "toTileId": 2,
+    "playerTileId": 3,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "position": [
+      4.880888888902135,
+      0.8159300950176854,
+      8.43
+    ],
+    "atMs": 7852.799999998882
+  },
+  {
+    "stage": "BILLBOARD_START",
+    "playerId": "player-a",
+    "sequence": 3,
+    "transition": "TILE_HOP",
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "position": [
+      4.8,
+      0.813,
+      8.43
+    ],
+    "atMs": 7852.799999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 3,
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 78,
+    "schedulerTimestampMs": 7865.1,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 3,
+    "pendingSignal": false,
+    "elapsedMs": 16.59999999962747,
+    "frameDeltaMs": 33.40000000000032,
+    "durationMs": 180,
+    "position": [
+      4.652444444447756,
+      0.8758514408277234,
+      8.43
+    ],
+    "atMs": 7866.5999999996275
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 3,
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 79,
+    "schedulerTimestampMs": 7898.4,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 3,
+    "pendingSignal": false,
+    "elapsedMs": 50,
+    "frameDeltaMs": 33.29999999999966,
+    "durationMs": 180,
+    "position": [
+      4.355555555555555,
+      0.9815297774861751,
+      8.43
+    ],
+    "atMs": 7899.89999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 3,
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 80,
+    "schedulerTimestampMs": 7931.7,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 3,
+    "pendingSignal": false,
+    "elapsedMs": 83,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      4.062222222222222,
+      1.0313601533610908,
+      8.43
+    ],
+    "atMs": 7932.89999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 3,
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 81,
+    "schedulerTimestampMs": 7965,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 3,
+    "pendingSignal": false,
+    "elapsedMs": 116.5,
+    "frameDeltaMs": 33.29999999999966,
+    "durationMs": 180,
+    "position": [
+      3.764444444444444,
+      1.0098855595524454,
+      8.43
+    ],
+    "atMs": 7966.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 3,
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 3,
+    "displayTileId": 3,
+    "settledTileId": 2,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 82,
+    "schedulerTimestampMs": 7998.3,
+    "targetAnchor": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 3,
+    "pendingSignal": false,
+    "elapsedMs": 149.80000000074506,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      3.4684444444378215,
+      0.9236643882561791,
+      8.43
+    ],
+    "atMs": 7999.89999999851
+  },
+  {
+    "stage": "STORE_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 4,
+    "transition": "TILE_HOP",
+    "fromTileId": 2,
+    "toTileId": 3,
+    "durationMs": 180,
+    "displayTileId": 3,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8031.0999999996275
+  },
+  {
+    "stage": "STORE_START",
+    "playerId": "player-a",
+    "sequence": 5,
+    "transition": "TILE_HOP",
+    "fromTileId": 3,
+    "toTileId": 4,
+    "durationMs": 180,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8031.199999999255
+  },
+  {
+    "stage": "BILLBOARD_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 4,
+    "transition": "TILE_HOP",
+    "fromTileId": 2,
+    "toTileId": 3,
+    "playerTileId": 4,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "position": [
+      3.4684444444378215,
+      0.9236643882561791,
+      8.43
+    ],
+    "atMs": 8034.299999998882
+  },
+  {
+    "stage": "BILLBOARD_START",
+    "playerId": "player-a",
+    "sequence": 5,
+    "transition": "TILE_HOP",
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "position": [
+      3.2,
+      0.813,
+      8.43
+    ],
+    "atMs": 8034.299999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 83,
+    "schedulerTimestampMs": 8031.699999999999,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 3.400000000372529,
+    "frameDeltaMs": 33.39999999999854,
+    "durationMs": 180,
+    "position": [
+      3.1697777777744665,
+      0.8260474021881394,
+      8.43
+    ],
+    "atMs": 8034.5
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 84,
+    "schedulerTimestampMs": 8065.100000000001,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 34.40000000037253,
+    "frameDeltaMs": 33.400000000002095,
+    "durationMs": 180,
+    "position": [
+      2.894222222218911,
+      0.9372927407546665,
+      8.43
+    ],
+    "atMs": 8065.5
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 85,
+    "schedulerTimestampMs": 8098.4,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 67.69999999925494,
+    "frameDeltaMs": 33.299999999998775,
+    "durationMs": 180,
+    "position": [
+      2.598222222228845,
+      1.0165461380437866,
+      8.43
+    ],
+    "atMs": 8098.89999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 86,
+    "schedulerTimestampMs": 8131.8,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 101.09999999962747,
+    "frameDeltaMs": 33.40000000000032,
+    "durationMs": 180,
+    "position": [
+      2.3013333333366446,
+      1.0288843860785692,
+      8.43
+    ],
+    "atMs": 8132.199999999255
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 87,
+    "schedulerTimestampMs": 8165.1,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 134.40000000037253,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      2.0053333333300216,
+      0.9701839895182159,
+      8.43
+    ],
+    "atMs": 8165.5999999996275
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 5,
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 4,
+    "displayTileId": 4,
+    "settledTileId": 3,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 88,
+    "schedulerTimestampMs": 8198.3,
+    "targetAnchor": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 5,
+    "pendingSignal": false,
+    "elapsedMs": 167.59999999962747,
+    "frameDeltaMs": 33.19999999999901,
+    "durationMs": 180,
+    "position": [
+      1.7102222222255332,
+      0.8602417719781509,
+      8.43
+    ],
+    "atMs": 8198.699999999255
+  },
+  {
+    "stage": "STORE_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 6,
+    "transition": "TILE_HOP",
+    "fromTileId": 3,
+    "toTileId": 4,
+    "durationMs": 180,
+    "displayTileId": 4,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8215.39999999851
+  },
+  {
+    "stage": "STORE_START",
+    "playerId": "player-a",
+    "sequence": 7,
+    "transition": "TILE_HOP",
+    "fromTileId": 4,
+    "toTileId": 5,
+    "durationMs": 180,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8215.599999999627
+  },
+  {
+    "stage": "BILLBOARD_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 6,
+    "transition": "TILE_HOP",
+    "fromTileId": 3,
+    "toTileId": 4,
+    "playerTileId": 5,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "position": [
+      1.7102222222255332,
+      0.8285934324725245,
+      8.43
+    ],
+    "atMs": 8217.299999998882
+  },
+  {
+    "stage": "BILLBOARD_START",
+    "playerId": "player-a",
+    "sequence": 7,
+    "transition": "TILE_HOP",
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "position": [
+      1.5999999999999996,
+      0.813,
+      8.43
+    ],
+    "atMs": 8217.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 89,
+    "schedulerTimestampMs": 8231.6,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 16.5,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      1.453333333333333,
+      0.8754833758348629,
+      8.43
+    ],
+    "atMs": 8232.099999999627
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 90,
+    "schedulerTimestampMs": 8264.9,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 49.79999999888241,
+    "frameDeltaMs": 33.299999999998775,
+    "durationMs": 180,
+    "position": [
+      1.1573333333432672,
+      0.9810351262968514,
+      8.43
+    ],
+    "atMs": 8265.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 91,
+    "schedulerTimestampMs": 8298.4,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 83.19999999925494,
+    "frameDeltaMs": 33.500000000000085,
+    "durationMs": 180,
+    "position": [
+      0.860444444451067,
+      1.0314524117830994,
+      8.43
+    ],
+    "atMs": 8298.89999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 92,
+    "schedulerTimestampMs": 8331.8,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 116.69999999925494,
+    "frameDeltaMs": 33.40000000000032,
+    "durationMs": 180,
+    "position": [
+      0.5626666666732894,
+      1.0095417054334097,
+      8.43
+    ],
+    "atMs": 8332.299999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 93,
+    "schedulerTimestampMs": 8365.1,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 149.90000000037253,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      0.2675555555522441,
+      0.9233323621738431,
+      8.43
+    ],
+    "atMs": 8365.699999999255
+  },
+  {
+    "stage": "STORE_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 8,
+    "transition": "TILE_HOP",
+    "fromTileId": 4,
+    "toTileId": 5,
+    "durationMs": 180,
+    "displayTileId": 5,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8398.199999999255
+  },
+  {
+    "stage": "STORE_START",
+    "playerId": "player-a",
+    "sequence": 9,
+    "transition": "TILE_HOP",
+    "fromTileId": 5,
+    "toTileId": 6,
+    "durationMs": 180,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8398.299999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 7,
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 5,
+    "displayTileId": 5,
+    "settledTileId": 4,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 94,
+    "schedulerTimestampMs": 8398.2,
+    "targetAnchor": [
+      0,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 7,
+    "pendingSignal": false,
+    "elapsedMs": 183.90000000037253,
+    "frameDeltaMs": 33.10000000000102,
+    "durationMs": 180,
+    "position": [
+      0,
+      0.813,
+      8.43
+    ],
+    "atMs": 8399.5
+  },
+  {
+    "stage": "BILLBOARD_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 8,
+    "transition": "TILE_HOP",
+    "fromTileId": 4,
+    "toTileId": 5,
+    "playerTileId": 6,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "position": [
+      0,
+      0.7788224852071005,
+      8.43
+    ],
+    "atMs": 8402.299999998882
+  },
+  {
+    "stage": "BILLBOARD_START",
+    "playerId": "player-a",
+    "sequence": 9,
+    "transition": "TILE_HOP",
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "position": [
+      0,
+      0.813,
+      8.43
+    ],
+    "atMs": 8402.299999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 9,
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 95,
+    "schedulerTimestampMs": 8431.6,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 9,
+    "pendingSignal": false,
+    "elapsedMs": 34.09999999962747,
+    "frameDeltaMs": 33.39999999999854,
+    "durationMs": 180,
+    "position": [
+      -0.30311111110779987,
+      0.9363405788027287,
+      8.43
+    ],
+    "atMs": 8432.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 9,
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 96,
+    "schedulerTimestampMs": 8464.9,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 9,
+    "pendingSignal": false,
+    "elapsedMs": 67.09999999962747,
+    "frameDeltaMs": 33.30000000000055,
+    "durationMs": 180,
+    "position": [
+      -0.5964444444411333,
+      1.015660789223902,
+      8.43
+    ],
+    "atMs": 8465.39999999851
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 9,
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 97,
+    "schedulerTimestampMs": 8498.3,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 9,
+    "pendingSignal": false,
+    "elapsedMs": 100.40000000037253,
+    "frameDeltaMs": 33.39999999999854,
+    "durationMs": 180,
+    "position": [
+      -0.8924444444477561,
+      1.0293857235786867,
+      8.43
+    ],
+    "atMs": 8498.799999998882
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 9,
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 98,
+    "schedulerTimestampMs": 8531.6,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 9,
+    "pendingSignal": false,
+    "elapsedMs": 133.7000000011176,
+    "frameDeltaMs": 33.30000000000233,
+    "durationMs": 180,
+    "position": [
+      -1.188444444454379,
+      0.9720527720971402,
+      8.43
+    ],
+    "atMs": 8532
+  },
+  {
+    "stage": "FRAME",
+    "playerId": "player-a",
+    "sequence": 9,
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "displayTileId": 6,
+    "settledTileId": 5,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "frameSequence": 99,
+    "schedulerTimestampMs": 8565,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "activeSequence": 9,
+    "pendingSignal": false,
+    "elapsedMs": 167.09999999962747,
+    "frameDeltaMs": 33.39999999999854,
+    "durationMs": 180,
+    "position": [
+      -1.4853333333300225,
+      0.8621150255238035,
+      8.43
+    ],
+    "atMs": 8565.39999999851
+  },
+  {
+    "stage": "STORE_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 10,
+    "transition": "TILE_HOP",
+    "fromTileId": 5,
+    "toTileId": 6,
+    "durationMs": 180,
+    "displayTileId": 6,
+    "settledTileId": 6,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "atMs": 8581.89999999851
+  },
+  {
+    "stage": "BILLBOARD_COMPLETE",
+    "playerId": "player-a",
+    "sequence": 10,
+    "transition": "TILE_HOP",
+    "fromTileId": 5,
+    "toTileId": 6,
+    "playerTileId": 6,
+    "durationMs": 180,
+    "rollSequence": 1,
+    "resetEpoch": 2,
+    "displayTileId": 6,
+    "settledTileId": 6,
+    "targetAnchor": [
+      -1.6000000000000005,
+      0.813,
+      8.43
+    ],
+    "position": [
+      -1.4853333333300225,
+      0.8621150255238035,
+      8.43
+    ],
+    "atMs": 8586.799999998882
+  }
+]

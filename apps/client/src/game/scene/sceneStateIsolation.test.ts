@@ -1,8 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const sceneRoot = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+const sceneRoot = path.dirname(fileURLToPath(import.meta.url));
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap(entry => {

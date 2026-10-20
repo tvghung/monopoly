@@ -602,3 +602,7 @@ The 3D scene is not owned by `Board`: it is built by a **scene layer** above the
 The final refinement reproduced a frame-order defect: registered TilePressRoot content received the new offset after instanced body and white-pebble footer had already sampled the previous offset. The light footer temporarily occluded attached text/art. Controller priority -1 makes every attached layer use the same displayed-frame offset without changing geometry, materials, press depths, timing, batching or socket height.
 
 `TileMotionProvider.test.ts` checks real controller/root/body/surface offsets at start/peak/rebound/rest across all 40 tiles; controller tests cover overlapping impacts and neutral recovery. Dev/UAT-only `?tile-impact-probe=1` supplies a frozen clock and after-render matrix/image sampling via `TileImpactProbe.tsx`. `e2e/visual/refinement.visual.ts` captures the physical lifecycle on all sides/corners and checks modal/peek/Journal motion. This probe is disabled in normal production.
+
+## B8 cadence and recovery (CURRENT DEVELOPMENT)
+
+Character hops carry nominal boundaries through late timers. Interruption recovery snaps through the [presentation policy](./presentation-pipeline.instruction.md#b8-interruption-and-cadence-policy-current-development), without idle polling. Existing elapsed-time samplers, visual paths, graphics defaults and FPS controls remain intact. Evidence and owner acceptance limits: [B8 record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md).

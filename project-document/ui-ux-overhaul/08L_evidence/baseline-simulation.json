@@ -1,0 +1,16 @@
+{
+  "kind": "deterministic simulation, not device measurement",
+  "timerLatenessMs": 12,
+  "starts": [
+    220,
+    412,
+    604,
+    796,
+    988
+  ],
+  "durationMs": 960,
+  "idealDurationMs": 900,
+  "finalTile": 5,
+  "visibilityRecoveryAPI": "undefined",
+  "queuedStatus": "playing"
+}

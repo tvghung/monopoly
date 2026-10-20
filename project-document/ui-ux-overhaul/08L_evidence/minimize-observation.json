@@ -1,0 +1,17 @@
+{
+  "status": "BLOCKED",
+  "kind": "actual headed Chrome CDP window minimize attempt",
+  "browser": "Chrome 154",
+  "bounds": {
+    "left": 10,
+    "top": 10,
+    "width": 1298,
+    "height": 738,
+    "windowState": "minimized"
+  },
+  "document": {
+    "hidden": false,
+    "visibilityState": "visible"
+  },
+  "observation": "Native document did not become hidden within the 5000ms probe timeout; this run cannot establish suspended-window recovery. The attempted E2E run failed at that probe. Passing core E2E excludes optional B8_MINIMIZE=1; not a product-failure conclusion."
+}

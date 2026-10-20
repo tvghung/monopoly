@@ -25,6 +25,8 @@ export interface CharacterMovementTraceEntry {
   elapsedMs?: number;
   frameDeltaMs?: number;
   durationMs?: number;
+  startedAtMs?: number;
+  settledPositions?: Readonly<Record<string, number>>;
   position?: readonly [number, number, number];
   targetAnchor?: readonly [number, number, number];
   displayTileId?: number;
@@ -46,7 +48,7 @@ export function recordCharacterMovementTrace(
   entry: Omit<CharacterMovementTraceEntry, 'atMs'>,
 ): void {
   if (
-    !import.meta.env.DEV
+    (!import.meta.env.DEV && !__PHASE4_UAT__)
     || typeof window === 'undefined'
     || new URLSearchParams(window.location.search).get('motion-trace') !== '1'
   ) return;

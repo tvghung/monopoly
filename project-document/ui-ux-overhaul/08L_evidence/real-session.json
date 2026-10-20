@@ -1,0 +1,53 @@
+{
+  "roomCode": "OTB-GFP3X7",
+  "quality": "balanced",
+  "guestFallback": false,
+  "steps": [
+    "two-browser authoritative lobby and WebGL board",
+    "FPS preference changed 60 → 30 → 120 during game",
+    "guest reload/resume during active dice/movement hydrates the authoritative snapshot",
+    "active roll/movement visibility reset to latest authoritative snapshot within one second",
+    "dice roll produced actual WebGL scene frames",
+    "character landed on a non-start tile in the authoritative board view",
+    "wheel zoom and pointer drag while in game",
+    "real browser-tab focus switch and recovery",
+    "synthetic visibility interruption and recovery",
+    "host page reload and session resume",
+    "landing property decision resolved through the actual UI",
+    "guest forfeited and host reached winner state",
+    "Play Again returned same room to lobby"
+  ],
+  "interruptionRecovery": {
+    "elapsedMs": 5.599999997764826,
+    "stateRecoveryMs": 0.6999999992549419,
+    "reset": {
+      "stage": "PRESENTATION_RESET",
+      "playerId": "*",
+      "resetEpoch": 4,
+      "settledPositions": {
+        "e68f1823-9717-4502-bbb3-e261cf08f4bd": 0,
+        "96b66472-bb22-4163-8d35-2123f52b7cd6": 12
+      },
+      "rollSequence": 1,
+      "atMs": 8233.800000000745
+    }
+  },
+  "roll": {
+    "renderedFrames": 76,
+    "contiguousIntervals": 72,
+    "achievedSceneFps": 32.24618890354896,
+    "intervalP50Ms": 16.800000000000182,
+    "intervalP95Ms": 50,
+    "longestCpuMs": 20.899999998509884,
+    "medianGpuMs": 6.516663,
+    "gpuSamples": 76,
+    "programLinks": 0,
+    "longestMainThreadTaskMs": 0,
+    "landedTileLabel": "Ô 12: Công Ty Điện. Giá 150.000 ₫. Người chơi đang đứng: B4 Guest. Mở chi tiết ô cờ"
+  },
+  "renderer": {
+    "devicePixelRatio": 1.2499999701976776,
+    "glRenderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "pageErrors": []
+}

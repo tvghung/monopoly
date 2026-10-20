@@ -214,3 +214,16 @@ node --test scripts/perf/signatures.check.mjs
 Stalls and throttled pages are only counted for gaps that follow a frame which scheduled a continuation; the demand-rendered scene is idle between animation steps. The run count is fixed before a series and is a cap, not a target.
 
 Frame figures separate **active** frames from **idle gaps**: the longest active frame is the larger of the longest scheduler callback and the longest rAF gap after a frame that scheduled a continuation; a gap after a frame that did not is an idle gap and is never a frame time. Any `performance.mark("otb:…")` is kept by the probe; `b3Baseline` reads `otb:warmup:start|done` (a future warm-up) and the harness's `otb:uat:turn-start:*` as independent boundaries, and reports time-to-playable (navigation to the first board frame at or after warm-up completion). See 08E §11.
+
+## B8 motion cadence
+
+`b8Timing.mjs` captures opt-in movement traces from two production-React UAT bundles in headed Chrome. Set `VITE_PHASE4_UAT=1` when building both with `--minify false`. For the historical baseline only, enable its UAT trace guard as a diagnostic-only change; retain original movement logic. Ordinary B8 production builds still disable tracing.
+
+```sh
+pnpm exec node scripts/perf/b8Timing.mjs --before <before-dist> --after <after-dist> --out <evidence-dir>
+pnpm exec node scripts/perf/b8Timing.mjs --before <before-dist> --after <after-dist> --caps 60 --out <frame-dir>
+```
+
+The probe separates nominal cadence from actual COMPLETE-to-START callback gaps, records final tile, GPU/browser facts and page errors at all five caps, and captures a fresh 60-cap hop sequence for both builds. Screenshots perturb sampling; use the earlier replay for timing. This is real browser evidence on the available display, not physical high-refresh or pixel-exact motion parity.
+
+For the real two-client flow set `B8_REAL_SESSION=1`, `B8_CLIENT_DIST` to an explicit UAT bundle and optionally `B4_EVIDENCE_OUT` to a JSON file; run `pnpm exec playwright test -c playwright.b8.config.ts`. Commands go through the actual UI and authoritative server.
