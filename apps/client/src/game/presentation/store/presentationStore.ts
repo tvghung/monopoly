@@ -108,7 +108,7 @@ export class PresentationStore implements PresentationStoreLike {
     this.activeCharacterMovements.clear();
     const resetEpoch = this.state.presentationResetEpoch + 1;
     recordCharacterMovementTrace({
-      stage: 'PRESENTATION_RESET', playerId: '*', resetEpoch,
+      stage: 'PRESENTATION_RESET', playerId: '*', resetEpoch, settledPositions: positions,
       rollSequence: room.gameState.boardState.rollSequence,
     });
     this.state = {
@@ -305,6 +305,7 @@ export class PresentationStore implements PresentationStoreLike {
     fromTileId: number,
     toTileId: number,
     durationMs: number,
+    startedAtMs = performance.now(),
   ): void {
     const currentPositions = this.state.displayPositions;
     const nextPositions = { ...currentPositions, [playerId]: toTileId };
@@ -322,13 +323,13 @@ export class PresentationStore implements PresentationStoreLike {
       fromOccupantCount: fromSlot.occupantCount,
       toSlotIndex: toSlot.slotIndex,
       toOccupantCount: toSlot.occupantCount,
-      startedAtMs: performance.now(),
+      startedAtMs,
       rollSequence: this.state.diceRoll?.rollSequence ?? this.state.displayRollSequence,
       durationMs: Math.max(0, durationMs),
     };
     recordCharacterMovementTrace({
       stage: 'STORE_START', playerId, sequence: signal.sequence, transition: signal.transition,
-      fromTileId, toTileId, durationMs: signal.durationMs,
+      fromTileId, toTileId, durationMs: signal.durationMs, startedAtMs: signal.startedAtMs,
       displayTileId: toTileId, settledTileId: this.state.settledPositions[playerId],
       rollSequence: signal.rollSequence, resetEpoch: this.state.presentationResetEpoch,
     });
@@ -369,7 +370,7 @@ export class PresentationStore implements PresentationStoreLike {
     };
     recordCharacterMovementTrace({
       stage: 'STORE_START', playerId, sequence: signal.sequence, transition: signal.transition,
-      fromTileId, toTileId, durationMs: signal.durationMs,
+      fromTileId, toTileId, durationMs: signal.durationMs, startedAtMs: signal.startedAtMs,
       displayTileId: toTileId, settledTileId: this.state.settledPositions[playerId],
       rollSequence: signal.rollSequence, resetEpoch: this.state.presentationResetEpoch,
     });

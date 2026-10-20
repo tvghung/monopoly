@@ -1,0 +1,8 @@
+{
+  "kind": "jsdom simulation with suspended timer delivery",
+  "hiddenMs": 60000,
+  "afterRestoreMs": 1000,
+  "authoritativeTile": 12,
+  "settledTile": 0,
+  "queueStatus": "playing"
+}

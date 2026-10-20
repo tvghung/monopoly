@@ -1,0 +1,217 @@
+{
+  "kind": "headed Chrome real-device motion traces; synthetic authoritative UAT fixture",
+  "platform": "win32",
+  "browser": "154.0.8037.98",
+  "results": [
+    {
+      "label": "before",
+      "cap": 30,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999962747097,
+        0.09999999962747097,
+        0.2000000011175871,
+        0.09999999962747097
+      ],
+      "nominalGapsMs": [
+        7.699999999254942,
+        1.400000000372529,
+        4.400000000372529,
+        2.699999999254942
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "before",
+      "cap": 60,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.2000000011175871,
+        0.10000000149011612,
+        0.09999999962747097,
+        0.19999999925494194
+      ],
+      "nominalGapsMs": [
+        2.099999999627471,
+        9.900000000372529,
+        3.299999998882413,
+        7.5
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "before",
+      "cap": 120,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999962747097,
+        0.19999999925494194,
+        0.10000000149011612,
+        0.19999999925494194
+      ],
+      "nominalGapsMs": [
+        2.699999999254942,
+        5.099999999627471,
+        14.600000001490116,
+        3.199999999254942
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "before",
+      "cap": 180,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999962747097,
+        0.09999999962747097,
+        0.09999999962747097,
+        0.09999999962747097
+      ],
+      "nominalGapsMs": [
+        3.299999998882413,
+        2.400000000372529,
+        4.199999999254942,
+        3
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "before",
+      "cap": 240,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999962747097,
+        0,
+        0,
+        0.10000000149011612
+      ],
+      "nominalGapsMs": [
+        5.900000000372529,
+        2.599999999627471,
+        3.5,
+        3.300000000745058
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 30,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.19999999925494194,
+        0.2000000011175871,
+        0.19999999925494194,
+        0.09999999962747097
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 60,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.19999999925494194,
+        0.10000000149011612,
+        0.2000000011175871,
+        0.2000000011175871
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 120,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999962747097,
+        0.09999999962747097,
+        0.2000000011175871,
+        0.19999999925494194
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 180,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0,
+        0.2000000011175871,
+        0.09999999962747097,
+        0.09999999962747097
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 240,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.5,
+        0.19999999925494194,
+        0.6999999992549419,
+        0.3999999985098839
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    }
+  ]
+}

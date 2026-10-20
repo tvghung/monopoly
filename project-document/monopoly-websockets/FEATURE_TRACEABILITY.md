@@ -438,7 +438,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Docs:** [presentation-pipeline][c-pres]; [ADR-10][adr].
 - **Client:** `apps/client/src/game/presentation/PresentationController.ts`, `apps/client/src/game/presentation/queue/AnimationQueue.ts`, `apps/client/src/game/presentation/store/presentationStore.ts`, `apps/client/src/game/presentation/events/derivePresentationEvents.ts`.
 - **Server (producer):** `apps/server/src/game/semanticEvents.ts`.
-- **Tests:** `apps/client/src/game/presentation/PresentationController.test.ts`, `apps/client/src/game/presentation/queue/AnimationQueue.test.ts`, `apps/client/src/game/presentation/events/derivePresentationEvents.test.ts`.
+- **Tests:** `apps/client/src/game/presentation/PresentationController.test.ts`, `apps/client/src/game/presentation/queue/AnimationQueue.test.ts`, `apps/client/src/game/presentation/events/derivePresentationEvents.test.ts`, `apps/client/src/game/presentation/movementCadence.test.ts`, `apps/client/src/game/presentation/interruptionRecovery.test.tsx`.
 - **Manual:** [client checklist][t-client]. **Affects:** F18, F21, F22, F27.
 
 ### F41 Settings panel

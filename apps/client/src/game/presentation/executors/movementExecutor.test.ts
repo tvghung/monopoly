@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LandTilePresentationEvent, MoveCharacterPresentationEvent } from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
 import { createBasicExecutors } from './basicExecutors';
@@ -7,13 +7,17 @@ import { PresentationStore } from '../store/presentationStore';
 import { makeRoom } from '../testFixtures';
 import { presentationTiming } from '../timings';
 
+let fakeNow = 0;
+beforeEach(() => { fakeNow = 0; });
+
 const immediateContext: AnimationExecutionContext = {
+  now: () => fakeNow,
   signal: new AbortController().signal,
   speedMultiplier: 1,
   reducedMotion: false,
   getDuration: duration => duration,
-  wait: () => Promise.resolve(),
-  waitForDuration: () => Promise.resolve(),
+  wait: duration => { fakeNow += duration; return Promise.resolve(); },
+  waitForDuration: duration => { fakeNow += duration; return Promise.resolve(); },
 };
 
 function walkEvent(overrides: Partial<MoveCharacterPresentationEvent> = {}): MoveCharacterPresentationEvent {
@@ -63,7 +67,7 @@ describe('movement tile-hop presentation', () => {
     traceStore(store, trace);
     const context: AnimationExecutionContext = {
       ...immediateContext,
-      waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`wait:${duration}`); return Promise.resolve(); },
     };
 
     await createMovementExecutor(store).run(walkEvent({ to: 1, steps: 1 }), context);
@@ -94,7 +98,7 @@ describe('movement tile-hop presentation', () => {
     traceStore(store, trace);
     const context: AnimationExecutionContext = {
       ...immediateContext,
-      waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`wait:${duration}`); return Promise.resolve(); },
     };
 
     await createMovementExecutor(store).run(walkEvent(), context);
@@ -146,7 +150,7 @@ describe('movement tile-hop presentation', () => {
     };
     const basicContext: AnimationExecutionContext = {
       ...context,
-      waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`wait:${duration}`); return Promise.resolve(); },
     };
     const landingExecutor = createBasicExecutors(store).LAND_TILE as unknown as PresentationExecutor<LandTilePresentationEvent>;
     await landingExecutor.run(landing, basicContext);
@@ -212,7 +216,7 @@ describe('movement tile-hop presentation', () => {
       },
     }), {
       ...immediateContext,
-      waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`wait:${duration}`); return Promise.resolve(); },
     });
 
     expect(trace).toEqual([
@@ -250,7 +254,7 @@ describe('movement tile-hop presentation', () => {
       },
     }), {
       ...immediateContext,
-      waitForDuration: duration => { trace.push(`physical:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`physical:${duration}`); return Promise.resolve(); },
     });
 
     expect(trace).toEqual([
@@ -328,7 +332,7 @@ describe('movement tile-hop presentation', () => {
       ...immediateContext,
       speedMultiplier: speed,
       getDuration: duration => duration / speed,
-      waitForDuration: duration => { waits.push(duration); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; waits.push(duration); return Promise.resolve(); },
     });
 
     expect(waits).toEqual([expectedDuration]);
@@ -349,7 +353,7 @@ describe('movement tile-hop presentation', () => {
       ...immediateContext,
       speedMultiplier: speed,
       getDuration: duration => duration / speed,
-      waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
+      waitForDuration: duration => { fakeNow += duration; trace.push(`wait:${duration}`); return Promise.resolve(); },
     });
 
     expect(trace[0]).toBe(`start:0->1:${expectedHop}`);

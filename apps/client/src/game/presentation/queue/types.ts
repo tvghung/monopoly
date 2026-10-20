@@ -4,6 +4,8 @@ export type AnimationQueueStatus = 'idle' | 'playing' | 'paused' | 'skipping' | 
 
 export interface AnimationExecutionContext {
   signal: AbortSignal;
+  /** Injectable monotonic clock for deterministic executor tests. */
+  now?: () => number;
   speedMultiplier: number;
   reducedMotion: boolean;
   getDuration: (baseDuration: number) => number;

@@ -5,7 +5,9 @@ import { startAuthoritativeServer } from './apps/server/src/authoritativeServer'
 import { serveBuiltClient } from './apps/server/src/testing/serveBuiltClient';
 
 export default async function globalSetup() {
-  const clientDist = path.join(import.meta.dirname, 'apps', 'client', 'dist');
+  const clientDist = process.env.B8_CLIENT_DIST
+    ? path.resolve(process.env.B8_CLIENT_DIST)
+    : path.join(import.meta.dirname, 'apps', 'client', 'dist');
   await access(clientDist);
 
   // The browser flows create their own room (the first player becomes Host), which only the development

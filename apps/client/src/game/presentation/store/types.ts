@@ -178,7 +178,7 @@ export interface PresentationStoreLike {
   ) => void;
   holdOwnership: (changes: readonly { id: string; tileId: number; fromPlayerId: string | null }[]) => void;
   releaseOwnership: (id: string, tileId: number, toPlayerId: string | null) => void;
-  startCharacterHop: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
+  startCharacterHop: (playerId: string, fromTileId: number, toTileId: number, durationMs: number, startedAtMs?: number) => void;
   startJailTransfer: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
   completeCharacterHop: (playerId: string, tileId: number) => void;
   snapDisplayPosition: (playerId: string, tileId: number) => void;

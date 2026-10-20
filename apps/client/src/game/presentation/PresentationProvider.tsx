@@ -67,6 +67,35 @@ export function PresentationProvider({ controller, children }: { controller: Pre
     return () => controller.release();
   }, [controller]);
 
+  useEffect(() => {
+    const visibility = () => controller.setVisibility(document.visibilityState === 'hidden');
+    const freeze = () => controller.setVisibility(true);
+    const resume = () => { visibility(); controller.recoverFromInterruption(); };
+    let blurredAt: number | null = null;
+    const blur = () => { blurredAt = performance.now(); };
+    const focus = () => {
+      if (blurredAt !== null && performance.now() - blurredAt >= 1_000) resume();
+      blurredAt = null;
+    };
+    visibility();
+    document.addEventListener('visibilitychange', visibility);
+    document.addEventListener('freeze', freeze);
+    document.addEventListener('resume', resume);
+    window.addEventListener('pagehide', freeze);
+    window.addEventListener('pageshow', resume);
+    window.addEventListener('blur', blur);
+    window.addEventListener('focus', focus);
+    return () => {
+      document.removeEventListener('visibilitychange', visibility);
+      document.removeEventListener('freeze', freeze);
+      document.removeEventListener('resume', resume);
+      window.removeEventListener('pagehide', freeze);
+      window.removeEventListener('pageshow', resume);
+      window.removeEventListener('blur', blur);
+      window.removeEventListener('focus', focus);
+    };
+  }, [controller]);
+
   const storeValue = useMemo<PresentationStoreContextValue>(
     () => ({ store: controller.store, queue: controller.queue }),
     [controller],

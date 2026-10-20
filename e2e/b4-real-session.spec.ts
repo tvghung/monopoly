@@ -6,7 +6,7 @@ const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
 const probePath = path.resolve('scripts/perf/probe-init.js');
 
 async function join(page: Page, name: string) {
-  await page.goto(`/?room=${roomCode.toLowerCase()}`);
+  await page.goto(`/?room=${roomCode.toLowerCase()}&motion-trace=1`);
   await page.getByLabel('Tên của bạn').fill(name);
   await page.getByRole('button', { name: 'Vào phòng' }).click();
   await expect(page.getByRole('heading', { name: roomCode })).toBeVisible();
@@ -33,7 +33,7 @@ async function setLowQuality(page: Page) {
 
 test('B4 real two-browser session: FPS, roll, camera, visibility, reconnect and Play Again', async ({ browser }) => {
   test.skip(
-    process.env.B4_REAL_SESSION !== '1' || test.info().project.name !== 'mobile-chromium',
+    (process.env.B4_REAL_SESSION !== '1' && process.env.B8_REAL_SESSION !== '1') || test.info().project.name !== 'mobile-chromium',
     'Run this physical-GPU acceptance probe explicitly in headed Chrome.',
   );
   test.setTimeout(240_000);
@@ -56,7 +56,7 @@ test('B4 real two-browser session: FPS, roll, camera, visibility, reconnect and 
   });
   const evidence: Record<string, unknown> = {
     roomCode,
-    quality: process.env.B4_QUALITY === 'low' ? 'low' : 'auto',
+    quality: process.env.B4_QUALITY === 'low' ? 'low' : 'balanced',
     guestFallback,
     steps: [] as string[],
   };
@@ -90,7 +90,7 @@ test('B4 real two-browser session: FPS, roll, camera, visibility, reconnect and 
     }
 
     const roller = await page.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count() ? page : guest;
-    const observed = guestFallback ? page : roller;
+    const observed = process.env.B8_REAL_SESSION === '1' || guestFallback ? page : roller;
     await observed.evaluate(() => {
       const probe = (window as unknown as { __PROBE__: { attachMain(): void; drain(): unknown } }).__PROBE__;
       probe.attachMain();
@@ -98,6 +98,57 @@ test('B4 real two-browser session: FPS, roll, camera, visibility, reconnect and 
       performance.mark('otb:b4:roll');
     });
     await roller.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).click();
+    if (process.env.B8_REAL_SESSION === '1') {
+      await guest.waitForTimeout(100);
+      await guest.reload();
+      await expect(guest.getByTestId('game-board')).toBeVisible({ timeout: 30_000 });
+      step('guest reload/resume during active dice/movement hydrates the authoritative snapshot');
+      await observed.waitForTimeout(1_000);
+      await observed.evaluate(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await observed.waitForTimeout(250);
+      const recovery = await observed.evaluate(async () => {
+        const began = performance.now();
+        const frame = new Promise<number>((resolve, reject) => {
+          const onFrame = () => { clearTimeout(timer); resolve(performance.now() - began); };
+          const timer = setTimeout(() => { window.removeEventListener('own-the-block-scene-frame', onFrame); reject(new Error('No scene frame within one second after restore')); }, 1_000);
+          window.addEventListener('own-the-block-scene-frame', onFrame, { once: true });
+        });
+        Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+        document.dispatchEvent(new Event('visibilitychange'));
+        const resets = window.__OWN_THE_BLOCK_MOVEMENT_TRACE__?.filter(e => e.stage === 'PRESENTATION_RESET') ?? [];
+        const stateRecoveryMs = performance.now() - began;
+        return { elapsedMs: await frame, stateRecoveryMs, reset: resets.at(-1) };
+      });
+      if (process.env.B8_MINIMIZE === '1') {
+        await observed.evaluate(() => { Reflect.deleteProperty(document, 'hidden'); Reflect.deleteProperty(document, 'visibilityState'); });
+        const cdp = await observed.context().newCDPSession(observed);
+        const { windowId } = await cdp.send('Browser.getWindowForTarget');
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
+        console.log('B8 minimized bounds', await cdp.send('Browser.getWindowBounds', { windowId }), await observed.evaluate(() => ({ hidden: document.hidden, state: document.visibilityState })));
+        await observed.waitForFunction(() => document.hidden, undefined, { timeout: 5_000 });
+        await observed.waitForTimeout(1_500);
+        await observed.evaluate(() => {
+          performance.mark('otb:b8:minimized-restore');
+          window.addEventListener('own-the-block-scene-frame', () => performance.mark('otb:b8:restored-frame'), { once: true });
+        });
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+        await observed.waitForFunction(() => performance.getEntriesByName('otb:b8:restored-frame').length > 0, undefined, { timeout: 5_000 });
+        const minimizedRecoveryMs = await observed.evaluate(() => performance.getEntriesByName('otb:b8:restored-frame').at(-1)!.startTime - performance.getEntriesByName('otb:b8:minimized-restore').at(-1)!.startTime);
+        expect(minimizedRecoveryMs).toBeLessThan(1_000);
+        evidence.minimizedRecoveryMs = minimizedRecoveryMs;
+        step('actual Chrome window minimized and restored to a submitted scene frame within one second');
+        await cdp.detach();
+        }
+      expect(recovery.elapsedMs).toBeLessThan(1_000);
+      expect(recovery.reset?.settledPositions).toBeDefined();
+      evidence.interruptionRecovery = recovery;
+      step('active roll/movement visibility reset to latest authoritative snapshot within one second');
+    }
     await observed.waitForTimeout(5000);
     const rollBatch = await observed.evaluate(async () => {
       const probe = (window as unknown as { __PROBE__: {

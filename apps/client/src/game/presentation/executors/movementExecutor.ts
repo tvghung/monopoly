@@ -68,6 +68,9 @@ export function createMovementExecutor(
       }
       await context.wait(presentationTiming.destinationPreviewLead);
       let fromTileId = event.from;
+      // Carry nominal boundaries through late timers instead of accumulating timer drift.
+      const now = context.now ?? (() => performance.now());
+      let nextHopAtMs = now();
       let passGoCompletion: Promise<void> | null = null;
       for (let step = 1; step <= event.steps; step += 1) {
         if (!isExecutionCurrent(context)) return;
@@ -75,7 +78,7 @@ export function createMovementExecutor(
         const hopDurationMs = context.getDuration(presentationTiming.tileHop);
         const depressDurationMs = Math.min(hopDurationMs, context.getDuration(presentationTiming.tileImpact.stepDepress));
         const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.stepRebound);
-        store.startCharacterHop(event.playerId, fromTileId, tileId, hopDurationMs);
+        store.startCharacterHop(event.playerId, fromTileId, tileId, hopDurationMs, nextHopAtMs);
         if (step < event.steps && isExecutionCurrent(context)) {
           store.emitTileImpact(event.playerId, tileId, 'STEP', {
             delayMs: Math.max(0, hopDurationMs - depressDurationMs),
@@ -83,7 +86,8 @@ export function createMovementExecutor(
             reboundDurationMs,
           });
         }
-        await context.waitForDuration(hopDurationMs);
+        nextHopAtMs += hopDurationMs;
+        await context.waitForDuration(Math.max(0, nextHopAtMs - now()));
         if (!isExecutionCurrent(context)) return;
         store.completeCharacterHop(event.playerId, tileId);
         if (step < event.steps) {
@@ -94,6 +98,8 @@ export function createMovementExecutor(
           if (passGoMoment) {
             passGoCompletion = passGoMoment.completion;
             await context.waitForDuration(passGoMoment.holdDurationMs);
+            // GO intentionally holds the physical checkpoint while its money effect overlaps.
+            nextHopAtMs = now();
           }
         }
         fromTileId = tileId;

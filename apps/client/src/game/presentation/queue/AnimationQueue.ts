@@ -20,6 +20,7 @@ interface AnimationQueueOptions {
   reducedMotion?: boolean;
   onError?: (error: unknown, event: PresentationEvent) => void;
   onReset?: (snapshot?: unknown) => void;
+  onStall?: () => void;
 }
 
 type QueueListener = (status: AnimationQueueStatus) => void;
@@ -28,6 +29,7 @@ export class AnimationQueue {
   private readonly executors: PresentationExecutorMap;
   private readonly onError?: AnimationQueueOptions['onError'];
   private readonly onReset?: AnimationQueueOptions['onReset'];
+  private readonly onStall?: AnimationQueueOptions['onStall'];
   private readonly pending: QueueItem[] = [];
   private readonly listeners = new Set<QueueListener>();
   private current: { item: QueueItem; controller: AbortController } | null = null;
@@ -46,6 +48,7 @@ export class AnimationQueue {
     this.reducedMotion = options.reducedMotion ?? false;
     this.onError = options.onError;
     this.onReset = options.onReset;
+    this.onStall = options.onStall;
   }
 
   public enqueue(event: PresentationEvent): Promise<void> {
@@ -153,16 +156,26 @@ export class AnimationQueue {
         const resolveDuration = (baseDuration: number): number => this.reducedMotion
           ? 0
           : resolvePresentationDuration(baseDuration, this.speedMultiplier);
+        const waitForDuration = async (durationMs: number): Promise<void> => {
+          const duration = Math.max(0, durationMs);
+          const startedAt = performance.now();
+          await waitForDelay(duration, controller.signal);
+          // No watchdog loop: detect a suspended event loop when its existing wait resumes.
+          if (generation === this.generation && !controller.signal.aborted
+            && performance.now() - startedAt - duration >= 1_000) {
+            this.onStall?.();
+          }
+          if (generation !== this.generation || controller.signal.aborted) {
+            throw new DOMException('Animation aborted.', 'AbortError');
+          }
+        };
         const context: AnimationExecutionContext = {
           signal: controller.signal,
           speedMultiplier: this.speedMultiplier,
           reducedMotion: this.reducedMotion,
           getDuration: resolveDuration,
-          wait: baseDuration => waitForDelay(resolveDuration(baseDuration), controller.signal),
-          waitForDuration: durationMs => waitForDelay(
-            Math.max(0, durationMs),
-            controller.signal,
-          ),
+          wait: baseDuration => waitForDuration(resolveDuration(baseDuration)),
+          waitForDuration,
           isCurrent: () => generation === this.generation,
         };
         try {

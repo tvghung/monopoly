@@ -1,0 +1,69 @@
+{
+ "kind": "cold",
+ "scenario": "walk",
+ "tier": "balanced",
+ "verdict": {
+  "startT": 1421.0999999977648,
+  "doneT": 2268.699999999255,
+  "ordered": true,
+  "warmupMs": 847.6000000014901,
+  "linksDuring": 28,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 86.70000000298023,
+  "framesAfter": 186,
+  "marks": [
+   "otb:warmup:start@1421",
+   "otb:warmup:done@2269"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "balanced",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 1421,
+  "durationMs": 847.6999999992549,
+  "fixtureBuildMs": 2.400000002235174,
+  "programsBefore": 0,
+  "programsAfter": 26,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 114,
+    "programsAdded": 19,
+    "durationMs": 605.3999999985099
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 3,
+    "durationMs": 532.3999999985099
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 534.3000000007451
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 186.10000000149012
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed."
+ ],
+ "links": 28,
+ "frames": 186
+}

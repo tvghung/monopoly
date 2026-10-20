@@ -1,0 +1,49 @@
+{
+  "kind": "headed Chrome real-device motion traces; synthetic authoritative UAT fixture",
+  "platform": "win32",
+  "browser": "154.0.8037.98",
+  "results": [
+    {
+      "label": "before",
+      "cap": 60,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0.09999999776482582,
+        0.19999999925494194,
+        0.10000000149011612,
+        0.09999999776482582
+      ],
+      "nominalGapsMs": [
+        1.8999999985098839,
+        3.100000001490116,
+        2.800000000745058,
+        2.599999997764826
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    },
+    {
+      "label": "after",
+      "cap": 60,
+      "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "hidden": false,
+      "hops": 5,
+      "callbackGapsMs": [
+        0,
+        0.09999999776482582,
+        0.10000000149011612,
+        0.09999999776482582
+      ],
+      "nominalGapsMs": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "lastSettledTile": 6,
+      "errors": []
+    }
+  ]
+}
