@@ -1,0 +1,473 @@
+{
+ "rows": [
+  {
+   "kind": "switch",
+   "from": "balanced",
+   "tier": "low",
+   "verdict": {
+    "startT": 8685,
+    "doneT": 9453.900000095367,
+    "ordered": true,
+    "warmupMs": 768.9000000953674,
+    "linksDuring": 22,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 7.8999998569488525,
+    "framesAfter": 118,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "low",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 8685,
+    "durationMs": 768.9000000953674,
+    "fixtureBuildMs": 0.2999999523162842,
+    "programsBefore": 26,
+    "programsAfter": 47,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 134,
+      "programsAdded": 19,
+      "durationMs": 766.6000001430511
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 3,
+      "durationMs": 757
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 1.9000000953674316
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 100,
+    "textures": 50,
+    "programs": 47,
+    "dpr": 1
+   },
+   "failures": []
+  },
+  {
+   "kind": "switch",
+   "from": "low",
+   "tier": "balanced",
+   "verdict": {
+    "startT": 19751.299999952316,
+    "doneT": 19772.400000095367,
+    "ordered": true,
+    "warmupMs": 21.100000143051147,
+    "linksDuring": 1,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 9.200000047683716,
+    "framesAfter": 115,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454",
+     "otb:warmup:tier-switch:start@19751",
+     "otb:warmup:tier-switch:done@19772"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "balanced",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 19751.299999952316,
+    "durationMs": 21.100000143051147,
+    "fixtureBuildMs": 0.5,
+    "programsBefore": 61,
+    "programsAfter": 61,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 130,
+      "programsAdded": 1,
+      "durationMs": 19.700000047683716
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 9,
+      "programsAdded": 0,
+      "durationMs": 10.299999952316284
+     },
+     {
+      "name": "fixtures:shadow-depth",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 0,
+      "durationMs": 10.299999952316284
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 1
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 104,
+    "textures": 52,
+    "programs": 61,
+    "dpr": 1.2
+   },
+   "failures": []
+  },
+  {
+   "kind": "switch",
+   "from": "balanced",
+   "tier": "high",
+   "verdict": {
+    "startT": 28744.5,
+    "doneT": 29618.400000095367,
+    "ordered": true,
+    "warmupMs": 873.9000000953674,
+    "linksDuring": 38,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 41.299999952316284,
+    "framesAfter": 39,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454",
+     "otb:warmup:tier-switch:start@19751",
+     "otb:warmup:tier-switch:done@19772",
+     "otb:warmup:tier-switch:start@28745",
+     "otb:warmup:tier-switch:done@29618"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "high",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 28744.5,
+    "durationMs": 873.9000000953674,
+    "fixtureBuildMs": 0.2999999523162842,
+    "programsBefore": 74,
+    "programsAfter": 110,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 130,
+      "programsAdded": 19,
+      "durationMs": 799.2999999523163
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 9,
+      "programsAdded": 3,
+      "durationMs": 829.2999999523163
+     },
+     {
+      "name": "fixtures:shadow-depth",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 0,
+      "durationMs": 140.90000009536743
+     },
+     {
+      "name": "post:buffers",
+      "status": "ready",
+      "materials": 15,
+      "programsAdded": 15,
+      "durationMs": 780.5999999046326
+     },
+     {
+      "name": "post:screen",
+      "status": "ready",
+      "materials": 1,
+      "programsAdded": 1,
+      "durationMs": 771.9000000953674
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 4.299999952316284
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 106,
+    "textures": 76,
+    "programs": 110,
+    "dpr": 1.25
+   },
+   "failures": []
+  },
+  {
+   "kind": "switch",
+   "from": "high",
+   "tier": "low",
+   "verdict": {
+    "startT": 36585.799999952316,
+    "doneT": 36590.40000009537,
+    "ordered": true,
+    "warmupMs": 4.6000001430511475,
+    "linksDuring": 0,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 8.099999904632568,
+    "framesAfter": 118,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454",
+     "otb:warmup:tier-switch:start@19751",
+     "otb:warmup:tier-switch:done@19772",
+     "otb:warmup:tier-switch:start@28745",
+     "otb:warmup:tier-switch:done@29618",
+     "otb:warmup:tier-switch:start@36586",
+     "otb:warmup:tier-switch:done@36590"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "low",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 36585.799999952316,
+    "durationMs": 4.6000001430511475,
+    "fixtureBuildMs": 0.19999980926513672,
+    "programsBefore": 108,
+    "programsAfter": 98,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 134,
+      "programsAdded": 0,
+      "durationMs": 2.9000000953674316
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 0,
+      "durationMs": 2.9000000953674316
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 0.7000000476837158
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 101,
+    "textures": 50,
+    "programs": 98,
+    "dpr": 1
+   },
+   "failures": []
+  },
+  {
+   "kind": "switch",
+   "from": "low",
+   "tier": "high",
+   "verdict": {
+    "startT": 45940.200000047684,
+    "doneT": 45998.5,
+    "ordered": true,
+    "warmupMs": 58.299999952316284,
+    "linksDuring": 12,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 13.799999952316284,
+    "framesAfter": 39,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454",
+     "otb:warmup:tier-switch:start@19751",
+     "otb:warmup:tier-switch:done@19772",
+     "otb:warmup:tier-switch:start@28745",
+     "otb:warmup:tier-switch:done@29618",
+     "otb:warmup:tier-switch:start@36586",
+     "otb:warmup:tier-switch:done@36590",
+     "otb:warmup:tier-switch:start@45940",
+     "otb:warmup:tier-switch:done@45999"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "high",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 45940.200000047684,
+    "durationMs": 58.299999952316284,
+    "fixtureBuildMs": 0.20000004768371582,
+    "programsBefore": 98,
+    "programsAfter": 109,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 130,
+      "programsAdded": 1,
+      "durationMs": 36.09999990463257
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 9,
+      "programsAdded": 0,
+      "durationMs": 36.09999990463257
+     },
+     {
+      "name": "fixtures:shadow-depth",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 0,
+      "durationMs": 36.09999990463257
+     },
+     {
+      "name": "post:buffers",
+      "status": "ready",
+      "materials": 15,
+      "programsAdded": 10,
+      "durationMs": 38.5
+     },
+     {
+      "name": "post:screen",
+      "status": "ready",
+      "materials": 1,
+      "programsAdded": 1,
+      "durationMs": 38.69999980926514
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 2.200000047683716
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 106,
+    "textures": 76,
+    "programs": 109,
+    "dpr": 1.25
+   },
+   "failures": []
+  },
+  {
+   "kind": "switch",
+   "from": "high",
+   "tier": "balanced",
+   "verdict": {
+    "startT": 55206.40000009537,
+    "doneT": 55233.60000014305,
+    "ordered": true,
+    "warmupMs": 27.200000047683716,
+    "linksDuring": 1,
+    "linksAfter": 0,
+    "linksAfterNames": [],
+    "worstCallbackAfterMs": 9.400000095367432,
+    "framesAfter": 117,
+    "marks": [
+     "otb:warmup:start@1667",
+     "otb:warmup:done@2496",
+     "otb:warmup:tier-switch:start@8685",
+     "otb:warmup:tier-switch:done@9454",
+     "otb:warmup:tier-switch:start@19751",
+     "otb:warmup:tier-switch:done@19772",
+     "otb:warmup:tier-switch:start@28745",
+     "otb:warmup:tier-switch:done@29618",
+     "otb:warmup:tier-switch:start@36586",
+     "otb:warmup:tier-switch:done@36590",
+     "otb:warmup:tier-switch:start@45940",
+     "otb:warmup:tier-switch:done@45999",
+     "otb:warmup:tier-switch:start@55206",
+     "otb:warmup:tier-switch:done@55234"
+    ]
+   },
+   "warmup": {
+    "reason": "tier-switch",
+    "tier": "balanced",
+    "outcome": "complete",
+    "parallel": true,
+    "startedAtMs": 55206.40000009537,
+    "durationMs": 27.200000047683716,
+    "fixtureBuildMs": 0.5,
+    "programsBefore": 107,
+    "programsAfter": 99,
+    "steps": [
+     {
+      "name": "scene",
+      "status": "ready",
+      "materials": 130,
+      "programsAdded": 1,
+      "durationMs": 24.09999990463257
+     },
+     {
+      "name": "fixtures:main",
+      "status": "ready",
+      "materials": 9,
+      "programsAdded": 0,
+      "durationMs": 13.700000047683716
+     },
+     {
+      "name": "fixtures:shadow-depth",
+      "status": "ready",
+      "materials": 8,
+      "programsAdded": 0,
+      "durationMs": 13.700000047683716
+     },
+     {
+      "name": "textures",
+      "status": "ready",
+      "materials": 0,
+      "programsAdded": 0,
+      "durationMs": 1
+     }
+    ]
+   },
+   "resources": {
+    "geometries": 105,
+    "textures": 52,
+    "programs": 99,
+    "dpr": 1.2
+   },
+   "failures": []
+  }
+ ],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+  "warning: THREE.WebGLProgram: Program Info Log: (85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(85,12-86): warning X3595: gra"
+ ]
+}

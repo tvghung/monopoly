@@ -12,6 +12,14 @@
   leave-and-rejoin and spectator/reclaim within one running host.
 - `[PACKAGED][RAM]` `apps/desktop/src/phase72HostProof.ts` restarts the packaged helper
   and verifies that the former room and reconnect token are rejected.
+- `[PACKAGED][WINDOWS-X64][PASS]` B7 focused local acceptance at implementation SHA
+  `caa5c9305333b9057248912a8badd7713be9fe21`: `scripts/perf/packagedElectronAcceptance.mjs`
+  launched the real executable with fresh profiles, opened a LAN Host room, reached a Host-plus-Bot game,
+  returned to the launcher, explicitly closed the still-running Host helper, created another room and joined
+  it from a second packaged instance. The [B7 packaged request/check log](../../ui-ux-overhaul/08K_evidence/packaged-electron-acceptance.json) holds
+  the request/check log. This local proof is not a CI gate or a second-device test.
+
+- `[AUTO][CLIENT]` B7 `AppBootstrap.test.tsx`: lazy room/game chunk failure disconnects the attempted socket and offers safe retry; desktop launcher still creates no gameplay socket before selection.
 
 ## Checklist
 

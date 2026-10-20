@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { preloadGameApp } from '../app/bootstrap/loadGameApp';
 import Button from '../design-system/components/Button/Button';
 import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import Panel from '../design-system/components/Panel/Panel';
@@ -202,6 +203,13 @@ export default function DesktopMultiplayerLauncher({
     const choice = returnFocusRef.current;
     returnFocusRef.current = null;
     rootRef.current?.querySelector<HTMLElement>(`[data-launcher-choice="${choice}"]`)?.focus();
+  }, [mode]);
+
+  // Let the form paint before fetching and parsing gameplay modules. The player can type while they load.
+  useEffect(() => {
+    if (mode === null) return undefined;
+    const timer = window.setTimeout(preloadGameApp, 500);
+    return () => window.clearTimeout(timer);
   }, [mode]);
 
   // A search that is still running when the launcher goes away must not launch anything.

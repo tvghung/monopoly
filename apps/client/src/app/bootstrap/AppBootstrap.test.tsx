@@ -1,7 +1,7 @@
 import {
   cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeConfigLoadError } from '../../runtime/runtimeConfig';
 import { SETTINGS_STORAGE_KEY } from '../../settings/defaults';
 import { readGameSettings } from '../../settings/storage';
@@ -13,9 +13,13 @@ const bootstrapMock = vi.hoisted(() => ({
   bootstrap: vi.fn(),
 }));
 const appMock = vi.hoisted(() => vi.fn());
+const loadGameAppMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./bootstrap', () => bootstrapMock);
-vi.mock('../../App', () => ({ default: appMock }));
+vi.mock('./loadGameApp', () => ({
+  loadGameApp: loadGameAppMock,
+  preloadGameApp: vi.fn(),
+}));
 
 import AppBootstrap from './AppBootstrap';
 
@@ -29,6 +33,10 @@ function renderAppBootstrap() {
   );
 }
 
+beforeEach(() => {
+  loadGameAppMock.mockResolvedValue({ default: appMock });
+});
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
@@ -36,9 +44,38 @@ afterEach(() => {
   vi.restoreAllMocks();
   bootstrapMock.bootstrap.mockReset();
   appMock.mockReset();
+  loadGameAppMock.mockReset();
 });
 
 describe('AppBootstrap failure handling', () => {
+  it('shows a retryable bootstrap error and disconnects when the deferred game chunk fails', async () => {
+    const socket = { disconnect: vi.fn() };
+    bootstrapMock.bootstrap.mockResolvedValue({
+      runtimeConfig: { target: 'web' },
+      socket,
+      settings: {
+        version: 1,
+        masterVolume: 1,
+        musicVolume: 0.7,
+        sfxVolume: 0.8,
+        animationSpeed: 1,
+        reducedMotion: false,
+        fullscreen: false,
+      },
+    });
+    loadGameAppMock.mockRejectedValueOnce(new Error('game code unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    renderAppBootstrap();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Không thể khởi động trò chơi' })).toBeTruthy());
+    expect(socket.disconnect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('game code unavailable')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(bootstrapMock.bootstrap).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(appMock).toHaveBeenCalled());
+  });
+
   it('logs technical bootstrap failures while rendering safe recovery copy', async () => {
     bootstrapMock.bootstrap.mockRejectedValue(new Error('secret bridge failure'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -15,25 +15,37 @@ afterEach(() => {
 
 function stubContext(webgl2: boolean, maxTextureSize = 16_384) {
   vi.stubGlobal('WebGL2RenderingContext', class {});
-  const context = { MAX_TEXTURE_SIZE: 0x0d33, getParameter: vi.fn(() => maxTextureSize) };
+  const loseContext = vi.fn();
+  const context = {
+    MAX_TEXTURE_SIZE: 0x0d33,
+    getParameter: vi.fn(() => maxTextureSize),
+    getExtension: vi.fn(() => ({ loseContext })),
+  };
   const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
     .mockImplementation(((kind: string) => (kind === 'webgl2' ? (webgl2 ? context : null) : context)) as never);
-  return { getContext };
+  return { getContext, loseContext };
 }
 
 describe('the shared WebGL probe', () => {
-  it('creates one throwaway context for the support check and the texture limit together', () => {
-    const { getContext } = stubContext(true, 8_192);
+  it('shares and releases one support and Auto texture-limit context', () => {
+    const { getContext, loseContext } = stubContext(true, 8_192);
 
     expect(supportsWebGL()).toBe(true);
+    expect(getContext).toHaveBeenCalledTimes(1);
     expect(probeRenderCapabilities().maxTextureSize).toBe(8_192);
     expect(probeRenderCapabilities().maxTextureSize).toBe(8_192);
     expect(supportsWebGL()).toBe(true);
 
     expect(getContext).toHaveBeenCalledTimes(1);
     expect(getContext).toHaveBeenCalledWith('webgl2');
+    expect(loseContext).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back when WebGL2 has a constructor but context creation is blocked', () => {
+    const { loseContext } = stubContext(false);
+    expect(supportsWebGL()).toBe(false);
+    expect(loseContext).toHaveBeenCalledTimes(1);
+  });
   it('reports no WebGL 2 but still reads the texture limit from a WebGL 1 context', () => {
     stubContext(false, 4_096);
     expect(getSharedWebGLProbe()).toEqual({ supported: false, maxTextureSize: 4_096 });

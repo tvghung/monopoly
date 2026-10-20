@@ -1,0 +1,858 @@
+{
+  "status": "PASS",
+  "gitHead": "caa5c9305333b9057248912a8badd7713be9fe21",
+  "packageRoot": "apps/desktop/out/Own the Block-win32-x64",
+  "resourcesRoot": "apps/desktop/out/Own the Block-win32-x64/resources",
+  "environment": {
+    "platform": "win32",
+    "architecture": "x64",
+    "osRelease": "10.0.19044",
+    "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+    "electron": "43.4.0"
+  },
+  "checks": [
+    {
+      "name": "normal packaged executable starts and paints the launcher",
+      "status": "PASS",
+      "details": "app://own-the-block/index.html"
+    },
+    {
+      "name": "gameplay App chunk remains deferred on the idle launcher",
+      "status": "PASS"
+    },
+    {
+      "name": "fresh-profile graphics setting is Balanced",
+      "status": "PASS"
+    },
+    {
+      "name": "first LAN room reaches packaged lobby with Dog default and loaded App JS/CSS",
+      "status": "PASS",
+      "details": "OTB-NW3AHV"
+    },
+    {
+      "name": "packaged gameplay board and deferred scene/environment assets load",
+      "status": "PASS"
+    },
+    {
+      "name": "forfeit returns from gameplay to the launcher",
+      "status": "PASS"
+    },
+    {
+      "name": "existing Host runtime closes explicitly before creating the next room",
+      "status": "PASS"
+    },
+    {
+      "name": "same packaged app enters a different room after returning home",
+      "status": "PASS",
+      "details": "OTB-WGFA97"
+    },
+    {
+      "name": "second packaged executable joins the new LAN room",
+      "status": "PASS",
+      "details": "OTB-WGFA97"
+    },
+    {
+      "name": "both packaged renderers finish without page errors or failed app resources",
+      "status": "PASS"
+    }
+  ],
+  "assets": [
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/scheduler-D1_gIiUI.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/createSocket-CsjvnFql.css"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/index-y-hV3jtQ.css"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/jsx-runtime-B-hcVAMW.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/renderQuality-RDraQSU6.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/createSocket-qZ3xktR9.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/index-BtzQ1qZp.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/26.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/13.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/39.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/24.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/14.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-800-normal-BbF3Etk1.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-700-normal-DlW1Zbsh.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-700-normal-CqTg7A15.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-vietnamese-700-normal-h4tlcePq.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-700-normal-C8_gqRu2.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-700-normal-Csr0PCuG.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-400-normal-PpnXBOrz.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-500-normal-B6LVzGNe.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-ext-700-normal-Mlh7kdab.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-500-normal-DREgrEoJ.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-500-normal-h0Fp6aX0.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-400-normal-CiZNW1ec.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-400-normal-CRcqvyg1.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/App-BkG2x3Z5.css"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/movementTrace-D29xIUYv.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/App-DZ8tu2Ne.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/three.core-CpYT6u8q.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-600-normal-BZDkUTrt.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-vietnamese-800-normal-ConLnEgt.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/favicon.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-800-normal-BpHZASpI.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-800-normal-GEpNgheG.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-600-normal-nyU-ZL2p.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-600-normal-BNd8euf0.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-800-normal-D4LFh2W4.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-pay-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/bankruptcy/bankruptcy-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-enter-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-release-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-ext-800-normal-C_Iwmf1s.woff2"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/GameScene-CcMviXVX.css"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/music/own-the-block-main-theme-loop.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/GameScene-BxAdU6aQ.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/warmupHost-BymYAQvE.js"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/studio-environment.cubeuv.f16-DIC8CViO.z"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/assets/BeVietnamPro-ExtraBold-DczkUabF.ttf"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/26.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/39.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/13.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/24.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/14.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/favicon.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/26.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/13.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/39.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/24.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/14.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-800-normal-BbF3Etk1.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-700-normal-CqTg7A15.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-700-normal-DlW1Zbsh.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-vietnamese-700-normal-h4tlcePq.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-700-normal-C8_gqRu2.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-700-normal-Csr0PCuG.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-400-normal-PpnXBOrz.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-500-normal-B6LVzGNe.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-500-normal-DREgrEoJ.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-400-normal-CiZNW1ec.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-400-normal-CRcqvyg1.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-latin-ext-700-normal-Mlh7kdab.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-600-normal-BZDkUTrt.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/baloo-2-vietnamese-800-normal-ConLnEgt.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/favicon.svg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/App-DZ8tu2Ne.js"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/movementTrace-D29xIUYv.js"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/three.core-CpYT6u8q.js"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/App-BkG2x3Z5.css"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-800-normal-GEpNgheG.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-800-normal-BpHZASpI.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-latin-ext-600-normal-BNd8euf0.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-600-normal-nyU-ZL2p.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/assets/be-vietnam-pro-vietnamese-800-normal-D4LFh2W4.woff2"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-03.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-03.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-03.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-03.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-pay-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-03.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-02.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-enter-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-release-01.ogg"
+    },
+    {
+      "app": "guest",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/bankruptcy/bankruptcy-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-shake-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/26.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/13.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/24.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/39.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/art/landmarks/14.svg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/dice/dice-impact-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/movement/movement-land-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-pay-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/money/money-receive-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/property/property-purchase-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-house-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/build/build-hotel-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-enter-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-02.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/card/card-draw-03.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/jail/jail-release-01.ogg"
+    },
+    {
+      "app": "host",
+      "status": 200,
+      "url": "app://own-the-block/audio/sfx/bankruptcy/bankruptcy-01.ogg"
+    }
+  ],
+  "pageErrors": [],
+  "failedPackagedRequests": []
+}

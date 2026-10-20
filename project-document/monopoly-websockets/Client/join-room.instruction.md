@@ -15,9 +15,13 @@ deleted room cannot be recreated by a delayed `resume session`.
 SPA entry `/`; không có Router/menu/permission key. Join/restore/lobby/board được chọn
 bằng application session state, không bằng `socket.id` hay optimistic `joined` flag.
 
+## B7 bootstrap loading
+
+`AppBootstrap` renders the desktop launcher before importing the room/game `App` module. Opening a host/join form schedules that module's preload after the form has painted; if room selection finishes first, the existing loading screen remains until the import resolves. Browser guests preload the module while bootstrap runs because they enter the join flow directly. A failed preload can be retried by a later load attempt. The module boundary changes only when code is parsed, not session, socket, room or reconnect behavior. Measured evidence and limits: [08K](../../ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md).
+
 ## Code
 
-- `apps/client/src/App.tsx`
+- `apps/client/src/App.tsx`, `apps/client/src/app/bootstrap/AppBootstrap.tsx`, `apps/client/src/app/bootstrap/loadGameApp.ts`
 - `apps/client/src/playerSessionStorage.ts`
 - `apps/client/src/components/JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`, `LauncherScene.tsx`, `HostLanSharing.tsx`
 - `apps/client/src/runtime/lanSharing.ts` (`buildLanJoinUrl`, `parseLanJoinUrl`), `runtime/types.ts` (bridge `lan?`)

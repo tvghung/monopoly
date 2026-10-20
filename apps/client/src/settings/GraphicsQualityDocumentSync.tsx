@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { probeRenderCapabilities, resolveRenderTier } from '../game/scene/render/renderQuality';
+import { resolveConfiguredRenderTier } from '../game/scene/render/renderQuality';
 import { useSettings } from './selectors';
 
 /**
@@ -12,7 +12,7 @@ export function GraphicsQualityDocumentSync() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.graphicsQuality = resolveRenderTier(setting, probeRenderCapabilities());
+    root.dataset.graphicsQuality = resolveConfiguredRenderTier(setting);
     return () => {
       delete root.dataset.graphicsQuality;
     };

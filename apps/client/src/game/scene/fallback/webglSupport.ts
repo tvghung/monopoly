@@ -15,7 +15,8 @@ export function supportsWebGL(
   if (!ownerDocument) return false;
   if (ownerDocument.defaultView
     && !ownerDocument.defaultView.WebGL2RenderingContext) return false;
-  // The page's own document shares the single probe context; any other document (a test double) is probed directly.
+  // A constructor can exist even where context creation is blocked. Probe once and release the
+  // temporary context; the cached result is shared with explicit Auto quality resolution.
   if (typeof document !== 'undefined' && ownerDocument === document) return getSharedWebGLProbe().supported;
   try {
     const canvas = ownerDocument.createElement('canvas');

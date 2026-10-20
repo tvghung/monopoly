@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import App from '../../App';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AudioProvider } from '../../audio/AudioProvider';
 import DesktopMultiplayerLauncher from '../../components/DesktopMultiplayerLauncher';
 import { ToastProvider } from '../../components/Toast';
@@ -13,6 +12,7 @@ import BootstrapErrorScreen, {
 } from '../screens/BootstrapErrorScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import { bootstrap } from './bootstrap';
+import { loadGameApp, preloadGameApp } from './loadGameApp';
 import type { BootStage, BootstrapResult } from './types';
 import { useTranslation } from '../../i18n/I18n';
 
@@ -21,6 +21,8 @@ interface BootstrapState {
   result: BootstrapResult | null;
   errorKind: BootstrapErrorKind | null;
 }
+
+const App = lazy(loadGameApp);
 
 const initialState: BootstrapState = {
   stage: 'loading-settings',
@@ -62,6 +64,11 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
   const desktopBridge = getDesktopBridge();
   const { t } = useTranslation();
 
+  // Web guests need App immediately; the desktop launcher waits until a room form opens.
+  useEffect(() => {
+    if (!desktopBridge) preloadGameApp();
+  }, [desktopBridge]);
+
   useEffect(() => {
     if (!desktopBridge) return undefined;
     let active = true;
@@ -87,7 +94,18 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
       if (active) setState(current => ({ ...current, stage }));
     }, launch
       ? { runtimeConfig: launch.runtimeConfig, launch }
-      : webEndpoint ? { runtimeConfig: { target: 'web', socketUrl: webEndpoint } } : undefined).then(result => {
+      : webEndpoint ? { runtimeConfig: { target: 'web', socketUrl: webEndpoint } } : undefined).then(async result => {
+      if (!active) {
+        result.socket.disconnect();
+        return;
+      }
+      setState(current => ({ ...current, stage: 'initializing-client' }));
+      try {
+        await loadGameApp();
+      } catch (error) {
+        result.socket.disconnect();
+        throw error;
+      }
       if (active) setState({ stage: 'ready', result, errorKind: null });
       else result.socket.disconnect();
     }).catch(error => {
@@ -135,24 +153,26 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
     return (
       <AudioProvider>
         <ToastProvider>
-          <App
-            socket={state.result.socket}
-            runtimeConfig={state.result.runtimeConfig}
-            launch={state.result.launch}
-            onExitToLauncher={() => onLaunchChange(null)}
-            onSwitchEndpoint={(endpoint, roomCode) => {
-              if (launch) {
-                onLaunchChange({
-                  ...launch,
-                  runtimeConfig: { ...launch.runtimeConfig, socketUrl: endpoint },
-                  targetRoomCode: roomCode,
-                  initialJoin: undefined,
-                });
-              } else {
-                setWebEndpoint(endpoint);
-              }
-            }}
-          />
+          <Suspense fallback={<LoadingScreen stage="initializing-client" />}>
+            <App
+              socket={state.result.socket}
+              runtimeConfig={state.result.runtimeConfig}
+              launch={state.result.launch}
+              onExitToLauncher={() => onLaunchChange(null)}
+              onSwitchEndpoint={(endpoint, roomCode) => {
+                if (launch) {
+                  onLaunchChange({
+                    ...launch,
+                    runtimeConfig: { ...launch.runtimeConfig, socketUrl: endpoint },
+                    targetRoomCode: roomCode,
+                    initialJoin: undefined,
+                  });
+                } else {
+                  setWebEndpoint(endpoint);
+                }
+              }}
+            />
+          </Suspense>
           <UpdateSessionNotice />
         </ToastProvider>
       </AudioProvider>

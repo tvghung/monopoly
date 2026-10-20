@@ -9,7 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import { supportsWebGL } from '../../game/scene/fallback/webglSupport';
 import SceneErrorBoundary from '../../game/scene/fallback/SceneErrorBoundary';
-import { probeRenderCapabilities, resolveRenderTier } from '../../game/scene/render/renderQuality';
+import { resolveConfiguredRenderTier } from '../../game/scene/render/renderQuality';
 import { markSceneOnce } from '../../game/scene/render/warmup/sceneMarks';
 import { useSettingsSelector } from '../../settings/selectors';
 import { useTranslation } from '../../i18n/I18n';
@@ -60,7 +60,7 @@ function useEarlyMountReady(enabled: boolean, roomKey: string | null): boolean {
   const [readyKey, setReadyKey] = useState<string | null>(null);
   useEffect(() => {
     if (!enabled || roomKey === null) return undefined;
-    if (resolveRenderTier(graphicsQuality, probeRenderCapabilities()) === 'low') return undefined;
+    if (resolveConfiguredRenderTier(graphicsQuality) === 'low') return undefined;
     return scheduleEarlyMount(() => setReadyKey(roomKey));
   }, [enabled, graphicsQuality, roomKey]);
   return enabled && roomKey !== null && readyKey === roomKey;

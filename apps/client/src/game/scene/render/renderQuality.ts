@@ -108,6 +108,14 @@ export function resolveRenderTier(setting: unknown, probe: RenderCapabilityProbe
   return safeSetting === 'auto' ? resolveAutoTier(probe) : safeSetting;
 }
 
+/** Explicit tiers do not allocate a capability context before the actual renderer exists. */
+export function resolveConfiguredRenderTier(
+  setting: GraphicsQualitySetting,
+  getProbe: () => RenderCapabilityProbe = () => probeRenderCapabilities(),
+): RenderTier {
+  return setting === 'auto' ? resolveAutoTier(getProbe()) : setting;
+}
+
 export function resolveRenderQuality(setting: unknown, probe: RenderCapabilityProbe): RenderQualityConfig {
   return RENDER_QUALITY_CONFIGS[resolveRenderTier(setting, probe)];
 }
