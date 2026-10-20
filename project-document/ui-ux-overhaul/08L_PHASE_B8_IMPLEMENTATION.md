@@ -1,6 +1,6 @@
 # 08L — Phase B8: Animation cadence and interruption recovery
 
-> **CURRENT DEVELOPMENT — technical review accepted; final packaged recommendation PARTIAL, native suspension BLOCKED and owner experience acceptance pending.** Branch `codex/phase-b8-animation-timing` starts at verified post-B7 main `4855a0443b74b5e431b44cc438081fa67f11b1e4` in a separate worktree. No owner checkout was modified.
+> **CURRENT DEVELOPMENT — B8 PARTIAL — CLOSED, MERGED.** Phase implementation was integrated into `main` by [PR #24](https://github.com/tvghung/monopoly/pull/24) (merge `b4bc30859dd29d6fac0cf33505b5732761c0dd2e`, integrated [CI](https://github.com/tvghung/monopoly/actions/runs/39403034866) / [Docs](https://github.com/tvghung/monopoly/actions/runs/39403034871) PASS). The historical pre-merge findings and recommendations below remain as recorded; the owner's later full-match result is documented in the closing addendum. Branch `codex/phase-b8-animation-timing` starts at verified post-B7 main `4855a0443b74b5e431b44cc438081fa67f11b1e4` in a separate worktree. No owner checkout was modified.
 
 ## B7 prerequisite
 
@@ -118,3 +118,18 @@ The earlier two driver attempts are retained as [initial predicate observation](
 Local package build, typecheck, lint, test (2,654 client / 561 server / 525 desktop), production build and docs validation (162 Markdown files): **PASS**. These repeat the required regressions without application changes. Head-specific final CI/Docs receipts are recorded in the draft PR. Reviewed implementation-head [CI](https://github.com/tvghung/monopoly/actions/runs/39396630922) and [Docs](https://github.com/tvghung/monopoly/actions/runs/39396630950) were **PASS** before this documentation/evidence delivery.
 
 B8 remains **PARTIAL** because native suspension recovery and final owner experience acceptance are outstanding. The packaged environment limitation does not demonstrate an implementation failure. A supported interactive Windows session must still exercise actual renderer suspension during dice/movement and verify coherent recovery within one second without obsolete effects. Full-match owner UAT, macOS, other GPUs, physical high-refresh and independent-network Online hosting were not performed. Do not merge without explicit owner approval.
+
+
+## Owner full-match UAT follow-up — 20 October 2026
+
+**Result: OWNER-REPORTED PASS (manual full-match UAT).** On 2026-10-20, the project owner explicitly reported that they completed a full-game UAT and that **all checks they performed passed**. This is a product-owner manual acceptance statement, **not** a recorded automated test, an independently witnessed execution, or per-scenario PASS evidence.
+
+**Owner-identified application:** the previously packaged Windows executable \`OwnTheBlock.exe\` inside the local \`phase-b8\` worktree, under \`apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe\`. The owner did **not** run a newly packaged application built from post-merge \`main\` \`b4bc30859dd29d6fac0cf33505b5732761c0dd2e\` for this acceptance. The prior B8 packaged proof identifies its source as B8 application-code head \`30060c3a3685b3cad6a41baa0df32c67ad61d32c\` ([package-identity receipt](./08L_evidence/packaged/package-identity.json)); that provenance is a reference for the local B8 package, **not independent verification that the particular binary the owner opened had an identical hash**. No owner-binary checksum was supplied.
+
+**Scope actually reported:** a completed full-match manual playthrough, with the owner's overall result PASS. The exact number/type of players and bots, match/room ID, duration, graphics/FPS settings, OS/build identity for the owner's session, date-time of the playthrough, individual features encountered and per-case logs/screenshots were **not supplied**. Do not infer that all Bot-plan cases A1–D9, every graphics setting or every game-mode/network/platform path was exercised. Their individual checklist statuses stay unchanged without case evidence.
+
+**Acceptance interpretation:** the earlier "full-match owner UAT NOT RUN / pending" finding has a later **OWNER-REPORTED PASS** for this locally packaged B8 source. Phase B8 overall stays **PARTIAL — CLOSED**, as explicitly approved by the owner before [PR #24](https://github.com/tvghung/monopoly/pull/24) was merged; this follow-up does not convert the entire phase to PASS or constitute a new release.
+
+**Still not established:** true native renderer-suspension recovery within one second remains **BLOCKED** because the packaged minimize/restore probe never suspended the renderer. Hardware-specific high-refresh and other-GPU coverage, macOS packaged acceptance, independent-network Online hosting, P99 frame-pacing parity, and any separately unexecuted feature-level UAT remain open. The owner's broad full-match PASS does not close those distinct gates.
+
+**Repository recording:** docs-only follow-up following the already merged B8 implementation; no gameplay or package build is changed.
