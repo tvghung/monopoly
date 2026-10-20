@@ -8,6 +8,15 @@ links them and records only what their evidence states. Feature-level checklists
 never upgraded to `PASS`. An automated `PASS` is never a manual `PASS`. Acceptance owner for every release: the project owner
 (the person who approves the tag).
 
+## Post-v1.9.1 CURRENT DEVELOPMENT — owner manual full-match acceptance (2026-10-20)
+
+| Scope / binary | Manual result | Evidence / boundary |
+| --- | --- | --- |
+| Owner-played full match using local `phase-b8` packaged Windows `OwnTheBlock.exe` (`apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe` in that worktree) | **OWNER-REPORTED PASS** | Owner confirmed completing a full-game UAT and that all checked items passed. The [B8 implementation record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md#owner-full-match-uat-follow-up--20-october-2026) records this later testimony. Archived B8 packaged proof was built at application SHA `30060c3a3685b3cad6a41baa0df32c67ad61d32c`; the exact owner's executable hash was not supplied. This is **not** a post-merge-main binary acceptance or a published v1.9.1 release test. No per-case log, setup, visual recording or proof of specific feature coverage was supplied. |
+| B8 native suspended-renderer recovery (≤1 second) and external hardware/platform/network checks | **BLOCKED / NOT RUN** | The packaged Electron minimize/restore did not suspend rendering. Full-match owner confirmation does not turn a non-reproduced suspended-renderer test or independent-network, macOS, other-GPU/high-refresh testing into PASS. B8 remains **PARTIAL — CLOSED**, merged in [PR #24](https://github.com/tvghung/monopoly/pull/24). |
+
+This entry records product-owner manual feedback, **not independently observed PASS results for every item** in the bot-plan, game-rule or release checklists. The published version below remains v1.9.1; no newer release is claimed.
+
 ## Published releases
 
 All rows below are published GitHub Releases (`gh release list`, verified 2026-10-09). Protocol and snapshot numbers come from
