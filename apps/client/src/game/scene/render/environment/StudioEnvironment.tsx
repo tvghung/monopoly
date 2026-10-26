@@ -104,24 +104,73 @@ export default function StudioEnvironment() {
 
     const filterProcedurally = (): void => {
       const pmrem = new THREE.PMREMGenerator(gl);
-      const studio = createStudioEnvironmentScene();
-      const renderTarget = pmrem.fromScene(studio, STUDIO_PMREM_SIGMA);
-      if (isLocalDiagnosticsEnabled()) {
-        window.__OWN_THE_BLOCK_STUDIO_ENV_BAKE__ = () => {
-          const pixels = new Uint16Array(BAKED_STUDIO_WIDTH * BAKED_STUDIO_HEIGHT * 4);
-          gl.readRenderTargetPixels(renderTarget, 0, 0, BAKED_STUDIO_WIDTH, BAKED_STUDIO_HEIGHT, pixels);
-          let binary = '';
-          const bytes = new Uint8Array(pixels.buffer);
-          for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-          return { width: BAKED_STUDIO_WIDTH, height: BAKED_STUDIO_HEIGHT, inputsHash: studioEnvironmentInputsHash(), threeRevision: THREE.REVISION, base64: btoa(binary) };
+      let studio: THREE.Scene | null = null;
+      let renderTarget: THREE.WebGLRenderTarget | null = null;
+      const allocatedTargets = new Set<THREE.WebGLRenderTarget>();
+      let ownershipTransferred = false;
+      let resourcesDisposed = false;
+
+      const disposeResources = (): void => {
+        if (resourcesDisposed) return;
+        resourcesDisposed = true;
+
+        const targets = new Set(allocatedTargets);
+        if (renderTarget) targets.add(renderTarget);
+        try {
+          targets.forEach(target => target.dispose());
+        } finally {
+          try {
+            if (studio) disposeStudioEnvironmentScene(studio);
+          } finally {
+            pmrem.dispose();
+          }
+        }
+      };
+
+      try {
+        studio = createStudioEnvironmentScene();
+
+        // Three.js keeps fromScene's output target local until the full bake succeeds. Capture it during this
+        // synchronous call so an exception after allocation still leaves the target reachable for cleanup.
+        const generatorInternals = pmrem as THREE.PMREMGenerator & {
+          _allocateTargets?: () => THREE.WebGLRenderTarget;
         };
+        const allocateTargets = generatorInternals._allocateTargets;
+        if (allocateTargets) {
+          generatorInternals._allocateTargets = function () {
+            const target = allocateTargets.call(this);
+            allocatedTargets.add(target);
+            return target;
+          };
+        }
+
+        try {
+          renderTarget = pmrem.fromScene(studio, STUDIO_PMREM_SIGMA);
+        } finally {
+          if (allocateTargets) generatorInternals._allocateTargets = allocateTargets;
+        }
+
+        if (isLocalDiagnosticsEnabled()) {
+          window.__OWN_THE_BLOCK_STUDIO_ENV_BAKE__ = () => {
+            const pixels = new Uint16Array(BAKED_STUDIO_WIDTH * BAKED_STUDIO_HEIGHT * 4);
+            gl.readRenderTargetPixels(renderTarget!, 0, 0, BAKED_STUDIO_WIDTH, BAKED_STUDIO_HEIGHT, pixels);
+            let binary = '';
+            const bytes = new Uint8Array(pixels.buffer);
+            for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+            return { width: BAKED_STUDIO_WIDTH, height: BAKED_STUDIO_HEIGHT, inputsHash: studioEnvironmentInputsHash(), threeRevision: THREE.REVISION, base64: btoa(binary) };
+          };
+        }
+        apply(renderTarget.texture, () => {
+          delete window.__OWN_THE_BLOCK_STUDIO_ENV_BAKE__;
+          disposeResources();
+        });
+        ownershipTransferred = true;
+      } finally {
+        if (!ownershipTransferred) {
+          delete window.__OWN_THE_BLOCK_STUDIO_ENV_BAKE__;
+          disposeResources();
+        }
       }
-      apply(renderTarget.texture, () => {
-        delete window.__OWN_THE_BLOCK_STUDIO_ENV_BAKE__;
-        renderTarget.dispose();
-        disposeStudioEnvironmentScene(studio);
-        pmrem.dispose();
-      });
     };
 
     const settleWithoutEnvironment = (error: unknown): void => {

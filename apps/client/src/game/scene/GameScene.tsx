@@ -440,7 +440,7 @@ function GameScene({
     () => (isLocalDiagnosticsEnabled() ? parseToneMappingOverride(window.location.search) : SCENE_TONE_MAPPING),
     [],
   );
-  useBoardGestures(sceneRef);
+  useBoardGestures(sceneRef, quality.tier);
   return (
     <div ref={sceneRef} className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <stateContext.Provider value={SCENE_STATE_SHADOW}>

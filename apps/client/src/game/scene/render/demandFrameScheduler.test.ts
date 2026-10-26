@@ -6,7 +6,6 @@ class FakeFrameHost implements FrameSchedulerHost {
   visible = true;
   nextId = 1;
   frames = new Map<number, FrameRequestCallback>();
-  timers = new Map<number, { dueAt: number; callback: () => void }>();
   visibilityListeners = new Set<() => void>();
 
   now = () => this.time;
@@ -16,29 +15,11 @@ class FakeFrameHost implements FrameSchedulerHost {
     return id;
   };
   cancelAnimationFrame = (id: number) => { this.frames.delete(id); };
-  setTimeout = (callback: () => void, delayMs: number) => {
-    const id = this.nextId++;
-    this.timers.set(id, { dueAt: this.time + delayMs, callback });
-    return id;
-  };
-  clearTimeout = (id: number) => { this.timers.delete(id); };
   isVisible = () => this.visible;
   onVisibilityChange = (callback: () => void) => {
     this.visibilityListeners.add(callback);
     return () => this.visibilityListeners.delete(callback);
   };
-
-  advanceTo(time: number): void {
-    while (true) {
-      const due = [...this.timers.entries()].find(([, timer]) => timer.dueAt <= time);
-      if (!due) break;
-      const [id, timer] = due;
-      this.time = timer.dueAt;
-      this.timers.delete(id);
-      timer.callback();
-    }
-    this.time = time;
-  }
 
   renderAt(timestamp: number): void {
     this.time = timestamp;
@@ -68,7 +49,6 @@ describe('DemandFrameScheduler', () => {
     expect(advance).toHaveBeenCalledTimes(1);
     expect(advance).toHaveBeenCalledWith(0.0167);
     expect(host.frames.size).toBe(0);
-    expect(host.timers.size).toBe(0);
     scheduler.dispose();
   });
 
@@ -83,7 +63,6 @@ describe('DemandFrameScheduler', () => {
     for (let tick = 0; tick <= 8; tick += 1) host.renderAt(tick * (1000 / 120));
     expect(timestamps).toEqual([0, 4 / 120, 8 / 120]);
     expect(host.frames.size).toBe(0);
-    expect(host.timers.size).toBe(0);
     scheduler.dispose();
   });
 
@@ -101,7 +80,6 @@ describe('DemandFrameScheduler', () => {
     const achievedFps = (draws.length - 1) / ((draws.at(-1)! - draws[0]) / 1000);
     expect(achievedFps).toBeGreaterThanOrEqual(Math.min(cap, refreshHz) - 1);
     expect(achievedFps).toBeLessThanOrEqual(Math.min(cap, refreshHz) + 1);
-    expect(host.timers.size).toBe(0);
     scheduler.dispose();
   });
 
@@ -160,10 +138,9 @@ describe('DemandFrameScheduler', () => {
     host.renderAt(0);
     scheduler.invalidate();
     host.setVisible(false);
-    expect(host.timers.size).toBe(0);
     expect(host.frames.size).toBe(0);
 
-    host.advanceTo(100);
+    host.time = 100;
     host.setVisible(true);
     expect(host.frames.size).toBe(1);
     host.renderAt(100);
@@ -171,7 +148,6 @@ describe('DemandFrameScheduler', () => {
 
     scheduler.invalidate();
     scheduler.dispose();
-    expect(host.timers.size).toBe(0);
     expect(host.frames.size).toBe(0);
     expect(host.visibilityListeners.size).toBe(0);
   });
@@ -186,7 +162,6 @@ describe('DemandFrameScheduler', () => {
       scheduler.invalidate();
       expect(scheduler.isHeld).toBe(true);
       expect(host.frames.size).toBe(0);
-      expect(host.timers.size).toBe(0);
 
       release();
       expect(scheduler.isHeld).toBe(false);

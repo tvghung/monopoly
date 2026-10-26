@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import { sampleCharacterHop } from '../scene/characters/characterMotion';
-import { expect, it, vi } from 'vitest';
-import { writeFileSync } from 'node:fs';
+import { afterAll, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createMovementExecutor } from './executors/movementExecutor';
 import { PresentationStore } from './store/presentationStore';
 import { PresentationController } from './PresentationController';
 import { makeRoom } from './testFixtures';
+// Test-generated measurements must never overwrite preserved B8 evidence.
+const evidenceDirectory = mkdtempSync(join(tmpdir(), 'otb-b8-cadence-'));
+afterAll(() => rmSync(evidenceDirectory, { recursive: true, force: true }));
 it('records the B8 timing with 12ms late timers', async () => {
   let now = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
@@ -26,7 +31,7 @@ it('records the B8 timing with 12ms late timers', async () => {
   const report = { kind: 'deterministic simulation, not device measurement', timerLatenessMs: 12, starts, durationMs: now - starts[0], idealDurationMs: 900, finalTile: store.getSnapshot().settledPositions['player-a'], visibilityRecoveryAPI: typeof (controller as unknown as {
       setVisibility?: unknown;
     }).setVisibility, queuedStatus: controller.queue.getStatus() };
-  writeFileSync('../../project-document/ui-ux-overhaul/08L_evidence/after-simulation.json', JSON.stringify(report, null, 2) + '\n');
+  writeFileSync(join(evidenceDirectory, 'after-simulation.json'), JSON.stringify(report, null, 2) + '\n');
   expect(report.durationMs).toBe(912);
   expect(report.finalTile).toBe(5);
   controller.dispose();
