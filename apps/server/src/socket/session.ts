@@ -15,6 +15,7 @@ import type { AppRuntime } from '../services/runtime';
 import { assertSupportedRoomSnapshot } from '../rooms';
 import type { AdmissionLimiter } from './admissionLimiter';
 import {
+  broadcastRoom,
   broadcastRoomById,
   privatePlayerRoomName,
   publicRoomName,
@@ -120,19 +121,38 @@ export function registerSessionHandlers(
     }
   });
 
+  // Only failed-operation room cleanup is serialized. Valid overlapping resumes can
+  // still establish newer generations without waiting for an older session/join.
+  let resumeRoomCleanup = Promise.resolve();
+
   socket.on('resume session', async (rawRequest, acknowledge) => {
+    // Arrival order is independent of how long token validation or the room FIFO takes.
+    const attempt = runtime.connections.beginResumeAttempt();
+    let bound: { playerId: string; roomId: string; generation: number } | undefined;
+    let acknowledged = false;
+    const isLive = () => socket.connected && io.sockets.sockets.get(socket.id) === socket;
+    const isCurrent = () => isLive() && bound !== undefined
+      && runtime.connections.isCurrent(bound.playerId, socket.id, bound.generation);
+    const assertLive = () => {
+      if (!isLive()) throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
+    };
+    const assertCurrent = () => {
+      if (!isCurrent()) throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
+    };
     try {
       const request = parsePayload(resumeSessionRequestSchema, rawRequest);
+      assertLive();
       const resumed = await runtime.sessions.resume(request.token);
+      assertLive();
       if (socket.data.playerId && socket.data.playerId !== resumed.playerId) {
         throw new CommandError('CONFLICT', 'This socket is already bound to another player.');
       }
 
       const previousRoomId = socket.data.roomId;
-      let active: ReturnType<typeof runtime.connections.activate> | undefined;
       await runtime.commands.execute(
         resumed.room.id,
         async ({ original, transaction }) => {
+          assertLive();
           assertSupportedRoomSnapshot(original);
           const latestSession = await transaction.playerSessions.findById(resumed.session.id);
           const member = original.gameSnapshot.members[resumed.playerId];
@@ -144,87 +164,137 @@ export function registerSessionHandlers(
             || !member
             || member.membershipStatus === 'LEFT'
           ) {
-            throw new CommandError(
-              'SESSION_REVOKED',
-              'This player session is no longer active.',
-            );
+            throw new CommandError('SESSION_REVOKED', 'This player session is no longer active.');
           }
         },
         {
           persistRoom: false,
           afterCommit: () => {
-            active = runtime.connections.activate(resumed.playerId, socket.id);
+            // No await separates liveness, ownership, SocketData and replacement. A disconnect
+            // immediately after this block can therefore deactivate exactly this generation.
+            assertLive();
+            if (socket.data.playerId && socket.data.playerId !== resumed.playerId) {
+              throw new CommandError('CONFLICT', 'This socket is already bound to another player.');
+            }
+            const active = runtime.connections.activateResume(resumed.playerId, socket.id, attempt);
+            if (!active) throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
+            bound = { playerId: resumed.playerId, roomId: resumed.room.id, generation: active.generation };
+            socket.data.roomId = resumed.room.id;
+            socket.data.playerId = resumed.playerId;
+            socket.data.role = 'PLAYER';
+            socket.data.sessionId = resumed.session.id;
+            socket.data.connectionGeneration = active.generation;
+            delete socket.data.pendingAdmission;
+
+            if (active.replacedSocketId) {
+              const replaced = io.sockets.sockets.get(active.replacedSocketId);
+              if (replaced) {
+                replaced.emit('session replaced', {
+                  code: 'SESSION_REPLACED',
+                  message: 'This player session was resumed from a newer connection.',
+                });
+                replaced.disconnect(true);
+              }
+            }
           },
         },
       );
-      if (!active) throw new CommandError('INTERNAL_ERROR', 'Session binding failed.');
-      // A second resume on the same socket can be queued behind this one. Do
-      // not let an older handler overwrite SocketData after a newer generation
-      // has already won the registry race.
-      if (!runtime.connections.isCurrent(resumed.playerId, socket.id, active.generation)) {
-        throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
-      }
-
-      socket.data.roomId = resumed.room.id;
-      socket.data.playerId = resumed.playerId;
-      socket.data.role = 'PLAYER';
-      socket.data.sessionId = resumed.session.id;
-      socket.data.connectionGeneration = active.generation;
-      delete socket.data.pendingAdmission;
+      assertCurrent();
+      await resumeRoomCleanup;
+      assertCurrent();
       if (previousRoomId && previousRoomId !== resumed.room.id) {
         await socket.leave(publicRoomName(previousRoomId));
+        assertCurrent();
       }
-      await Promise.all([
-        socket.join(publicRoomName(resumed.room.id)),
-        socket.join(privatePlayerRoomName(resumed.playerId)),
-      ]);
+      // Sequential joins leave no sibling join promise that could re-add a cancelled subscription.
+      await socket.join(publicRoomName(resumed.room.id));
+      assertCurrent();
+      await socket.join(privatePlayerRoomName(resumed.playerId));
+      assertCurrent();
 
-      if (active.replacedSocketId) {
-        const replaced = io.sockets.sockets.get(active.replacedSocketId);
-        if (replaced) {
-          replaced.emit('session replaced', {
-            code: 'SESSION_REPLACED',
-            message: 'This player session was resumed from a newer connection.',
-          });
-          replaced.disconnect(true);
+      await reconcileTurnPresence(io, runtime, resumed.room.id, resumed.playerId, new Date(), isCurrent);
+      assertCurrent();
+      // Final validation, private reads and ACK stay in the room FIFO. A leave/kick
+      // cannot invalidate this player between validation and successful publication.
+      await runtime.commands.execute(resumed.room.id, async ({ original, transaction }) => {
+        assertCurrent();
+        const latestSession = await transaction.playerSessions.findById(resumed.session.id);
+        const member = original.gameSnapshot.members[resumed.playerId];
+        if (!latestSession || latestSession.status !== 'ACTIVE'
+          || latestSession.roomId !== original.id || latestSession.playerId !== resumed.playerId
+          || !member || member.membershipStatus === 'LEFT') {
+          throw new CommandError('SESSION_REVOKED', 'This player session is no longer active.');
         }
-      }
-
-      await reconcileTurnPresence(io, runtime, resumed.room.id, resumed.playerId);
-      const room = await runtime.persistence.rooms.findById(resumed.room.id);
-      if (!room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
-      const offerRecords = await runtime.persistence.tradeOffers.listPendingForPlayer(
-        room.id,
-        resumed.playerId,
-      );
-      const result: ResumeSessionResult = {
-        role: 'PLAYER',
-        playerId: resumed.playerId,
-        room: projectPublicRoomState(room, runtime.connections),
-        pendingOffers: offerRecords.map((offer) => projectPrivateOffer(offer, room)),
-        privatePlayerState: projectPrivatePlayerState(room, resumed.playerId),
-        forcedSaleProposal: projectPrivatePlayerState(room, resumed.playerId).forcedSaleProposal,
-        hostContinuityKey: runtime.continuity.publicKey,
-      };
-      acknowledge(successAck(result, room.aggregateVersion));
-      await broadcastRoomById(io, runtime, room.id);
+        return transaction.tradeOffers.listPendingForPlayer(original.id, resumed.playerId);
+      }, {
+        persistRoom: false,
+        afterCommit: ({ room, result: offerRecords }) => {
+          assertCurrent();
+          if (!room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+          const privatePlayerState = projectPrivatePlayerState(room, resumed.playerId);
+          const result: ResumeSessionResult = {
+            role: 'PLAYER',
+            playerId: resumed.playerId,
+            room: projectPublicRoomState(room, runtime.connections),
+            pendingOffers: offerRecords.map((offer) => projectPrivateOffer(offer, room)),
+            privatePlayerState,
+            forcedSaleProposal: privatePlayerState.forcedSaleProposal,
+            hostContinuityKey: runtime.continuity.publicKey,
+          };
+          acknowledged = true;
+          acknowledge(successAck(result, room.aggregateVersion));
+        },
+      });
+      const published = await runtime.persistence.rooms.findById(resumed.room.id);
+      if (published && isCurrent()) broadcastRoom(io, runtime, published);
     } catch (error) {
+      // A late handler on the same socket must not remove a newer generation's rooms or SocketData.
+      if (!acknowledged && bound && (
+        runtime.connections.get(bound.playerId)?.socketId !== socket.id
+        || runtime.connections.isCurrent(bound.playerId, socket.id, bound.generation)
+      )) {
+        const cancelled = bound;
+        deactivateConnection(cancelled.playerId, cancelled.roomId, cancelled.generation);
+        if (socket.data.playerId === cancelled.playerId && socket.data.connectionGeneration === cancelled.generation) {
+          delete socket.data.roomId;
+          delete socket.data.playerId;
+          delete socket.data.role;
+          delete socket.data.sessionId;
+          delete socket.data.connectionGeneration;
+        }
+        // Socket.IO normally leaves all rooms on disconnect; this also cleans an async join
+        // that was already in flight. Failure here must not replace the original ACK error.
+        const cleanup = resumeRoomCleanup.then(async () => {
+          const departures: Array<Promise<void>> = [];
+          for (const roomName of [publicRoomName(cancelled.roomId), privatePlayerRoomName(cancelled.playerId)]) {
+            try { departures.push(Promise.resolve(socket.leave(roomName))); } catch { /* Preserve the original failure. */ }
+          }
+          await Promise.allSettled(departures);
+        });
+        resumeRoomCleanup = cleanup;
+        await cleanup;
+      }
       if (
         error instanceof CommandError
         && [
-          'SESSION_INVALID',
-          'SESSION_REVOKED',
-          'SESSION_EXPIRED',
-          'ROOM_GONE',
-          'GAME_ALREADY_STARTED',
-          'ROOM_FULL',
+          'SESSION_INVALID', 'SESSION_REVOKED', 'SESSION_EXPIRED', 'ROOM_GONE',
+          'GAME_ALREADY_STARTED', 'ROOM_FULL',
         ].includes(error.code)
       ) {
         delete socket.data.pendingAdmission;
       }
-      acknowledgeFailure(acknowledge, error);
+      if (!acknowledged) acknowledgeFailure(acknowledge, error);
+      else console.error('Resume broadcast failed', error);
     }
   });
+
+  function deactivateConnection(playerId: string, roomId: string, generation: number): void {
+    const deactivated = runtime.connections.deactivate(playerId, socket.id, generation);
+    if (!deactivated || runtime.flags.shuttingDown) return;
+    void armDisconnectedCurrentPlayer(io, runtime, roomId, playerId)
+      .then(() => broadcastRoomById(io, runtime, roomId))
+      .catch((error: unknown) => console.error('Disconnect recovery failed', error));
+  }
 
   socket.on('disconnect', () => {
     const { playerId, roomId, connectionGeneration } = socket.data;
@@ -233,15 +303,6 @@ export function registerSessionHandlers(
     // resume the token it received or start a fresh admission.
     if (!playerId) delete socket.data.pendingAdmission;
     if (!playerId || !roomId || connectionGeneration === undefined) return;
-    const deactivated = runtime.connections.deactivate(
-      playerId,
-      socket.id,
-      connectionGeneration,
-    );
-    if (!deactivated || runtime.flags.shuttingDown) return;
-
-    void armDisconnectedCurrentPlayer(io, runtime, roomId, playerId)
-      .then(() => broadcastRoomById(io, runtime, roomId))
-      .catch((error: unknown) => console.error('Disconnect recovery failed', error));
+    deactivateConnection(playerId, roomId, connectionGeneration);
   });
 }

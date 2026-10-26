@@ -1,3 +1,4 @@
+import { CommandError } from '../socket/errors';
 import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
@@ -12,7 +13,11 @@ import {
   sellPropertyToBankForPayment,
 } from '../game';
 import { assertSupportedRoomSnapshot } from '../rooms';
-import { cancelPendingOffersForAssets, cancelPendingOffersForPlayer } from './offerInvalidation';
+import {
+  cancelPendingOffersForAssets,
+  cancelPendingOffersForPlayer,
+  emitCancelledOffers,
+} from './offerInvalidation';
 import { projectPrivateOffer } from './privateOffers';
 import { broadcastRoom, privatePlayerRoomName } from '../socket/broadcast';
 import { commitRoomCommand } from '../socket/roomCommands';
@@ -36,30 +41,6 @@ interface RecoveryResult {
   cancelledOffers: TradeOfferRecord[];
   forcedSalePlayers: PlayerId[];
 }
-
-const emitCancelledOffers = (
-  io: AppServer,
-  room: Parameters<typeof projectPrivateOffer>[1],
-  records: TradeOfferRecord[],
-  now: Date,
-): void => {
-  for (const record of records) {
-    const offer = projectPrivateOffer(record, room);
-    const result: OfferResult = {
-      offerId: offer.offerId,
-      status: 'CANCELLED',
-      proposerPlayerId: offer.proposerPlayerId,
-      recipientPlayerId: offer.recipientPlayerId,
-      proposerName: offer.proposerName,
-      recipientName: offer.recipientName,
-      offered: offer.offered,
-      requested: offer.requested,
-      resolvedAt: offer.resolvedAt ?? now.toISOString(),
-    };
-    io.to(privatePlayerRoomName(offer.proposerPlayerId)).emit('offer cancelled', result);
-    io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer cancelled', result);
-  }
-};
 
 const recoverPaymentShortfall = async (
   context: Parameters<Parameters<typeof commitRoomCommand>[2]>[0],
@@ -333,9 +314,13 @@ export async function reconcileTurnPresence(
   roomId: string,
   reconnectingPlayerId?: PlayerId,
   now = new Date(),
+  isCurrentConnection?: () => boolean,
 ): Promise<void> {
+  if (isCurrentConnection?.() === false) return;
   await recoverRoomIfDue(io, runtime, roomId, now);
+  if (isCurrentConnection?.() === false) return;
   const current = await runtime.persistence.rooms.findById(roomId);
+  if (isCurrentConnection?.() === false) return;
   if (!current || current.status !== 'IN_PROGRESS') return;
   assertSupportedRoomSnapshot(current);
   const board = current.gameSnapshot.gameState.boardState;
@@ -358,6 +343,9 @@ export async function reconcileTurnPresence(
   if (!shouldClear && !shouldArm) return;
 
   const committed = await commitRoomCommand(runtime, roomId, ({ state, room: latestRoom }) => {
+    if (isCurrentConnection?.() === false) {
+      throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
+    }
     const latestBoard = state.boardState;
     if (
       shouldClear
@@ -388,6 +376,12 @@ export async function reconcileTurnPresence(
       };
     }
   }, now);
+  if (isCurrentConnection?.() === false) {
+    // Disconnect may have observed the old marker while this transaction was saving
+    // its clear. Reconcile the committed state again; a newer live owner makes this a no-op.
+    if (reconnectingPlayerId) await armDisconnectedCurrentPlayer(io, runtime, roomId, reconnectingPlayerId);
+    return;
+  }
   if (committed.room) broadcastRoom(io, runtime, committed.room);
 }
 
