@@ -24,7 +24,7 @@ A rejected command or failed commit discards its draft: no balance/building/inve
 in the same commit and is refused while a payment shortfall is open or the tile has a pending
 landing decision.
 
-Idempotency (CURRENT DEVELOPMENT, protocol 13; RELEASED v1.7.0 had none and a replayed emit sold one more level): the
+Idempotency (RELEASED v1.8.0, protocol 13; RELEASED v1.7.0 had none and a replayed emit sold one more level): the
 client sends a fresh `requestId` per logical sale (`apps/client/src/App.tsx`). `apps/server/src/socket/building.ts` checks
 `runtime.sellHouseRequests` (`apps/server/src/services/commandRequestLedger.ts`, keyed by room, actor, event and id) inside the
 room command: a retransmitted emit (Socket.IO replays a buffered packet after a reconnect, a double click) is acknowledged

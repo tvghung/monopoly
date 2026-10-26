@@ -89,7 +89,7 @@ driver dùng chung. Actor không bao giờ lấy từ client payload. Handler kh
 | --- | --- |
 | Session/presence | `join room`, `resume session`, disconnect |
 | Lobby/lifecycle | `set appearance`, `set ready`, `start game`, `play again`, `leave room` |
-| Bots (`socket/bots.ts`) | `add bot`, `remove bot`; `set bot difficulty` is CURRENT DEVELOPMENT (vNext, unreleased, added without a protocol bump) |
+| Bots (`socket/bots.ts`) | `add bot`, `remove bot`; `set bot difficulty` RELEASED in v1.8.0 with protocol 13 (v1.10.0 protocol 14) |
 | Team (2v2, `socket/team.ts`) | `set game mode`, `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap`, `revive teammate` |
 | Lobby removal | `kick player` (host, lobby); the removed player's connection receives `removed from room` |
 | Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |

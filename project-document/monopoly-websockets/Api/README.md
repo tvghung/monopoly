@@ -1,6 +1,6 @@
 # HTTP và Socket.IO — Cờ Tỷ Phú Việt Nam
 
-Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundation rules:
+Status: CURRENT (release baseline v1.10.0; CURRENT DEVELOPMENT labels refer to this worktree). Foundation rules:
 [monopoly.api.instructions.md](../monopoly.api.instructions.md). Documentation Hub: [project-document/README.md](../../README.md).
 
 Express runtime và Socket.IO command modules. RAM session/lifecycle detail:
@@ -10,7 +10,7 @@ Express runtime và Socket.IO command modules. RAM session/lifecycle detail:
 | --- | --- | --- |
 | Runtime | `/healthz`, `/readyz`, `/_otb/room`, `/_otb/continuity`, `/_otb/registry-proof`, static/SPA, startup/shutdown, LAN UDP lookup and Online tunnel/registry | [http-runtime](./http-runtime.instruction.md) |
 | Session | `join room`, `resume session`, disconnect | [socket-session](./socket-session.instruction.md) |
-| Lobby, 2v2 seats, bots | `set appearance`, `set ready`, `start game`, `play again`, `kick player`, `leave room`, the 2v2 team commands, `add bot`, `remove bot`, `set bot difficulty` (CURRENT DEVELOPMENT) | [socket-lobby](./socket-lobby.instruction.md) |
+| Lobby, 2v2 seats, bots | `set appearance`, `set ready`, `start game`, `play again`, `kick player`, `leave room`, the 2v2 team commands, `add bot`, `remove bot`, `set bot difficulty` (RELEASED v1.8.0; protocol 13) | [socket-lobby](./socket-lobby.instruction.md) |
 | Turn/landing decision and cards | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail`, `dismiss card`, `draw card` (legacy) | [socket-turn](./socket-turn.instruction.md) |
 | Chat | `send chat` | [socket-chat](./socket-chat.instruction.md) |
 | Trading | bilateral `TradeOfferRequest` và private offer lifecycle | [socket-trading](./socket-trading.instruction.md) |
@@ -29,7 +29,7 @@ schemas: `clientEventPayloadSchemas` in `packages/shared/src/socketSchemas.ts`; 
 | `join room`, `resume session` | `apps/server/src/socket/session.ts` | [socket-session](./socket-session.instruction.md) |
 | `set appearance`, `set ready`, `start game`, `play again`, `kick player`, `leave room` | `apps/server/src/socket/lobby.ts` | [socket-lobby](./socket-lobby.instruction.md) |
 | `add bot`, `remove bot` | `apps/server/src/socket/bots.ts` | [socket-lobby](./socket-lobby.instruction.md#add-bot--remove-bot-protocol-12-socketbotsts) |
-| `set bot difficulty` — CURRENT DEVELOPMENT (vNext, unreleased) | `apps/server/src/socket/bots.ts` | [socket-lobby](./socket-lobby.instruction.md#add-bot--remove-bot-protocol-12-socketbotsts) |
+| `set bot difficulty` — RELEASED v1.8.0 (protocol 13; v1.10.0 uses protocol 14) | `apps/server/src/socket/bots.ts` | [socket-lobby](./socket-lobby.instruction.md#add-bot--remove-bot-protocol-12-socketbotsts) |
 | `set game mode`, `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap`, `revive teammate` | `apps/server/src/socket/team.ts` | [socket-lobby](./socket-lobby.instruction.md#2v2-lobby-commands-socketteamts) |
 | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` | `apps/server/src/socket/turn.ts` | [socket-turn](./socket-turn.instruction.md) |
 | `dismiss card`, `draw card` (protocol-9 legacy compatibility; the current client never emits it) | `apps/server/src/socket/card.ts` | [socket-turn](./socket-turn.instruction.md#card-commands) |
@@ -39,12 +39,12 @@ schemas: `clientEventPayloadSchemas` in `packages/shared/src/socketSchemas.ts`; 
 | `make offer`, `decline offer`, `accept offer` | `apps/server/src/socket/trading.ts` | [socket-trading](./socket-trading.instruction.md) |
 | `send chat` | `apps/server/src/socket/chat.ts` | [socket-chat](./socket-chat.instruction.md) |
 
-`set bot difficulty` was added on this branch (commit 1937a73) inside the same `SOCKET_PROTOCOL_VERSION` without a bump. This
-is an open release risk. Against a released v1.7.0 host the event is never answered: the v1.7.0 inbound middleware passes
-event names it has no schema for and no listener exists, so no ACK (not even `INVALID_REQUEST`) arrives, and the current
-client's lobby `runTeamCommand` has no ACK timeout. The public projection now always carries `botDifficulty` (absent in the
-aggregate = `MEDIUM`, the released Balanced policy); a v1.7.0 client does not schema-parse `update` and ignores the field.
-Version history:
+`set bot difficulty` được phát hành ở v1.8.0 cùng Socket protocol 13. Quan sát “host v1.7.0 không ACK command này” mô tả
+trạng thái lịch sử trước protocol bump; R-1 được xử lý bằng protocol 12 → 13 và strict equality handshake trả
+`UPGRADE_REQUIRED` cho client không tương thích. Đây không còn là release risk của các bản đã phát hành.
+
+Release baseline v1.10.0 giữ protocol 14 và snapshot schema 11. Các E1 patches hiện có trên working tree là
+CURRENT DEVELOPMENT, chưa nằm trong installer v1.10.0. Lịch sử version:
 [socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md).
 
 ## Server → client events
@@ -57,7 +57,7 @@ Version history:
 | `private player state` | each non-`LEFT` member's `player:<playerId>` | `apps/server/src/socket/broadcast.ts` (`broadcastRoom`) |
 | `offer on prop` | the recipient's `player:` room | `apps/server/src/socket/trading.ts` |
 | `offer declined`, `offer accepted` | proposer and recipient | `apps/server/src/commands/gameplay.ts` (`emitOfferResult`) |
-| `offer cancelled` | proposer and recipient | `apps/server/src/services/offerInvalidation.ts`, `apps/server/src/commands/gameplay.ts`, a local copy in `apps/server/src/services/deadlineScheduler.ts` and inline in the leave path of `apps/server/src/socket/lobby.ts` |
+| `offer cancelled` | proposer and recipient | Shared `emitCancelledOffers` in `apps/server/src/services/offerInvalidation.ts`, called after commit from `apps/server/src/commands/gameplay.ts` (including after the accepted result), `apps/server/src/socket/building.ts`, `apps/server/src/socket/lobby.ts` and `apps/server/src/services/deadlineScheduler.ts` |
 | `offer expired` | proposer and recipient | `apps/server/src/services/deadlineScheduler.ts` |
 | `forced sale proposal` | seller and buyer | `apps/server/src/socket/debt.ts` (new proposal); `null` from `apps/server/src/commands/gameplay.ts`, `apps/server/src/socket/lobby.ts`, `apps/server/src/services/deadlineScheduler.ts` |
 | `session replaced` | the superseded connection only | `apps/server/src/socket/session.ts` |

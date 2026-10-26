@@ -78,12 +78,12 @@
   lần bấm = một `add bot` với `requestId` mới (2v2 kèm `seat {teamId, teamSlot}` của ô đã bấm), disable khi `busy`. Ghế bot có huy hiệu
   "Bot", luôn Sẵn sàng và có mặt, không có nút sẵn sàng; nút X của host trên ghế bot ("Xóa <tên>") gửi `remove bot` **ngay, không hỏi xác
   nhận** (bot thêm lại được ngay), khác với X mời người thật ra (có `ConfirmationDialog`). Khách không có nút thêm/xóa bot.
-- **Độ khó của Bot** — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified; v1.7.0 RELEASED chỉ có một
+- **Độ khó của Bot** — RELEASED v1.8.0 (protocol 13; release baseline v1.10.0 protocol 14; v1.7.0 chỉ có một
   chính sách "Balanced"): `<select>` "Độ khó của Bot" chỉ hiện khi có ít nhất một bot đang ngồi; năm mức Cực dễ / Dễ / Trung bình / Khó /
   Cực khó (`BOT_DIFFICULTIES` = `VERY_EASY`..`VERY_HARD`), mặc định Trung bình (`DEFAULT_BOT_DIFFICULTY` = `MEDIUM` = hành vi Balanced đã
   phát hành). Giá trị đọc từ public `boardState.botDifficulty` (thiếu = `MEDIUM`), áp dụng cho mọi bot của phòng và được giữ qua
-  `play again`. Chỉ host đổi được (`set bot difficulty` `{difficulty}`); khách thấy giá trị nhưng dropdown cùng thiết kế với LanguageSelector bị disable. RELEASE RISK: lệnh
-  này được thêm vào bên trong protocol hiện hành mà không tăng `SOCKET_PROTOCOL_VERSION`.
+  `play again`. Chỉ host đổi được (`set bot difficulty` {`difficulty`}); khách thấy giá trị nhưng dropdown cùng thiết kế với
+  LanguageSelector bị disable. R-1 đã được xử lý ở v1.8.0 bằng protocol bump 12 → 13; không còn release risk cho protocol 14.
 - Start: 2–4 ghế active (người + bot), ít nhất một người thật, mọi người thật connected và Ready (bot luôn Ready/có mặt); 2v2 đúng 4, mỗi
   đội 2. Host luôn là người thật nên điều kiện "ít nhất một người thật" luôn đúng phía client; server kiểm lại tất cả. Chỉ host có start
   action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
@@ -132,6 +132,6 @@
 - Bankruptcy versus forfeit reason, stable winner and reconnect while the host process lives (host process exit ends the
   room permanently; nothing is restored).
 - Lobby: `Lobby.test.tsx` (Solo kick; "Lobby bot seats": badge/Ready, Add bot chỉ cho host, ẩn khi đầy, X xóa bot không hỏi, bot không
-  chặn start; "Lobby bot difficulty" — CURRENT DEVELOPMENT: năm mức chỉ khi có bot, mặc định Trung bình, khách bị disable), `App.test.tsx` ("App 2v2 lobby commands": payload của từng lệnh, `removed from room`).
+  chặn start; "Lobby bot difficulty" (RELEASED v1.8.0): năm mức chỉ khi có bot, mặc định Trung bình, khách bị disable), `App.test.tsx` ("App 2v2 lobby commands": payload của từng lệnh, `removed from room`).
 - 2v2: `Lobby.teamplay.test.tsx` (ô chỗ, nút đổi chỗ/chuyển chỗ, yêu cầu/hủy/trả lời, kick, tên đội của đội mình, busy), `startReadiness.test.ts`, `stationSlots.test.ts`, `playerCardSelectors.test.ts`, `PlayerCardList.test.tsx`,
   `WinnerBanner.test.tsx`, `teamView.test.ts` (xem [testcase/team-play.md](../testcase/team-play.md)).

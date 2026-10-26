@@ -73,3 +73,10 @@
   focus returns to "Đóng" after a failed dismissal, a confirmation can open above the card.
 - [ ] `[MANUAL-E2E]` G4 V1 card review (harness scenarios `chance`, `chest`, `reconnect-revealed`, `spectator-revealed`) and the
   jail strip against the roll button at 812×375 and 667×375.
+
+## AUDIT-017 — automated socket assertions reviewed
+
+The following assertions were verified by source inspection for documentation traceability. The suite was not rerun in Phase A1; these notes do not mark a manual/device checklist item complete.
+
+- `[SOURCE REVIEW — NOT A FRESH RUN]` `apps/server/src/socket.hardening.integration.test.ts`, `do not buy`: clears the pending purchase, leaves the property unowned without charging, advances the turn and broadcasts the committed update to another player.
+- `[SOURCE REVIEW — NOT A FRESH RUN]` `apps/server/src/socket.hardening.integration.test.ts`, `wait in jail`: keeps the actor jailed, advances the turn and turn number, and broadcasts the update to another player. No current UI caller for `wait in jail` was found; manual interaction remains NOT RUN.

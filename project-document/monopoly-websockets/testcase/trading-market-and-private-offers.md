@@ -27,11 +27,16 @@
   expiry resolves exactly once. Host process exit (or restart) discards the offer and room permanently.
 - [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer transaction
   produces no transfer/private result/public update/success ACK.
-- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT (protocol 13): `make offer` is idempotent per `requestId` — one offer delivered once, a retransmitted and a
+- [x] `[AUTO][SOCKET][CURRENT DEVELOPMENT — A4]` Asset invalidation via `sell house` cancels every pending offer touching the tile once, sends the same serialized `CANCELLED` result only to its participants before the room update, and never puts offer terms in the public projection (`apps/server/src/socket.integration.test.ts`). A second change to that tile does not notify for terminal offers again.
+- [x] `[AUTO][SOCKET][CURRENT DEVELOPMENT — A4]` A transaction failure after an asset mutation rolls back both room and offer state and emits no cancellation or room update; explicit leave persists cancellation before notification, the current reconnected participant receives it, the leaving session, unrelated player and spectator do not, and the public projection contains no offer terms (`apps/server/src/socket.integration.test.ts`).
+- [x] `[AUTO][SOCKET][CURRENT DEVELOPMENT — A4]` Deadline-driven bankruptcy cancels each affected offer once after commit and before the public update, privately to the participant rooms; failed deadline commit emits nothing. Offer TTL still resolves as `EXPIRED` through the separate `offer expired` event (`apps/server/src/services/deadlineScheduler.test.ts`).
+- [x] `[AUTO][SOCKET][CURRENT DEVELOPMENT — A4]` Cancellation payload tests compare the typed result and JSON serialization, including persisted `resolvedAt` and the existing timestamp fallback (`apps/server/src/services/offerInvalidation.test.ts`).
+- [x] `[AUTO][SOCKET][CURRENT DEVELOPMENT — A4]` Accepting an offer keeps its `ACCEPTED` result first, then privately resolves stale offers as `CANCELLED`, and finally sends the room update (`apps/server/src/socket.integration.test.ts`).
+- [x] `[AUTO][SOCKET]` RELEASED v1.8.0 (protocol 13): `make offer` is idempotent per `requestId` — one offer delivered once, a retransmitted and a
   concurrent duplicate return the same `offerId` and create nothing, identical terms with a new id are a separate offer, a retry after decline does not
   recreate it, a refused request is not remembered, a missing/malformed id is `INVALID_REQUEST`
   (`apps/server/src/socket.hardening.integration.test.ts`).
-- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT: `decline offer` — valid (both sides told, resolved once, repeat refused), unauthorized/unknown `FORBIDDEN`, expired and
+- [x] `[AUTO][SOCKET]` RELEASED v1.8.0: `decline offer` — valid (both sides told, resolved once, repeat refused), unauthorized/unknown `FORBIDDEN`, expired and
   not-in-progress room `CONFLICT`, malformed payload (`apps/server/src/socket.hardening.integration.test.ts`).
 
 ## Trade and incoming offers UI (visual overhaul V2, plan 04)

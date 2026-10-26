@@ -1,6 +1,6 @@
 # Stable v1.10.0 — Pre-publication release gates
 
-> **CURRENT DEVELOPMENT — PREPARATION ONLY.** Owner chose a direct **Stable v1.10.0** release without publishing an intermediate RC. **NO TAG OR RELEASE HAS BEEN AUTHORIZED YET.** This record is a go/no-go checklist; do not report a build as PASS until its actual job/run and artifact checks succeed.
+> **HISTORICAL preparation record.** At the time this checklist was written, the owner chose a direct **Stable v1.10.0** release without an intermediate RC, and no tag or release had yet been authorized. v1.10.0 was later published; current release identity and limits are in [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md). This historical record retains the original go/no-go evidence and does not change its time or result.
 
 ## Scope and provenance
 

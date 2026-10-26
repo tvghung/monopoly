@@ -44,3 +44,10 @@ through private player state after reconnect while the host process lives (host 
 - [ ] `[MANUAL-E2E]` V1.1: with three players, a debtor receives a buy offer while the debt dialog is open, sees the toast and the
   offer inside the dialog, accepts it, and the debt is settled; and sells a property to another player at a price they typed.
 - [ ] `[MANUAL-E2E]` G4: debtor dialog on a phone held sideways (a sale is visible without scrolling), forfeit confirmation.
+
+## AUDIT-017 — automated socket assertions reviewed
+
+The following assertions were verified by source inspection for documentation traceability. The suite was not rerun in Phase A1; this section does not mark a manual/device checklist item complete.
+
+- `[SOURCE REVIEW — NOT A FRESH RUN]` `apps/server/src/socket.hardening.integration.test.ts`, `sell property to bank`: committed sale resolves the active claim once, updates ownership/balances/payment queue and broadcasts; a duplicate sale is rejected without a second payment.
+- `[SOURCE REVIEW — NOT A FRESH RUN]` `apps/server/src/socket.hardening.integration.test.ts`, `reject forced sale`: clears the proposal, preserves ownership/balances and the payment queue, sends private clear events to seller and buyer, and broadcasts the update to the creditor.

@@ -302,6 +302,7 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
     `boardViewStore` giữ `{ zoom, panX, panY }` ngoài React nên pinch/kéo không render component nào. Zoom 1 = tổng quan cũ (cả bàn + bệ), giới hạn 1–3,5×;
     pan tính theo trục phải/lên của camera (hướng camera không đổi) và bị kẹp để cửa sổ nhìn không vượt khỏi vùng tổng quan, nên không thể làm mất bàn cờ; ở zoom 1 không có pan.
     Cử chỉ (gắn vào `.game-scene`, `touch-action: none` trên canvas): một ngón kéo khi đã zoom, hai ngón pinch (zoom quanh điểm giữa + kéo theo), con lăn chuột zoom quanh con trỏ.
+    `pointerup`/`pointercancel`/`lostpointercapture` được nghe ở pha capture của `window` để thả chuột ngoài canvas vẫn kết thúc kéo; `blur` xóa pointer đang hoạt động. Đổi graphics tier khởi tạo lại listener và xóa pointer cũ; unmount gỡ mọi listener. Không tự gọi `setPointerCapture`.
     Một lần chạm/kéo vượt 8 px kết thúc bằng `click` bị chặn ở pha capture (350 ms) nên kéo không mở thẻ ô đất; ở zoom 1 một cú chạm luôn là chạm.
     Phím trong `action-dock` (`CameraControls`: phóng to, thu nhỏ, "Về góc nhìn toàn bàn" chỉ hiện khi khác tổng quan; chỉ vẽ khi có bàn 3D; 44 px, phone 34 px + viền chạm) là đường
     dùng bàn phím/chuột. Reset là chuyển động 280 ms (tức thời khi reduced motion). Camera không đổi trong đợt overhaul (chủ dự án: "tạm ổn").

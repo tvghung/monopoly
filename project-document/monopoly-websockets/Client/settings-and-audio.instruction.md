@@ -1,6 +1,6 @@
 # Client settings and audio
 
-Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundation rules: [monopoly.client.instructions.md](../monopoly.client.instructions.md), [monopoly.shared.instructions.md](../monopoly.shared.instructions.md).
+Status: CURRENT (release baseline v1.10.0; later CURRENT DEVELOPMENT sections are labeled). Foundation rules: [monopoly.client.instructions.md](../monopoly.client.instructions.md), [monopoly.shared.instructions.md](../monopoly.shared.instructions.md).
 
 ## Scope and UI entry
 

@@ -36,7 +36,7 @@ rules: `apps/server/src/commands/gameplay.ts` (shared with the bot driver).
 Room + offer + payment writes commit atomically in one RAM transaction before private/public emit and ACK; a failed
 command discards its draft and its offer writes.
 
-Idempotency and guards (CURRENT DEVELOPMENT, protocol 13; RELEASED v1.7.0 behaved as the "Released" notes below say):
+Idempotency and guards (RELEASED v1.8.0, protocol 13; RELEASED v1.7.0 behaved as the "Released" notes below say):
 
 - `make offer` is idempotent per `requestId`: `apps/server/src/socket/trading.ts` looks the id up in `runtime.makeOfferRequests`
   (`apps/server/src/services/commandRequestLedger.ts`, keyed by room, actor, event and id) inside the room command. A
@@ -62,3 +62,10 @@ during a shortfall: [socket-debt-and-rescue](./socket-debt-and-rescue.instructio
 NOT VERIFIED (none found in `apps/server/src/socket.integration.test.ts`). V1.1 shortfall offers: `socket.integration.test.ts` (debt offer settles the debt, decline, the
 locked shapes and the proposer balance, open forced-sale proposal, eliminated debtor with a valid snapshot) and
 `v3.simplifiedRules.test.ts` (`executeVoluntaryTrade` locks unless the caller opts in).
+
+## CURRENT DEVELOPMENT — AUDIT-008 (chưa phát hành)
+
+`accept offer` kiểm tra offer hiện hành rồi gọi `executeVoluntaryTrade` một lần trên draft room. Hàm xác thực hai bên, tiền và
+quyền sở hữu toàn bộ bundle trước mutation đầu tiên; handler không cache hay tái sử dụng preview state. Transaction của room và
+offer vẫn rollback cùng nhau khi commit lỗi. Sau commit, kết quả private, cancellation private và public update giữ nguyên thứ tự
+được test. Đây là giảm một lần apply và một lần clone preview, không đổi validation hoặc event contract; chưa có trong v1.10.0.

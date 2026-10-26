@@ -201,6 +201,21 @@ ACK is resumable because token was stored first.
   informational, keeps the room code editable, and does not apply private-LAN
   address normalization.
 
+## Public snapshot và presence (CURRENT DEVELOPMENT — E1-FIX-001)
+
+`apps/client/src/App.tsx` là điểm áp dụng public room replica cho Lobby, HUD và spectator. Chỉ admission/resume ACK đã qua attempt/session guard mới được thiết lập hoặc thay thế room identity. Listener `update` yêu cầu socket còn connected, có room và role hiện hành, phase không phải `ERROR`/`REPLACED`, đồng thời cả internal `roomId` lẫn `roomCode` phải khớp. Packet của room cũ không được nhận vào room mới dù mã hiển thị được dùng lại.
+
+- Revision cao hơn đi qua `applyRoom` để cập nhật authoritative state và chọn snapshot source hiện hữu. Revision thấp hơn bị bỏ, kể cả presence trông mới hơn.
+- Với revision bằng nhau, chỉ event `update` được merge đúng field `connected` của HUMAN đang `ACTIVE` đã có trong roster, khi `playerId`, `kind` và `membershipStatus` khớp. Không thêm/xóa member, không thay cả member object từ packet; mọi field khác của member/room và toàn bộ `gameState` giữ từ replica hiện tại. Bot và member không `ACTIVE` giữ nguyên semantics từ revision authoritative.
+- Khi `connected` thực sự đổi, cùng object room mới được gán vào `roomRef` và React state để các consumer cập nhật cùng một nguồn. Packet trùng không gọi `setRoom`.
+- Nhánh presence không gọi `PresentationController.acceptRoomSnapshot`, không reset/enqueue presentation và không gửi gameplay command. Movement/card đang chạy tiếp tục; lower-version protection và higher-version gameplay presentation giữ nguyên. Chi tiết controller ở [presentation pipeline](./presentation-pipeline.instruction.md#snapshot-sources).
+
+Ordering dựa trên producer hiện hữu: `apps/server/src/socket/broadcast.ts` gọi `projectPublicRoomState` rồi emit trong cùng đoạn đồng bộ; `apps/server/src/services/publicState.ts` đọc ConnectionRegistry đang sống tại lúc đó. Sau một room lookup bị trì hoãn, broadcast vẫn project lại registry hiện hành. [Socket.IO bảo đảm thứ tự message](https://socket.io/docs/v4/delivery-guarantees/#message-ordering) theo thứ tự emit trên cùng connection, kể cả khi đổi low-level transport. Vì vậy async completion cũ không mang theo presence đã chụp trước await. Đây không phải bảo đảm nhận mọi packet khi mất kết nối; resume ACK hydrate lại state sau reconnect.
+
+Admission/resume ACK có thể hoàn tất muộn nên không dùng nhánh merge presence: `applyRoom` vẫn bỏ snapshot cùng room có version nhỏ hơn hoặc bằng replica hiện tại. ACK không được khôi phục presence cũ đã nhận qua live event. Các attempt/session guards hiện hữu vẫn quyết định ACK còn hợp lệ.
+
+Chỉ đổi cách client áp dụng public `connected`; không lưu presence vào room aggregate, không thêm transaction/broadcast, không mở private projection hoặc thêm wire field. Socket protocol **14** và room snapshot schema **11** không đổi. Coverage: `apps/client/e1/audit001.e1.tsx`, `apps/server/e1/audit001Presence.e1.ts`, `apps/client/src/App.presence.test.tsx` và `apps/server/src/socket.presenceSynchronization.integration.test.ts`; đây là mounted React/Socket.IO loopback evidence, không thay native/cross-network hoặc GPU acceptance.
+
 ## Explicit leave
 
 `leave room` has success ACK. Only after success does client clear its Player token

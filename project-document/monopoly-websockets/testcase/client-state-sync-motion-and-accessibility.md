@@ -18,6 +18,10 @@
   reduced motion, executor failure recovery, skip-all/reconnect snap and stale
   executor cancellation.
 
+- [x] `[AUTO][CLIENT][CURRENT DEVELOPMENT — E1-FIX-001]` `apps/client/e1/audit001.e1.tsx` và `apps/client/src/App.presence.test.tsx`: Lobby/HUD/spectator nhận presence cùng version; whitelist chỉ đổi `connected` của HUMAN `ACTIVE` đã có, không ghi đè money/turn/position/ownership/card/payment hoặc phục hồi member đã rời. Lower-version và old-room UUID/code vẫn bị bỏ; packet trùng không render lại room.
+- [x] `[AUTO][CLIENT]` Cùng App tests kiểm presence trong presentation đang chạy, không replay/reset queue hoặc phát gameplay command; reconnect revision cao hơn còn hydrate đúng và admission ACK bằng version hoàn tất muộn không khôi phục presence cũ. Cả hai mode E1 client của finding001 dùng correctness assertions sau fix, không giữ golden stale UI; producer assertions hiện hữu giữ nguyên.
+- [x] `[AUTO][SOCKET]` `apps/server/e1/audit001Presence.e1.ts` và `apps/server/src/socket.presenceSynchronization.integration.test.ts`: producer loopback project registry live theo emission order, kể cả delayed lookup sau valid resume; lặp offline/online cùng version, bot connected semantics, spectator public-only và current-turn recovery/revision giữ đúng. Các assertions không thay thế native/cross-network/GPU acceptance.
+
 ## VI/EN content and money
 
 - [ ] `[AUDIT][CLIENT]` HTML title/description/manifest, join/lobby/host/ready/spectator,
@@ -479,4 +483,10 @@ Evidence: [08L B8 record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md).
 - [x] `[BROWSER]` Two real clients: roll, active guest reload/resume, visibility recovery through an actual scene submission, camera, forfeit and Play Again. Exact scope and hardware limits are in 08L.
 - [x] `[PROBE]` Warm-up and renderer lifecycle/context-loss checks; stable idle fixture submits zero scene frames.
 - [ ] `[MANUAL][OWNER]` Compare character/dice/camera/feedback in a complete packaged match, including reduced motion and preferred animation speeds; confirm B5 appearance.
+
+## Phase D3.3 — camera pointer release lifecycle (2026-10-22)
+
+- [x] `[AUTO][CLIENT]` `game/scene/camera/useBoardGestures.test.tsx` (10 tests): mouse drag sensitivity, release and cancel outside the surface, re-entry, touch pointer rebase/lost capture, unowned pointer, blur, repeated drags, unmount listener cleanup, gesture-surface remount, and graphics-tier reinitialization. No explicit pointer capture is requested; `lostpointercapture` is handled defensively.
+- [x] `[BROWSER][EDGE]` Isolated headless Edge 155.0.4283.62 DOM-only harness: Playwright mouse drag released over an outside element, re-entry without further pan, and graphics-tier reinitialization while a mouse drag was held. Blur, outside `pointercancel`, and `lostpointercapture` were exercised in the browser harness; the latter two used dispatched PointerEvents. Evidence: `test-results/phase-d3/browser-edge-tier-final/D3.3-edge-pointer-smoke.json`. No WebGL scene or physical touch device was exercised.
+- [ ] `[MANUAL][OWNER]` Confirm release outside the browser viewport and touch cancellation on target desktop/mobile devices; OS/browser delivery after leaving the viewport is not established by the DOM harness.
 - [ ] `[NOT RUN]` B8 packaged Electron minimize/restore, other GPUs, physical high-refresh displays, macOS and independent-network Online hosting.

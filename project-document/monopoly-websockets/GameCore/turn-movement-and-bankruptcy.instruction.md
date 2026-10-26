@@ -57,3 +57,21 @@
 - Winner supersedes every pending landing/payment/proposal/turn-recovery marker.
 - Scheduler rechecks exact room/turn/operation/claim/deadline marker under the room
   lock; stale/replayed callbacks are no-ops.
+
+## CURRENT DEVELOPMENT — AUDIT-010 (chưa phát hành)
+
+Mọi loại bỏ player gọi chung phần trả thẻ held về đúng draw pile một lần trong `removePlayerRecord` tại
+`apps/server/src/game/turn.ts`. Caller bankruptcy và explicit leave tiếp tục tự xử lý settlement, winner check và continuation.
+Thẻ đang reveal thuộc `pendingCardInteraction` vẫn theo đường trả pending riêng. Thay đổi chỉ gom quyền sở hữu thao tác trả thẻ;
+không sửa cứu nguy hay revive. Chưa có thay đổi này trong v1.10.0 đã phát hành.
+
+## CURRENT DEVELOPMENT — AUDIT-002 (chưa phát hành)
+
+Khi explicit leave hoặc bankruptcy loại người đang giữ lượt, server vẫn chọn successor trực tiếp từ thứ tự ghế còn sống để
+không chạy lại các side effect khác của `nextTurn`; sau khi chọn, `progressJailForSelectedPlayer` dùng chung primitive với
+handoff thường đúng một lần trước `resetForFreshTurn`. Seat successor đang tù có counter `0 → 1`; nếu `1 → 2`, seat được
+thả tù, counter về `0` và ghi đúng một `JAIL_RELEASED/TIME_SERVED`. Counter không chạm các player khác hoặc người bị loại.
+Removal non-current không tiến lượt. Winner/Game Finished được kiểm tra trước: kết thúc ván không tiến counter hoặc tạo lượt
+mới. Bankruptcy theo batch cũng chọn successor một lần sau khi bỏ toàn bộ debtor đã phá sản. Tất cả sửa đổi vẫn nằm trong
+draft room transaction, nên rollback không công bố turn/jail state. Held jail-free cards vẫn được trả một lần theo
+`removePlayerRecord` của AUDIT-010; snapshot schema và socket protocol không đổi. Chưa có thay đổi này trong v1.10.0 đã phát hành.

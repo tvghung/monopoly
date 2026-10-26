@@ -20,7 +20,7 @@
   `TradeOfferModal`, chỉ để nhận biết.
 - Số tiền đã gõ trong `TradeOfferModal` sống qua các lần Board render lại: form chỉ reset khi **ID ô** mục tiêu (hoặc người nhận) đổi,
   không phải khi object mục tiêu được dựng lại (`tradeTileId` trong `apps/client/src/components/dashboard/TradeOfferModal.tsx`).
-  CURRENT DEVELOPMENT (vNext, unreleased; sửa lỗi trong commit 1937a73); test "TradeOfferModal typed amounts" trong
+  RELEASED v1.8.0 (fix in commit 1937a73); test "TradeOfferModal typed amounts" trong
   `apps/client/src/components/dashboard/TradeOfferModal.test.tsx`.
 - `IncomingOffers` (`Modal` `lg`, không có nút đóng; đóng khi người nhận đang nợ vì `DebtPanel` đã hiển thị offer): mỗi offer là một `region` đặt tên bằng "Đề nghị từ <tên>", hai bên là chip tài sản,
   chip hết hạn; "Chấp nhận"/"Từ chối" được mô tả bằng tiêu đề offer để phân biệt khi có nhiều offer; offer đầu tiên nhận focus.
@@ -38,11 +38,9 @@ offers liên quan; offer cùng tài sản vẫn được định danh bằng ID.
 đúng một lần và private events không xuất hiện trong public state.
 
 Offer chỉ nằm trong RAM của process host: host thoát là mọi offer mất cùng phòng; resume chỉ trả lại pending offers khi
-process host đó vẫn sống. `make offer` mang `requestId` (UUID mới cho mỗi đề nghị, `apps/client/src/App.tsx` thêm vào payload; protocol 13, CURRENT
-DEVELOPMENT) nên server idempotent: emit gửi lại trả đúng `offerId` ban đầu và không tạo thêm đề nghị
-([socket-trading](../Api/socket-trading.instruction.md)). Released v1.7.0 không có `requestId`: mỗi emit tạo một `offerId` mới.
-Client vẫn không tự gửi lại sau ACK timeout (resume/resync trước); một đề nghị mới là một lần gửi mới với `requestId` mới.
-
+process host đó vẫn sống. `make offer` mang `requestId` (client tạo UUID mới cho mỗi đề nghị và thêm vào payload). Tính idempotency này đã được phát hành ở v1.8.0 (protocol 13):
+emit gửi lại trả đúng `offerId` ban đầu, không tạo thêm đề nghị ([socket-trading](../Api/socket-trading.instruction.md)). Bản v1.7.0 lịch sử không có `requestId`:
+mỗi emit tạo một `offerId` mới. Client không tự gửi lại sau ACK timeout (resume/resync trước); một đề nghị mới là lần gửi mới với `requestId` mới.
 ## Tests
 
 - Money/property/card bundle create/accept và invalid duplicate/not-owned assets.

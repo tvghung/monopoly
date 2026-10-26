@@ -4,6 +4,15 @@
 
 - `[AUTO]` Token storage parse/save/clear: `apps/client/src/playerSessionStorage.test.ts`.
 - `[AUTO]` Newest-wins/generation registry: `apps/server/src/services/connectionRegistry.test.ts`.
+- [x] `[AUTO][SOCKET][HISTORICAL E1-FIX-019 PASS]` Resume đang đợi session/FIFO mà mất transport không được
+  bind hoặc làm tăng generation; completion cũ không được vượt binding mới hơn đã thành công.
+- [x] `[AUTO][SOCKET][HISTORICAL E1-FIX-019 PASS]` Disconnect/replacement trong public/private join hoặc deadline reconciliation không làm mất
+  binding/subscription mới, không xóa recovery của current Player offline và không phát success/private state từ operation cũ.
+- [x] `[AUTO][SOCKET][HISTORICAL E1-FIX-019 PASS]` Cancelled resume giữ Seat/session đã commit; cùng token hợp lệ retry lấy cùng PlayerId,
+  còn session revoked/room deleted bị từ chối. Bằng chứng: hai files AUDIT-019 trong Automated evidence; kết quả là run lịch sử của E1, không phải lần chạy A1.
+  cleanup chỉ generation sở hữu; disconnect ngay sau ACK; session revocation/room deletion; valid retry giữ PlayerId/Seat/token.
+  Các test dùng Socket.IO loopback, không thay cho physical-device/cross-network acceptance.
+
 - `[CLIENT]` App/lobby assertions: `apps/client/src/App.test.tsx`, `components/Lobby.test.tsx`.
 - `[SOCKET-INTEGRATION]` `apps/server/src/socket.integration.test.ts` covers protocol,
   two-step stable admission, unknown-token rejection without Seat binding, reconnect,
@@ -30,6 +39,13 @@
   Solo joiners start with Dog, 2v2 teammates get a valid fallback, room state and public roster agree, and Ready stays false.
   A changed mascot survives active-token resume.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
+- [ ] `[AUTO][SOCKET][CURRENT DEVELOPMENT — E1-FIX-019]` Resume đang đợi session/FIFO mà mất transport không được
+  bind hoặc làm tăng generation; completion cũ không được vượt binding mới hơn đã thành công.
+- [ ] `[AUTO][SOCKET]` Disconnect/replacement trong public/private join hoặc deadline reconciliation không làm mất
+  binding/subscription mới, không xóa recovery của current Player offline và không phát success/private state từ operation cũ.
+- [ ] `[AUTO][SOCKET]` Cancelled resume giữ Seat/session đã commit; cùng token hợp lệ retry lấy cùng PlayerId,
+  còn session revoked/room deleted bị từ chối. Bằng chứng: hai files AUDIT-019 nêu ở Automated evidence.
+
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
 - [ ] Current-schema (2v2 teams and bot seats included; see [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)) identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
@@ -191,6 +207,23 @@ launcher"); quit channel: [Api/http-runtime.instruction.md](../Api/http-runtime.
   `apps/desktop/tests/windowHandlers.test.ts` and `apps/desktop/tests/preloadBridge.test.ts` (quit channel `ownTheBlock:quit:exit`;
   the former "V1.1 LAN room lookup" section of [http-runtime-and-deployment.md](./http-runtime-and-deployment.md) that listed
   them was removed in commit bffc0da).
+- `[AUTO][CURRENT DEVELOPMENT — AUDIT-002]` `apps/server/src/game/turnHandoff.test.ts` characterizes ordinary, leave and
+  bankruptcy handoffs; current successor jail counter/release boundary, held jail-free-card conservation, non-current removal,
+  terminal winner, batch bankruptcy and repeated removal. `apps/server/src/socket.integration.test.ts` verifies leave rollback
+  leaves persisted room/session unchanged and a successful retry publishes the released successor only after commit. See
+  [turn and bankruptcy](../GameCore/turn-movement-and-bankruptcy.instruction.md).
+- `[AUTO][CURRENT DEVELOPMENT — AUDIT-020]` `apps/desktop/tests/windowHandlers.test.ts` and
+  `apps/client/src/App.test.tsx` cover the renderer confirmation required for busy macOS Host state (including accepted startup
+  before joining), cancel, stop-before-close, cleanup failure/retry, coalesced close, new lifecycle protection and idle Host close.
+  Existing `hostStartupCancellation.test.ts`, `hostStartupBootstrap.test.ts`, `hostRegistryOwnership.test.ts`, quit coordinator
+  and updater suites retain the shared Stop/registry/installer guarantees. These are mock tests; native macOS acceptance is
+  NOT RUN.
+- `[MANUAL-E2E][NOT RUN — macOS Host window close]` On a macOS desktop build, close the window while LAN Host is starting,
+  while a room is active and while Online registry/tunnel resources are owned. Verify the central prompt appears once; Cancel
+  leaves window, room and Host available; Confirm keeps the window present until helper, tunnel and registry cleanup reaches the
+  Host Stop completion point; inject/observe cleanup failure and verify an error appears, the window stays open and Stop can be
+  retried. Repeat with Host idle and with a Guest; confirm existing Quit and updater restart behavior, and verify macOS remains
+  running after ordinary last-window close. Physical macOS only; do not infer this from Electron mocks.
 - [ ] `[MANUAL-E2E]` Look at the start screen and its forms (`launcher`, `launcher-running`, `launcher-host`, `launcher-join`,
   `launcher-join-failed`) and the join form with its "Quay lại" (`landing-desktop-failed`) at 1280×720, 1920×1080, 2560×1440 and
   812×375 landscape: buttons on the left, art on the right, nothing overlaps or scrolls off, text readable over the background,

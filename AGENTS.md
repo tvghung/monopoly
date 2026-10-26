@@ -163,7 +163,8 @@ Mọi khẳng định kỹ thuật quan trọng phải kèm đường dẫn code
   chỉ vì đổi nhãn hiển thị. `BoardState.rollSequence` là public identity ổn định trong đời host, bắt đầu từ `0`, tăng đúng một lần
   cho mỗi gameplay roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
 - `completeTurnResolution` là điểm duy nhất handoff cho landing/payment/card resolution và chỉ có `ADVANCE_TURN` (turn-recovery hết
-  hạn khi không còn gì chờ và việc loại người chơi hiện tại handoff trực tiếp, xem `GameCore/turn-movement-and-bankruptcy.instruction.md`); đổ đôi không cấp thêm lượt. `PendingTurnContinuation`
+  hạn khi không còn gì chờ; current-player leave/bankruptcy handoff trực tiếp nhưng vẫn tiến jail state của successor đúng một lần,
+  non-current removal không tiến lượt; xem `GameCore/turn-movement-and-bankruptcy.instruction.md`); đổ đôi không cấp thêm lượt. `PendingTurnContinuation`
   nhúng trong các wait, pending purchase/development landing decision, `PaymentQueue`, private `GamePrivateState.decks`,
   `PendingCardInteraction` và forced-sale proposal đều thuộc authoritative room aggregate và phải reconnect-safe khi host còn sống.
   Card landing lấy và reveal ngay top card vào operation ID, `REVEALED` state với `revealedCardId`, continuation và server deadline;
@@ -194,9 +195,10 @@ Mọi khẳng định kỹ thuật quan trọng phải kèm đường dẫn code
   và packaged `app://` path traversal guard. Main process chỉ là shell/runtime/window boundary, không chứa GameCore hoặc bypass
   server authority.
 - Active-game desktop close là disconnect để reconnect; không emit `leave room`. Chỉ nút `Bỏ cuộc`/explicit leave mới revoke
-  session. Prompt/confirmation dùng central Modal/ConfirmationDialog; không thêm `window.confirm`. Hộp xác nhận đóng cửa sổ đã
-  hiện (`quit.acknowledge`) thì main chờ người chơi trả lời; chỉ renderer không thể hỏi/trả lời mới làm đóng tự động (canonical:
-  `Desktop/electron-shell-and-packaging.instruction.md`).
+  session. Prompt/confirmation dùng central Modal/ConfirmationDialog; không thêm `window.confirm`. CURRENT DEVELOPMENT — AUDIT-020:
+  macOS close khi Host `isBusy` yêu cầu renderer confirmation và safe `HostRuntimeController.stop()` trước khi đóng; cancel hoặc
+  stop lỗi giữ cửa sổ/Host để retry, renderer timeout/loss không fail-open khi Host busy. Windows/Linux và explicit app Quit/update
+  giữ nguyên lifecycle của chúng (canonical: `Desktop/electron-shell-and-packaging.instruction.md`).
 
 ## 9. Guardrails protocol, persistence, networking và release
 

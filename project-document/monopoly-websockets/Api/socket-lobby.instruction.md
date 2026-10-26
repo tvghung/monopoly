@@ -4,7 +4,7 @@
 
 `apps/server/src/socket/lobby.ts` handles `set appearance`, `set ready`, `start game`, `play again` and
 `leave room`; `kick player` (lobby) also lives in `lobby.ts`; `apps/server/src/socket/bots.ts` handles `add bot`,
-`remove bot` and `set bot difficulty` (CURRENT DEVELOPMENT, see below); `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`,
+`remove bot` and `set bot difficulty` (RELEASED v1.8.0, see below); `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`,
 `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap` and the in-game
 `revive teammate` (rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md)).
 All Player commands use authenticated stable actor, runtime schema where applicable,
@@ -103,15 +103,17 @@ from the room code like anyone else. Everyone else receives the normal room upda
 | --- | --- | --- | --- |
 | `add bot` | `{requestId: uuid, seat?: {teamId, teamSlot}}` → ACK `{playerId}` | host | `LOBBY` only (`GAME_ALREADY_STARTED` otherwise); `ROOM_FULL` at four seats; at most three bots; a repeated `requestId` answers with the bot it already created; `seat` is used in 2v2 when still empty |
 | `remove bot` | `{playerId}` | host | `LOBBY` only; the target must be a bot seat (`CONFLICT` for a human, `NOT_FOUND` when already gone) |
-| `set bot difficulty` — CURRENT DEVELOPMENT (vNext, unreleased, protocol 13) | `{difficulty: VERY_EASY\|EASY\|MEDIUM\|HARD\|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as optional `boardState.botDifficulty` (absent = MEDIUM = the released v1.7.0 Balanced policy; the public projection always shows a value) and kept by `play again` |
+| `set bot difficulty` — RELEASED v1.8.0 (protocol 13; current release v1.10.0 uses protocol 14) | `{difficulty: VERY_EASY\|EASY\|MEDIUM\|HARD\|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as optional `boardState.botDifficulty` (absent = MEDIUM = the Balanced policy first released in v1.7.0; the public projection always shows a value) and kept by `play again` |
 
 All three commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
 [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md).
 
-Compatibility of `set bot difficulty` (R-1, RESOLVED by the protocol 12 → 13 bump): a released v1.7.0 host has no listener and
-no schema for it and would never ACK it, so protocol 13 refuses the handshake with a 1.7.0 app (`UPGRADE_REQUIRED`) instead of
-letting the command reach a host that cannot answer. v1.7.0 has one Balanced bot policy and no difficulty (only `add bot`/`remove bot`). Test: `apps/server/src/socket.bots.integration.test.ts`
-("bot difficulty in the lobby"). Version history:
+HISTORICAL compatibility observation (R-1): a v1.7.0 host had no listener and no schema for `set bot difficulty`, so it would
+not ACK that event. The v1.8.0 protocol 12 → 13 bump resolved the compatibility risk: strict handshake rejects a v1.7.0 app
+with `UPGRADE_REQUIRED` before the command can reach an incompatible host. v1.7.0 shipped one Balanced bot policy and only
+`add bot`/`remove bot`; difficulty levels shipped in v1.8.0.
+Test: `apps/server/src/socket.bots.integration.test.ts` ("bot difficulty in the lobby").
+Version history:
 [socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md).
 
 First activated Seat is host. Temporary disconnect never transfers host or ready. Host succession and the "last member leaves"
@@ -144,6 +146,12 @@ Host transfer only occurs on explicit leave. `leave room` success ACK precedes c
 token clearing; disconnect/browser close is not leave. Successful Player/spectator
 leave clears runtime binding/admission lock so the same Socket can join another room.
 
+**CURRENT DEVELOPMENT — AUDIT-002 (chưa phát hành):** nếu Player đang giữ lượt explicit leave, handoff chỉ tiến jail state của
+successor còn sống một lần theo primitive của `nextTurn`; nếu winner được xác định thì không có lượt/counter mới. Removal của
+player không giữ lượt không tiến jail state. Handoff, record `LEFT`, token revoke, ACK và public room projection cùng thuộc
+command transaction; update/broadcast chỉ phát sau commit. Rollback giữ nguyên turn, jail state và session. Không thêm event,
+payload hay snapshot field; xem [GameCore turn and bankruptcy](../GameCore/turn-movement-and-bankruptcy.instruction.md).
+
 ## Tests
 
 - Own-ready only, ready kept across reconnect while the host process lives, 2/4 and connected gates.
@@ -165,6 +173,10 @@ leave clears runtime binding/admission lock so the same Socket can join another 
   `removed from room` event, seat freed, rejoin). Historical SQL migrations 010 and 011 are not part of the current RAM host.
   Seat arrangements and open requests last only for the lifetime of that host process.
 - Current/non-current leave, property/offer cleanup and winner.
+- `[AUTO][CURRENT DEVELOPMENT — AUDIT-002]` Current leave with a jailed successor (counter 1→2 releases once), non-current
+  leave without turn progression, and card conservation (`apps/server/src/game/turnHandoff.test.ts`); rollback then committed
+  Socket leave checks unchanged room/session on failure and exactly one post-commit room update per remaining client
+  (`apps/server/src/socket.integration.test.ts`).
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.
 - Host-only replay, finished/non-finished authorization, same-room identity,

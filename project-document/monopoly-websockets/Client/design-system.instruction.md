@@ -200,7 +200,7 @@ The shared motion tokens remain the source for micro, UI, panel, emphasis and ce
 
 The Journal uses a mounted panel and a native CSS transform transition in both directions (240 ms, shared ease-out). The toggle follows the same displacement and curve. Closing immediately sets inert/aria-hidden and disables pointer input, then CSS visibility hides the panel after the slide. Reduced Motion removes sliding. Chat, unread counts, preference and scroll keep their existing state path; closing still clears an unsent draft.
 
-### v1.9.0 final modal refinement (unreleased)
+### HISTORICAL — v1.9.0 final modal refinement (released in v1.9.0)
 
 `Modal.tsx` owns each animated property once: the overlay owns opacity; the card owns its transform. The recovered shared entrance uses the 280 ms ease-out curve, scale 0.96 and a restrained 12 px rise (sheet: 24 px). Printed Chance/Community Chest cards recover their earlier 320 ms, 32 px rise and -2 degree start. Exit is a complementary 200 ms fade with restrained transform; Reduced Motion is a 120 ms fade with no movement.
 

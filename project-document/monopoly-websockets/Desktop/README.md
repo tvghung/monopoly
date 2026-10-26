@@ -1,6 +1,6 @@
 # Desktop module index
 
-Status: CURRENT (latest published release: v1.9.1; Online hosting reliability changes are RELEASED).
+Status: CURRENT (latest published release: v1.10.0; E1 reliability patches in this working tree are CURRENT DEVELOPMENT).
 
 ## Scope
 

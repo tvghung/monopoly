@@ -1,6 +1,6 @@
 # Debt, forced sale and Emergency Rescue Socket instruction
 
-Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundation rules: [monopoly.shared.instructions.md](../monopoly.shared.instructions.md), [monopoly.api.instructions.md](../monopoly.api.instructions.md).
+Status: CURRENT (release baseline v1.10.0; later CURRENT DEVELOPMENT sections are labeled). Foundation rules: [monopoly.shared.instructions.md](../monopoly.shared.instructions.md), [monopoly.api.instructions.md](../monopoly.api.instructions.md).
 
 ## Scope
 

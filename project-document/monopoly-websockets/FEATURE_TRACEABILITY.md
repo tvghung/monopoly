@@ -29,7 +29,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 | F11 | 2v2 mode, teams, seats and seat swaps | [team-play][g-team] | COMPLETE |
 | F12 | Host kicks a player | [socket-lobby][a-lobby] | COMPLETE |
 | F13 | Bot seats (add/remove) | [bot-players][g-bot] | COMPLETE |
-| F14 | Bot difficulty (CURRENT DEVELOPMENT) | [bot-players][g-bot] | PARTIAL |
+| F14 | Bot difficulty (RELEASED v1.8.0) | [bot-players][g-bot] | PARTIAL |
 | F15 | Bots playing a match | [bot-players][g-bot] | COMPLETE |
 | F16 | LAN sharing and discovery | [http-runtime][a-http] | COMPLETE |
 | F17 | Online Quick Tunnel and room registry | [http-runtime][a-http] | COMPLETE |
@@ -38,14 +38,14 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 | F20 | Camera zoom/pan and responsive layout tiers | [game-board][c-board] | COMPLETE |
 | F21 | Game HUD (player cards, status pill, ticker, dock, toasts) | [game-board][c-board] | COMPLETE |
 | F22 | Roll dice and turn flow | [socket-turn][a-turn] | COMPLETE |
-| F23 | Purchase decision | [turn-actions][c-turn] | PARTIAL |
+| F23 | Purchase decision | [turn-actions][c-turn] | COMPLETE |
 | F24 | Development (build) and Team Investment | [property-economy][g-eco] | COMPLETE |
 | F25 | Sell house | [socket-building][a-build] | COMPLETE |
 | F26 | Tile resolution, rent and taxes | [tile-cards-and-jail][g-tile] | PARTIAL |
 | F27 | Chance / Community Chest cards | [tile-cards-and-jail][g-tile] | COMPLETE |
 | F28 | Jail | [tile-cards-and-jail][g-tile] | PARTIAL |
-| F29 | Payment shortfall and bank sale | [socket-debt-and-rescue][a-debt] | PARTIAL |
-| F30 | Forced-sale proposal | [socket-debt-and-rescue][a-debt] | PARTIAL |
+| F29 | Payment shortfall and bank sale | [socket-debt-and-rescue][a-debt] | COMPLETE |
+| F30 | Forced-sale proposal | [socket-debt-and-rescue][a-debt] | COMPLETE |
 | F31 | Bankruptcy and winner | [turn-movement-and-bankruptcy][g-turn] | COMPLETE |
 | F32 | Play again | [socket-lobby][a-lobby] | COMPLETE |
 | F33 | 2v2 Emergency Rescue | [team-play][g-team] | COMPLETE |
@@ -69,7 +69,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 | F51 | Packaging and release | [V1_RELEASE_CONTRACT](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md) | PARTIAL |
 | F52 | Dev-only tools (Design Lab, UAT harness, FPS) | [design-system][c-ds] | COMPLETE |
 
-**Totals: 52 features — 45 COMPLETE, 7 PARTIAL, 0 MISSING.** No current instruction file was found whose code no longer exists.
+**Totals: 52 features — 48 COMPLETE, 4 PARTIAL, 0 MISSING.** No current instruction file was found whose code no longer exists.
 
 ## Session and entry
 
@@ -194,15 +194,15 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Tests:** `apps/client/src/components/Lobby.test.tsx`, `apps/server/src/socket.bots.integration.test.ts`.
 - **Manual:** [bot checklist][t-bot]. **Affects:** F10, F14, F15.
 
-### F14 Bot difficulty — CURRENT DEVELOPMENT (unreleased)
+### F14 Bot difficulty — RELEASED v1.8.0 (protocol 13)
 - **Entry:** lobby dropdown "Độ khó của Bot" (shown with ≥1 bot; host changes, guests read-only).
-- **Docs:** [bot-players][g-bot], [socket-lobby][a-lobby], [game-status][c-status]; [ADR-13][adr].
-- **Client:** `apps/client/src/components/Lobby.tsx`, `apps/client/src/App.tsx` (`set bot difficulty`).
-- **Server:** `apps/server/src/socket/bots.ts`, `apps/server/src/bots/policy.ts` (`DIFFICULTY_PROFILES`), `apps/server/src/services/publicState.ts` (projects MEDIUM when absent), `apps/server/src/socket/lobby.ts` (`play again` keeps the setting).
-- **Shared:** `packages/shared/src/types.ts` (`BOT_DIFFICULTIES`), `packages/shared/src/socketSchemas.ts`, `packages/shared/src/stateSchemas.ts`.
+- **Docs:** [bot-players][g-bot], [socket-lobby][a-lobby], [game-status][c-status]; [ADR-09][adr], [ADR-13][adr].
+- **Client:** `apps/client/src/components/Lobby.tsx`, `apps/client/src/App.tsx` ( `set bot difficulty` ).
+- **Server:** `apps/server/src/socket/bots.ts`, `apps/server/src/bots/policy.ts` ( `DIFFICULTY_PROFILES` ), `apps/server/src/services/publicState.ts` (projects MEDIUM when absent), `apps/server/src/socket/lobby.ts` ( `play again` keeps the setting).
+- **Shared:** `packages/shared/src/types.ts` ( `BOT_DIFFICULTIES` ), `packages/shared/src/socketSchemas.ts`, `packages/shared/src/stateSchemas.ts`.
 - **Tests:** `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`, `apps/client/src/components/Lobby.test.tsx`.
-- **Manual:** [bot checklist][t-bot] (full game per level NOT RUN).
-- **Gap:** released v1.7.0 has no difficulty; protocol 13 rejects 1.7.0 apps (R-1 RESOLVED in code, [release matrix][t-rel]); manual play per level NOT RUN.
+- **Manual:** [bot checklist][t-bot]. Full-game play per difficulty remains NOT RUN.
+- **Gap:** test-source inspection establishes policy levels, host-only update and client dropdown coverage; it does not establish full manual play at each level. Protocol 12 → 13 resolved R-1; released v1.7.0 apps are rejected with `UPGRADE_REQUIRED`.
 - **Affects:** F13, F15, F32.
 
 ### F15 Bots playing a match
@@ -283,9 +283,9 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Docs:** [turn-actions][c-turn], [socket-turn][a-turn], [property-economy][g-eco].
 - **Client:** `apps/client/src/components/dashboard/BuyPrompt.tsx`.
 - **Server:** `apps/server/src/socket/turn.ts` (`buy property`, `do not buy`), `apps/server/src/commands/gameplay.ts`, `apps/server/src/game/transfer.ts`.
-- **Tests:** `apps/client/src/components/dashboard/DecisionPrompts.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
-- **Manual:** [turn checklist][t-turn].
-- **Gap:** no socket-level test of `do not buy` (covered only through bot policy and client tests).
+- **Tests:** `apps/client/src/components/dashboard/DecisionPrompts.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
+- **Verified socket assertions (A1 source inspection; suite not rerun in A1):** `do not buy` clears the pending decision, leaves the property unowned without charging the player, advances the turn and broadcasts an update to another player.
+- **Manual:** [turn checklist][t-turn]. This automated assertion is not visual or native acceptance.
 - **Affects:** F15, F24.
 
 ### F24 Development (build) and Team Investment
@@ -302,7 +302,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Client:** `apps/client/src/game/ui/property/PropertyInspectionModal.tsx`.
 - **Server:** `apps/server/src/socket/building.ts`, `apps/server/src/game/property.ts`, `apps/server/src/services/commandRequestLedger.ts`.
 - **Tests:** `apps/client/src/game/ui/property/PropertyInspectionModal.test.tsx`, `apps/server/src/socket.teamplay.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`.
-- **Note:** idempotent per client `requestId` (CURRENT DEVELOPMENT, protocol 13; released v1.7.0 sold one more level on a replayed emit). **Affects:** F29, F36.
+- **Note:** idempotent per client `requestId` (RELEASED v1.8.0, protocol 13; released v1.7.0 sold one more level on a replayed emit). **Affects:** F29, F36.
 
 ### F26 Tile resolution, rent and taxes
 - **Entry:** automatic after movement.
@@ -311,7 +311,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Shared:** `packages/shared/src/tileState.ts`, `packages/shared/src/rules.ts`, `packages/shared/src/teams.ts`.
 - **Tests:** `apps/server/src/game.test.ts`, `apps/server/src/rulesContract.test.ts`, `apps/server/src/v3.simplifiedRules.test.ts`.
 - **Manual:** [economy checklist][t-eco], [turn checklist][t-turn].
-- **Gap:** Income Tax is 200 in released v1.7.0 and 150 on this branch (implemented on the vNext development branch; product approval/release decision not independently verified; RELEASE RISK R-1); manual check NOT RUN.
+- **Gap:** Income Tax is 30% of current nonnegative cash, rounded down, in v1.9.0–v1.10.0; fixed 150 was released in v1.8.0 and is historical. Automated rule tests are listed above; manual/device check remains NOT RUN.
 - **Affects:** F29, F37, F44.
 
 ### F27 Chance / Community Chest cards
@@ -324,14 +324,15 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Manual:** [turn checklist][t-turn]. **Affects:** F22, F28, F40.
 
 ### F28 Jail
-- **Entry:** own turn while jailed: pay bail, use a jail card, or roll for doubles.
+- **Entry:** own turn while jailed: pay bail, use a jail card, or roll for doubles; the socket contract also supports `wait in jail`.
 - **Docs:** [tile-cards-and-jail][g-tile], [socket-jail][a-jail], [turn-actions][c-turn].
 - **Client:** `apps/client/src/components/dashboard/JailPanel.tsx`, `apps/client/src/game/ui/hud/CenterStage.tsx`.
 - **Server:** `apps/server/src/socket/jail.ts`, `apps/server/src/socket/turn.ts` (`wait in jail`), `apps/server/src/game/tiles.ts`.
-- **Shared:** `packages/shared/src/money.ts` (`BAIL_AMOUNT`).
-- **Tests:** `apps/client/src/components/dashboard/JailPanel.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
+- **Shared:** `packages/shared/src/money.ts` ( `BAIL_AMOUNT` ).
+- **Tests:** `apps/client/src/components/dashboard/JailPanel.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
+- **Verified socket assertion (A1 source inspection; suite not rerun in A1):** waiting keeps the player jailed, advances the turn and turn number, and broadcasts to another player.
 - **Manual:** [turn checklist][t-turn].
-- **Gap:** `wait in jail` has no UI caller and no socket-level test; the jail-panel timing fix is CURRENT DEVELOPMENT with manual check NOT RUN.
+- **Gap:** no current UI caller for the `wait in jail` socket function was found; the jail panel manual interaction remains NOT RUN.
 - **Affects:** F22, F27.
 
 ### F29 Payment shortfall and bank sale
@@ -339,19 +340,19 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Docs:** [socket-debt-and-rescue][a-debt], [turn-movement-and-bankruptcy][g-turn], [property-management][c-prop].
 - **Client:** `apps/client/src/components/dashboard/DebtPanel.tsx`, `apps/client/src/components/dashboard/useDebtPresentationHold.ts`.
 - **Server:** `apps/server/src/socket/debt.ts` (`sell property to bank`), `apps/server/src/game/payment.ts`, `apps/server/src/game/paymentResolution.ts`, `apps/server/src/services/deadlineScheduler.ts`.
-- **Tests:** `apps/client/src/components/dashboard/DebtPanel.test.tsx`, `apps/server/src/game.test.ts`, `apps/server/src/socket.botDriver.integration.test.ts`.
-- **Manual:** [debt checklist][t-debt].
-- **Gap:** no socket-level test of the `sell property to bank` handler.
+- **Tests:** `apps/client/src/components/dashboard/DebtPanel.test.tsx`, `apps/server/src/game.test.ts`, `apps/server/src/socket.botDriver.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`.
+- **Verified socket assertions (A1 source inspection; suite not rerun in A1):** a debtor bank sale resolves the claim once, updates property/balances/payment queue and broadcasts; a duplicate sale is rejected without a second payment.
+- **Manual:** [debt checklist][t-debt]. This automated assertion is not device or full-match acceptance.
 - **Affects:** F30, F31, F33, F36.
 
 ### F30 Forced-sale proposal
 - **Entry:** debtor proposes a sale to another player; the buyer gets a private proposal.
 - **Docs:** [socket-debt-and-rescue][a-debt], [property-economy][g-eco].
 - **Client:** `apps/client/src/components/dashboard/ForcedSaleProposalPanel.tsx`, `apps/client/src/components/dashboard/DebtPanel.tsx`.
-- **Server:** `apps/server/src/socket/debt.ts` (`propose`/`accept`/`reject forced sale`), `apps/server/src/game/payment.ts`.
-- **Tests:** `apps/client/src/components/dashboard/ForcedSaleProposalPanel.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
+- **Server:** `apps/server/src/socket/debt.ts` ( `propose`/`accept`/`reject forced sale` ), `apps/server/src/game/payment.ts`.
+- **Tests:** `apps/client/src/components/dashboard/ForcedSaleProposalPanel.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`, `apps/server/src/bots/policy.test.ts`.
+- **Verified socket assertions (A1 source inspection; suite not rerun in A1):** buyer rejection clears the proposal, preserves ownership/balance and the payment queue, emits private clear events to seller and buyer, and broadcasts the update to the creditor.
 - **Manual:** [debt checklist][t-debt].
-- **Gap:** `reject forced sale` is exercised only through bot policy tests, not at socket level.
 - **Affects:** F29, F15.
 
 ### F31 Bankruptcy and winner
@@ -398,7 +399,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Shared:** `packages/shared/src/types.ts` (`OfferInfo`, `TradeBundle`).
 - **Tests:** `apps/client/src/components/dashboard/TradeOfferModal.test.tsx`, `apps/server/src/socket.integration.test.ts`.
 - **Manual:** [trade checklist][t-trade].
-- **Note:** the typed-amount fix is CURRENT DEVELOPMENT; `make offer` is not idempotent on a replayed emit. **Affects:** F36.
+- **Note:** the typed-amount fix and `make offer` requestId idempotency were RELEASED in v1.8.0 (protocol 13). **Affects:** F36.
 
 ### F36 Incoming offers (accept, decline, expiry, cancel)
 - **Entry:** private `offer on prop` push; offer card in the HUD or debt panel.
@@ -523,7 +524,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Desktop:** `apps/desktop/forge.config.cjs`, `apps/desktop/scripts/release.mjs`, `apps/desktop/scripts/validateRelease.mjs`, `apps/desktop/scripts/checkPackagedBudget.mjs`.
 - **Tests:** `apps/desktop/tests/releaseMetadata.test.ts`, `apps/desktop/tests/checkPackagedBudget.test.ts`, `scripts/validateV1Contract.check.mjs`.
 - **Manual:** [release matrix][t-rel].
-- **Gap:** R-1 and R-2 are resolved in code and docs (protocol 13, `main` merged); the open items are the manual/device/network rows in the [release matrix][t-rel].
+- **Gap:** R-1 and R-2 were historical compatibility risks, resolved in v1.8.0 and v1.9.0 respectively; current release baseline is v1.10.0 with protocol 14; the open items are the manual/device/network rows in the [release matrix][t-rel].
 - **Affects:** F45, F50.
 
 ### F52 Dev-only tools (Design Lab, UAT harness, FPS badge)

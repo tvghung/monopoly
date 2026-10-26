@@ -51,3 +51,10 @@ Xem [property testcase](../testcase/property-economy.md),
 [trading testcase](../testcase/trading-market-and-private-offers.md),
 [payment shortfall testcase](../testcase/payment-shortfall-and-forced-sale.md)
  và RAM transaction/reconnect cases (state survives reconnect while the host process lives; host process exit loses the room).
+
+## CURRENT DEVELOPMENT — AUDIT-009 (chưa phát hành)
+
+Server dùng các phép tính thuần trong `packages/shared/src/rules.ts` cho tiền hoàn bán công trình, giá bán tài sản cho Bank,
+rent Ga và hệ số rent Công Ty; `createFreshPlayer`, GO reward và giới hạn vòng tù cũng lấy từ shared constants. Server vẫn sở hữu
+phần suy ra số tài sản, chủ sở hữu và thành viên đội. Đây là hợp nhất nguồn công thức; giá trị tiền, cách làm tròn và luật chơi không đổi.
+Thay đổi thuộc `codex/v1.10.0-refactor`, chưa có trong bản phát hành v1.10.0.

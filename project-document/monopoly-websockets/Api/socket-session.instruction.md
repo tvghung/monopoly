@@ -58,13 +58,35 @@ host process lives and are lost when the host process exits.
 
 ## Connection binding/newest-wins
 
-After load/activation from the RAM store, handler sets internal room/player/role/session/
-generation SocketData and awaits joins of `room:<roomId>` and
-`player:<playerId>`. Raw token is never stored in SocketData/log/public state.
+**CURRENT DEVELOPMENT — E1-FIX-019 (AUDIT-019).** Quyền sở hữu transport được kiểm tra tách biệt với session/Seat trong RAM:
 
-Connection registry applies newest-wins. Superseded socket receives
-`session replaced` then disconnects. Generation validation prevents stale disconnect
-or queued command from deactivating/mutating the newer connection.
+- Mỗi request resume nhận thứ tự trước lần await đầu tiên. Chỉ một binding thành công mới ghi nhận thứ tự cho Player;
+  request sai token hoặc bị hủy trước binding không giành quyền của Player. Resume cũ hoàn tất muộn không được thay thế binding mới hơn
+  đã thành công, kể cả khi socket cũ vẫn đang sống.
+- Tại binding boundary, socket phải có `connected=true` và chính object đó vẫn nằm trong namespace Socket.IO theo
+  `socket.id`. Session phải còn `ACTIVE`, thuộc đúng room/Player và member chưa `LEFT`; các điều kiện domain này được
+  kiểm tra lại trong validation-only room FIFO sau session processing.
+- `afterCommit` kiểm tra liveness và thứ tự, activate registry, tăng generation, ghi internal room/player/role/session/
+  generation SocketData và thay thế connection cũ trong cùng đoạn đồng bộ. Không có await giữa các bước đó.
+  Connection bị thay thế nhận `session replaced` rồi disconnect. Raw token không vào SocketData/log/public state.
+- Public room `room:<roomId>` và private room `player:<playerId>` được join tuần tự. Sau mỗi await của room join,
+  deadline reconciliation, room lookup và private-offer lookup, continuation phải còn sở hữu cùng live socket/generation
+  trước khi tiếp tục. Reconciliation cũng kiểm tra ownership trong room FIFO; một resume mất quyền không được để mất turn-recovery của Player đang offline. Nếu disconnect xảy ra trong lúc commit xóa marker, handler đối chiếu
+  trạng thái đã commit và arm lại bằng guard hiện hữu; một owner mới đang sống khiến bước này no-op.
+- Resume mất liveness hoặc bị binding mới hơn vượt qua nhận lỗi `SESSION_REPLACED` theo ACK hiện có, không phát success ACK
+  hoặc private projection từ continuation đã mất quyền. Cleanup chỉ deactivate generation của chính operation và không
+  xóa SocketData/subscription thuộc generation mới hơn trên cùng socket. Membership của resume kế tiếp đợi cleanup cũ
+  hoàn tất, để async leave không gỡ room vừa join. Stale disconnect và queued command vẫn bị chặn
+  bằng generation.
+- Trước success ACK, một validation-only room FIFO kiểm tra lại session/member và đọc private offers trong cùng
+  transaction; projection/ACK chỉ phát tại afterCommit còn đúng owner. ACK vẫn trước presence broadcast, và lỗi broadcast
+  sau success không tạo ACK thứ hai.
+- Transport bị hủy không revoke session hoặc loại Seat đã commit. Nếu pending activation đã tạo Seat trước khi disconnect,
+  token còn hợp lệ vẫn resume được cùng PlayerId/Seat; quyền transport và trạng thái session không bị đánh đồng.
+
+Implementation: `apps/server/src/socket/session.ts`, `apps/server/src/services/connectionRegistry.ts` và
+`apps/server/src/services/deadlineScheduler.ts`. Đây là thay đổi ownership nội bộ; payload/ACK schemas và các hằng số
+protocol/snapshot giữ nguyên.
 
 ## Disconnect
 
@@ -96,11 +118,17 @@ session/token/offer/exact private deck state remain private.
   state after recreating the server"); protocol mismatch. That test is not a host process restart: a new
   host process has an empty store, so old tokens fail (`SESSION_INVALID`, Phase 7.2 contract below).
 - Newest-wins and stale generation race.
+- `apps/server/e1/audit019.e1.ts`: disconnected-before-binding, old disconnected A versus live B, valid-token/Seat
+  preservation, invalid-token isolation, human presence và bot scheduling; cả hai E1 mode dùng fixed-behavior assertions
+  sau E1-FIX-019.
+- `apps/server/src/socket.resumeOwnership.integration.test.ts`: deterministic FIFO/session/join/deadline gates,
+  older still-live resume, overlapping same-socket resumes, generation-scoped cleanup, invalidation và valid retry.
+  Đây là Socket.IO loopback integration, không phải bằng chứng native hoặc cross-network acceptance.
 - Disconnect preserves domain state and arms only valid current-turn grace.
 - Spectator admission versus valid Player reclaim; public/private room isolation.
 - Desktop capability-only room creation, Guest-first/header-forgery rejection,
   stale pending Guest rejection and remote unknown-room rejection
-  (`hostAdmission.integration.test.ts`, including a real non-loopback LAN peer).
+  (`hostAdmission.integration.test.ts`, explicit loopback only; two direct LAN-peer cases are skipped pending an isolated network namespace; peer/header classification is covered deterministically by `socket/clientIdentity.test.ts`).
 - Phase 7.2 packaged Host contract uses four real Socket.IO clients, rejects a
   fifth with `ROOM_FULL`, preserves PlayerId/room on reconnect, proves newest-wins,
   and rejects the old session with `SESSION_INVALID` after a real helper restart

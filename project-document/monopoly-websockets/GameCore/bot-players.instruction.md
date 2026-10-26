@@ -1,4 +1,4 @@
-# Bot players (protocol 12, snapshot 11)
+# Bot players (current protocol 14, snapshot 11; bot seats introduced in v1.7.0)
 
 Bot là một ghế do chính host process chơi. Luật game không đổi vì bot; bot chỉ được làm đúng những gì một người ngồi ở
 ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SYSTEM_SPEC](../../own-the-block-vnext/BOT_SYSTEM_SPEC.md),
@@ -21,11 +21,11 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `add bot {requestId, seat?}`: host, `LOBBY`; `ROOM_FULL` khi đủ 4 ghế; cùng `requestId` (LRU runtime 64 id/phòng, 10 phút)
   trả lại bot cũ, không thêm bot thứ hai. 2v2: `seat` là ghế trống host bấm, ghế đã có người thì về ghế mặc định.
 - `remove bot {playerId}`: host, `LOBBY`, chỉ ghế BOT; `NOT_FOUND` khi đã bị xóa. `kick player` từ chối bot.
-- `set bot difficulty {difficulty}` — CURRENT DEVELOPMENT (vNext, unreleased, protocol 13; không có trong v1.7.0): host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
-  lưu ở `boardState.botDifficulty` (thiếu = MEDIUM, `play again` giữ nguyên). Client chỉ hiện dropdown khi có ít nhất một bot;
-  khách thấy mức hiện tại nhưng không đổi được. Lệnh thuộc protocol 13 (snapshot vẫn 11): app 1.7.0 bị từ chối ở bắt tay
-  (`UPGRADE_REQUIRED`), nên không có host 1.7.0 nào nhận lệnh này; chi tiết ở
-  [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history).
+- `set bot difficulty {difficulty}` — RELEASED v1.8.0 (protocol 13; release v1.10.0 dùng protocol 14): host, `LOBBY`; một mức
+  cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó), lưu ở `boardState.botDifficulty` (thiếu = MEDIUM, `play again` giữ nguyên).
+  Client chỉ hiện dropdown khi có ít nhất một bot; khách thấy mức nhưng không đổi được. Protocol bump 12 → 13 ở v1.8.0 đã
+  xử lý R-1: app v1.7.0 bị strict handshake từ chối bằng `UPGRADE_REQUIRED`. Bot v1.7.0 chỉ có một Balanced policy.
+  Version history: [socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md#version-history).
   Profile trong `DIFFICULTY_PROFILES` (`apps/server/src/bots/policy.ts`); MEDIUM = Balanced policy đã phát hành ở v1.7.0, không đổi:
 
   | Mức | `reserveFactor` | `blunder` | `offerGain` | `setHandoverGain` | `boardAware` |
@@ -53,15 +53,18 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `bots/view.ts`: bot chỉ thấy `projectPublicRoomState`, `projectPrivatePlayerState(bot)` và offer gửi cho bot.
 - `bots/policy.ts`: `botTaskOf` tìm việc đang chờ bot; `decideBotAction` (Balanced, offline, tie-break seeded) trả lệnh +
   fallback luôn hợp lệ. Bot không gọi `make offer`, `propose forced sale`, `sell house` (kể cả khi nợ: bot gửi `sell property to bank`), chat hay leave.
-- `bots/driver.ts`: một timer/phòng, key = danh tính công khai của việc đang chờ (có `matchId`); guard trong room queue tính
-  lại task, lệch key = no-op. Phục hồi có giới hạn: lỗi lần 1 → fallback; rồi tối đa 2 lần quyết định lại (2 s, 8 s); hết
-  lượt thì việc gắn với lượt (đổ, mua, xây, thẻ) giao cho turn recovery của server (deadline ngay, trong room queue, chỉ khi
-  phòng còn chờ đúng task đó), việc có deadline riêng (nợ, cứu trợ, bán bắt buộc, đề nghị) để deadline đó xử lý; sau đó park
-  với một dòng log rõ ràng. Không có người thật kết nối → bot chờ. Delay chỉ để trình bày (`BOT_ACTION_DELAY_SCALE`): sau
-  khi đổ, bot chờ ước lượng trình bày ở tốc độ thường (`packages/shared/src/botPacing.ts`) + 0,9 s suy nghĩ; logic không chờ
-  animation client, client giữ cờ sở hữu tới khi hàng đợi trình bày tới bước chuyển nhượng.
-  Với task `CARD`, bot giữ ước lượng đó rồi chờ thêm tối thiểu 3 giây để con người đọc thẻ; bot dùng cùng server command và không bỏ qua kiểm tra thời gian đóng.
-
+- `bots/driver.ts`: một timer/phòng, key = danh tính công khai của việc đang chờ (có `matchId`); khi timer chạy, driver
+  dựng lại view/task hiện tại, gọi policy và kiểm tra lại key trong room queue; task/key đã đổi thì no-op. Lần thử đầu dùng
+  `decision.action`. Sau khi command bị từ chối, retry kế tiếp dùng `decision.fallback` từ lần policy hiện tại, không dùng primary
+  action mới. Có tối đa 2 retry (2 s, 8 s); hết lượt thì task turn-bound (đổ, mua, xây, thẻ) giao cho turn recovery của
+  server (deadline ngay, trong room queue, chỉ khi phòng còn chờ đúng task đó), còn task có deadline riêng (nợ, cứu trợ,
+  bán bắt buộc, đề nghị) để deadline xử lý; sau đó park với một dòng log rõ ràng.
+  Unit tests chứng minh đường fallback, số lần thử bị giới hạn, recovery và stale-task guard; chúng không chứng minh rằng
+  retry chọn primary action mới từ view mới. Đây là giới hạn của test claim, không phải khẳng định policy không được gọi lại.
+  Không có người thật kết nối → bot chờ. Delay chỉ để trình bày (`BOT_ACTION_DELAY_SCALE`): sau khi đổ, bot chờ ước lượng trình bày
+  ở tốc độ thường (`packages/shared/src/botPacing.ts`) + 0,9 s suy nghĩ; logic không chờ animation client, client giữ cờ sở hữu tới
+  khi hàng đợi trình bày tới bước chuyển nhượng. Với task `CARD`, bot chờ thêm tối thiểu 3 giây để con người đọc thẻ; server
+  command vẫn kiểm tra thời gian đóng.
 ## Mất kết nối của người
 
 Không bao giờ có bot thay người. Grace 60 s: hết giờ thì mua bị bỏ qua, phát triển bỏ qua, lượt bị bỏ, và (từ protocol 12)
@@ -71,6 +74,6 @@ thẻ đã lật được áp dụng như khi bấm "Đóng" thay vì treo ván.
 
 `apps/server/src/socket.bots.integration.test.ts`, `socket.botDriver.integration.test.ts`, `bots/policy.test.ts`,
 `bots/driver.test.ts`, client `components/Lobby.test.tsx` ("Lobby bot seats"), `game/ui/hud/PlayerCardList.test.tsx`.
-CURRENT DEVELOPMENT (difficulty): `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`,
-`apps/client/src/components/Lobby.test.tsx` (các describe/it có "difficulty"); chưa có manual full-game theo từng mức.
+Difficulty coverage: `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`,
+`apps/client/src/components/Lobby.test.tsx` (các describe/it có "difficulty"). Manual full-game theo từng mức NOT RUN.
 Checklist: [testcase/bot-players.md](../testcase/bot-players.md).

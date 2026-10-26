@@ -599,3 +599,11 @@ payloads matched `SHA256SUMS.txt` and `update-manifest.json`, the Squirrel `RELE
 `.nupkg`, and the latest public update feed serves version 1.9.1 with minimum supported version 1.9.0. Real Windows
 in-place upgrades, cross-network gameplay and macOS device hosting remain **NOT RUN**; rc.2 success on the affected PC is
 **OWNER-REPORTED**, and the stable build has not been tested there.
+
+## V1.10.0 performance and presentation release (Socket protocol 14, snapshot schema 11)
+
+**Trạng thái: ĐÃ PHÁT HÀNH ngày 2026-10-20.** [GitHub Release v1.10.0](https://github.com/tvghung/monopoly/releases/tag/v1.10.0) đã được công bố; tag workflow [39434544013](https://github.com/tvghung/monopoly/actions/runs/39434544013) thành công trên annotated tag `v1.10.0` tại baseline commit `5a93a29c29ee91ad941ecf07eb958fc78e83bf9b`. Release giữ Socket protocol 14, room snapshot schema 11 và minimum supported version 1.9.0. Release notes: [v1.10.0](../../.github/release-notes/v1.10.0.md).
+
+Release gồm các cải tiến hiệu năng và trình bày B4/B5/B7/B8; B6 Adaptive Graphics bị loại theo quyết định của chủ dự án. Release notes phân loại B4, B5 và B8 là PARTIAL — CLOSED, B7 là PASS — CLOSED. Chủ dự án báo cáo đã hoàn tất full-match UAT trên executable trong worktree `phase-b8`; không có hash file để đối chiếu, nên đây không phải nghiệm thu binary của installer v1.10.0 công khai. Thao tác minimize/restore không tái hiện renderer bị suspend; mục tiêu suspended-renderer recovery vẫn BLOCKED. Kiểm tra trên màn hình high-refresh vật lý, GPU khác, macOS khi sử dụng thực tế, gameplay qua mạng độc lập và update thật v1.9.1 → v1.10.0 vẫn NOT RUN. Workflow phát hành và CI build không làm các khoảng trống này thành acceptance PASS. Các gói chưa ký số và macOS chưa notarized. Xem [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) để biết ranh giới bằng chứng.
+
+Working tree `codex/v1.10.0-refactor` hiện có E1 reliability fixes chưa commit, được tạo sau release commit. Đây là CURRENT DEVELOPMENT; chúng không thuộc source tag hoặc installer v1.10.0, và được ghi trong Phase E1 (local-only historical evidence: `12_PHASE_E1_REGRESSION_HARDENING.md`; unavailable in a clean checkout) cùng reports 13–16.

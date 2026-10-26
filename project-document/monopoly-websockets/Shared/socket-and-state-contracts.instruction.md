@@ -38,7 +38,8 @@ File này là owner duy nhất của lịch sử protocol/snapshot. Hằng số 
 `packages/shared/src/types.ts` và `ROOM_SNAPSHOT_SCHEMA_VERSION` trong `apps/server/src/rooms.ts`. "Released in" lấy từ
 `git tag` + `.github/release-notes/*.md` (ngày = ngày commit của tag). SQL dưới `apps/server/migrations/` là HISTORICAL
 artifact, runtime RAM không bao giờ nạp; các helper `upgradeRoomSnapshotV4ToV5` … `upgradeRoomSnapshotV10ToV11` trong
-`apps/server/src/rooms.ts` chỉ được test gọi, còn `assertSupportedRoomSnapshot` đòi đúng version hiện hành.
+`apps/server/src/testSupport/historicalRoomSnapshotUpgrades.ts` chỉ phục vụ fixture tests, còn `assertSupportedRoomSnapshot`
+đòi đúng version hiện hành và không tự nâng version cũ.
 
 | Protocol | Snapshot | Released in | Additions |
 | --- | --- | --- | --- |
@@ -48,11 +49,11 @@ artifact, runtime RAM không bao giờ nạp; các helper `upgradeRoomSnapshotV4
 | V11 | V10 | v1.4.0 (2026-10-07); giữ nguyên tới v1.4.1, v1.5.0, v1.6.0, v1.6.1 | Ghế sảnh 2v2 + host kick: `Player.teamSlot`, `RoomPlayerMeta.teamSlot`, `boardState.seatSwapRequests`, lệnh `kick player`/`move to seat`/`request seat swap`/`cancel seat swap`/`respond seat swap`, event `removed from room`; bỏ `swap team`. HISTORICAL SQL `011_lobby_seats_v10.sql`. |
 | V12 | V11 | v1.7.0 (GitHub Release 2026-10-09; minimum supported version 1.7.0) | Ghế bot: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`, `MAX_BOTS_PER_ROOM`. Snapshot V10 hợp lệ như V11 (thiếu `kind` = HUMAN); không có file SQL mới. |
 | V13 (v1.8.0, published 2026-10-09) | V11 (unchanged) | v1.8.0 GitHub Release | Host-only, lobby-only set bot difficulty plus optional BoardState.botDifficulty; fixed Income Tax 150; sell house and make offer requestId idempotency. No snapshot migration. |
-| V14 | V11 (unchanged) | v1.9.0 GitHub Release (2026-10-11); unchanged in v1.9.1 | Income Tax is 30% of current nonnegative cash, rounded down; revealed-card minimum visibility is enforced by the server and presented to each client; minimum supported version 1.9.0. No persisted snapshot fields or migration. |
+| V14 | V11 (unchanged) | v1.9.0 GitHub Release (2026-10-11); unchanged in v1.9.1 and v1.10.0 (2026-10-20) | Income Tax is 30% of current nonnegative cash, rounded down; revealed-card minimum visibility is enforced by the server and presented to each client; minimum supported version 1.9.0. No persisted snapshot fields or migration. |
 
 The V13 row preserves the v1.8.0 release contract. v1.9.0 changes Income Tax from fixed 150 to 30% of current nonnegative cash, rounded down, and requires a revealed card to remain visible for at least three seconds per client. A protocol-13 client and protocol-14 host would use different tax rules, so strict handshake equality rejects mixed versions. These changes add no persisted snapshot fields; schema 11 remains unchanged.
 
-Quyết định bump 12 → 13 (R-1 RESOLVED trong code): v1.7.0 và nhánh này cùng ở protocol 12 nhưng khác luật hiển thị (thuế 200 / 150)
+HISTORICAL — Quyết định bump 12 → 13 (R-1 RESOLVED trong v1.8.0): v1.7.0 và nhánh trước phát hành cùng ở protocol 12 nhưng khác luật hiển thị (thuế 200 / 150)
 và khác hợp đồng lệnh. Một desktop guest dùng renderer đóng gói riêng hiển thị thuế từ shared data của chính nó trong khi host
 authoritative thu giá trị của host, và một host 1.7.0 không bao giờ ACK `set bot difficulty` (không listener, client không timeout;
 theo đọc code tại tag `v1.7.0`). Handshake bằng đúng `SOCKET_PROTOCOL_VERSION` (`apps/server/src/socket/index.ts`) nên protocol 13 từ chối mọi
@@ -100,13 +101,13 @@ Public types và room snapshot trong RAM dùng stable IDs và phân biệt hidde
 - Bot seats (protocol 12, snapshot 11): `PLAYER_KINDS`/`PlayerKind`, `RoomPlayerMeta.kind` (always set; `connected` is true
   for an active bot), server-only `RoomMember.kind` (absent = HUMAN), `BoardState.matchId` (UUID per started match, null in
   a lobby), `AddBotRequest {requestId, seat?}` → `AddBotResult {playerId}`, `RemoveBotRequest {playerId}`, `MAX_BOTS_PER_ROOM`.
-- Idempotent money commands — CURRENT DEVELOPMENT (protocol 13, không có trong v1.7.0): `SellHouseRequest {tileID, requestId}` cho `sell house`
+- Idempotent money commands — RELEASED v1.8.0 (protocol 13; absent in v1.7.0): `SellHouseRequest {tileID, requestId}` cho `sell house`
   và `OfferInfo extends TradeOfferRequest {requestId}` cho `make offer`; `requestId` là UUID (`sellHouseRequestSchema`, `offerInfoSchema` trong
   `packages/shared/src/socketSchemas.ts`). Ledger runtime: [socket-building](../Api/socket-building.instruction.md), [socket-trading](../Api/socket-trading.instruction.md).
-- Bot difficulty — CURRENT DEVELOPMENT (vNext, unreleased; không có trong v1.7.0): `BOT_DIFFICULTIES`/`BotDifficulty`
+- Bot difficulty — RELEASED v1.8.0 (protocol 13; absent in v1.7.0): `BOT_DIFFICULTIES`/`BotDifficulty`
   (`VERY_EASY | EASY | MEDIUM | HARD | VERY_HARD`), `DEFAULT_BOT_DIFFICULTY = MEDIUM`, optional `BoardState.botDifficulty`
   (thiếu = MEDIUM; `apps/server/src/services/publicState.ts` luôn project ra giá trị, MEDIUM khi thiếu), `SetBotDifficultyRequest {difficulty}`
-  cho lệnh host-only, lobby-only `set bot difficulty`. Thuộc protocol 13 (CURRENT DEVELOPMENT), snapshot vẫn 11;
+  cho lệnh host-only, lobby-only `set bot difficulty`. Thuộc protocol 13 đã phát hành ở v1.8.0; snapshot vẫn 11;
   xem [Version history](#version-history).
 - Lobby seats (protocol 11): `Player.teamSlot` (`TeamSlot` 0|1) and `RoomPlayerMeta.teamSlot` (`PublicPlayer` omits it); `BoardState.seatSwapRequests`
   (`SeatSwapRequest {requesterPlayerId, targetPlayerId}`, public, empty outside a 2v2 lobby). Requests: `MoveToSeatRequest {teamId, teamSlot}`,
