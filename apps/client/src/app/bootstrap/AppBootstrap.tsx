@@ -73,7 +73,7 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
     if (!desktopBridge) return undefined;
     let active = true;
     void loadRuntimeConfig().then(config => {
-      if (active && config.socketUrl) setConfiguredRuntimeConfig(config);
+      if (active && (config.socketUrl || config.localAcceptanceMode)) setConfiguredRuntimeConfig(config);
     }).catch(() => {
       if (!active) return;
       setConfigurationError(true);

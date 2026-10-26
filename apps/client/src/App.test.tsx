@@ -1054,7 +1054,7 @@ describe('App session admission', () => {
 
   /** An in-progress room the player holds a seat in, with a desktop bridge whose quit calls are spies. */
   function renderActiveDesktopGame() {
-    let quitListener: ((requestId: string) => void) | undefined;
+    let quitListener: ((requestId: string, requiresConfirmation?: boolean) => void) | undefined;
     const respond = vi.fn();
     const acknowledge = vi.fn();
     const bridge: OwnTheBlockDesktopBridge = {
@@ -1074,7 +1074,7 @@ describe('App session admission', () => {
         onFullscreenChanged: () => () => {},
       },
       quit: {
-        onQuitRequested: listener => {
+        onQuitRequested: (listener: (requestId: string, requiresConfirmation?: boolean) => void) => {
           quitListener = listener;
           return () => { quitListener = undefined; };
         },
@@ -1125,7 +1125,14 @@ describe('App session admission', () => {
       }
     });
 
-    return { respond, acknowledge, view, askToQuit: (requestId: string) => act(() => quitListener?.(requestId)) };
+    return {
+      respond,
+      acknowledge,
+      view,
+      askToQuit: (requestId: string, requiresConfirmation?: boolean) => (
+        act(() => quitListener?.(requestId, requiresConfirmation))
+      ),
+    };
   }
 
   it('confirms active desktop close without emitting leave room', () => {
@@ -1147,6 +1154,43 @@ describe('App session admission', () => {
 
     expect(acknowledge).toHaveBeenCalledExactlyOnceWith('desktop-quit-2');
     expect(screen.getByRole('alertdialog')).toBeTruthy();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('shows an explicit Host-stop confirmation for a busy startup before a player has joined', () => {
+    let quitListener: ((requestId: string, requiresConfirmation?: boolean) => void) | undefined;
+    const respond = vi.fn();
+    const acknowledge = vi.fn();
+    window.ownTheBlockDesktop = {
+      getRuntimeConfig: () => Promise.resolve({
+        ok: true,
+        config: { target: 'desktop', socketUrl: 'http://127.0.0.1:8080', platform: 'darwin', appVersion: '1.0.0' },
+      }),
+      window: {
+        getState: () => Promise.resolve({ fullscreen: false, maximized: false, resizable: true }),
+        setFullscreen: () => Promise.resolve(),
+        toggleFullscreen: () => Promise.resolve(),
+        onFullscreenChanged: () => () => undefined,
+      },
+      quit: {
+        onQuitRequested: (listener: (requestId: string, requiresConfirmation?: boolean) => void) => {
+          quitListener = listener;
+          return () => { quitListener = undefined; };
+        },
+        respond,
+        acknowledge,
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+
+    act(() => quitListener?.('pending-host-start', true));
+
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+    expect(acknowledge).toHaveBeenCalledExactlyOnceWith('pending-host-start');
     expect(respond).not.toHaveBeenCalled();
   });
 

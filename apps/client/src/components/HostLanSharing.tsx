@@ -60,11 +60,20 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   }, [activate, bridge, roomCode, status?.connectionMode, status?.onlineEndpoint, status?.onlineState]);
 
   const joinUrl = (() => {
-    const endpoint = status?.connectionMode === 'ONLINE'
+    const endpoint = status?.localAcceptanceMode
+      ? status.localEndpoint
+      : status?.connectionMode === 'ONLINE'
       ? status.onlineState === 'READY' || status.onlineState === 'DISCOVERY_UNAVAILABLE' ? status.onlineEndpoint : undefined
       : status?.selectedLanUrl;
     if (!endpoint) return undefined;
     try {
+      if (status?.localAcceptanceMode) {
+        const url = new URL(endpoint);
+        if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1'
+          || url.username || url.password) return undefined;
+        url.searchParams.set('room', roomCode);
+        return url.toString();
+      }
       if (status?.connectionMode === 'ONLINE') {
         const url = new URL(endpoint);
         url.searchParams.set('room', roomCode);
@@ -117,7 +126,8 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   return (
     <aside className="lobby-share" aria-labelledby="lobby-share-title">
       <div className="lobby-share__details">
-        <p className="lobby__eyebrow" id="lobby-share-title">{t('sharing.heading')} · {t(status?.connectionMode === 'ONLINE' ? 'sharing.online' : 'sharing.lan')}</p>
+        <p className="lobby__eyebrow" id="lobby-share-title">{t('sharing.heading')} · {t(status?.localAcceptanceMode ? 'sharing.loopback' : status?.connectionMode === 'ONLINE' ? 'sharing.online' : 'sharing.lan')}</p>
+        {status?.localAcceptanceMode ? <p className="lobby-share__note" role="note">{t('sharing.loopbackOnly')}</p> : null}
         {status && !joinUrl ? <p className="lobby-share__warning" role="status">{t(status.connectionMode === 'ONLINE' ? activationFailed || status.onlineState === 'UNAVAILABLE' ? 'sharing.unavailable' : 'sharing.connecting' : 'lan.noNetwork')}</p> : null}
         {status?.onlineState === 'DISCOVERY_UNAVAILABLE' ? <p className="lobby-share__warning" role="status">{t('sharing.discoveryUnavailable')}</p> : null}
         {/* Without a room registry a code cannot be looked up from another network: only the link and the QR reach this room. */}

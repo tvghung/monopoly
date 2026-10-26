@@ -123,7 +123,7 @@ interface AppFailure {
   returnToLauncher?: boolean;
 }
 
-type ConfirmationState = 'LEAVE' | { kind: 'QUIT'; requestId: string };
+type ConfirmationState = 'LEAVE' | { kind: 'QUIT'; requestId: string; hostClose: boolean };
 
 const terminalSessionCodes = new Set<AckError['code']>([
   'SESSION_INVALID',
@@ -542,6 +542,33 @@ export default function App({
     };
 
     const onUpdate = (incoming: PublicRoomState) => {
+      const current = roomRef.current;
+      // Only an admission ACK may establish/replace the active room identity.
+      if (!socket.connected || !current || !roleRef.current
+        || phaseRef.current === 'REPLACED' || phaseRef.current === 'ERROR'
+        || incoming.roomId !== current.roomId || incoming.roomCode !== current.roomCode) return;
+
+      if (incoming.version === current.version) {
+        // The server samples live presence synchronously at emit; Socket.IO preserves
+        // that order on this transport. Never use this path for a delayed admission ACK.
+        let changed = false;
+        const players = current.players.map(member => {
+          if (member.kind !== 'HUMAN' || member.membershipStatus !== 'ACTIVE') return member;
+          const update = incoming.players.find(player => player.playerId === member.playerId);
+          if (!update || update.kind !== member.kind || update.membershipStatus !== member.membershipStatus
+            || update.connected === member.connected) return member;
+          changed = true;
+          return { ...member, connected: update.connected };
+        });
+        if (changed) {
+          const next = { ...current, players };
+          roomRef.current = next;
+          setRoom(next);
+        }
+        // Presence is not a gameplay transition: leave the controller/queue untouched.
+        return;
+      }
+
       const connecting = phaseRef.current === 'RESTORING'
         || phaseRef.current === 'JOINING'
         || phaseRef.current === 'RECONNECTING';
@@ -1014,18 +1041,22 @@ export default function App({
 
   useEffect(() => {
     if (!desktopBridge) return undefined;
-    return desktopBridge.quit.onQuitRequested(requestId => {
+    return desktopBridge.quit.onQuitRequested((requestId, requiresConfirmation = false) => {
       const activeGame = roleRef.current === 'PLAYER'
         && roomRef.current?.status === 'IN_PROGRESS';
-      if (activeGame) {
-        setConfirmation({ kind: 'QUIT', requestId });
+      if (activeGame || requiresConfirmation) {
+        setConfirmation({
+          kind: 'QUIT',
+          requestId,
+          hostClose: requiresConfirmation || Boolean(launch?.hosting),
+        });
         // Main stops its 2 s countdown: the player decides in their own time.
         desktopBridge.quit.acknowledge?.(requestId);
       } else {
         desktopBridge.quit.respond(requestId, true);
       }
     });
-  }, [desktopBridge]);
+  }, [desktopBridge, launch?.hosting]);
 
   // A quit question that disappears without an answer (the screen goes back to the launcher, the app unmounts) is a
   // cancellation, never a yes: main would otherwise wait on a dialog that no longer exists.
@@ -1247,7 +1278,7 @@ export default function App({
             title={confirmation === 'LEAVE' ? t('app.leaveTitle') : t('app.quitTitle')}
             message={confirmation === 'LEAVE'
               ? t('app.leaveMessage')
-              : launch?.hosting
+              : confirmation?.kind === 'QUIT' && (confirmation.hostClose || launch?.hosting)
                 ? t('app.closeHostMessage')
                 : t('app.closeWindowMessage')}
             confirmLabel={confirmation === 'LEAVE' ? t('app.leaveGame') : t('app.closeWindow')}

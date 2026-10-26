@@ -6,6 +6,7 @@ export interface RuntimeConfig {
   socketUrl?: string;
   platform?: DesktopPlatform;
   appVersion?: string;
+  localAcceptanceMode?: boolean;
 }
 
 export type DesktopRuntimeConfigErrorCode =
@@ -54,6 +55,8 @@ export interface HostRuntimeStatus {
   connectionMode?: 'LAN' | 'ONLINE';
   onlineEndpoint?: string | null;
   onlineState?: 'CONNECTING' | 'AWAITING_ROOM' | 'READY' | 'DISCOVERY_UNAVAILABLE' | 'UNAVAILABLE';
+  /** The desktop Host accepts connections from this computer only. */
+  localAcceptanceMode?: boolean;
   /** This build can make an Online room findable by its code from another network. */
   discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
@@ -176,7 +179,7 @@ export interface OwnTheBlockDesktopBridge {
     onFullscreenChanged(listener: (state: DesktopWindowState) => void): () => void;
   };
   quit: {
-    onQuitRequested(listener: (requestId: string) => void): () => void;
+    onQuitRequested(listener: (requestId: string, requiresConfirmation?: boolean) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
     /** Tells main the confirmation dialog is on screen, so it waits for the player without its 2 s limit. Absent on a bridge that predates it. */
     acknowledge?(requestId: string): void;
