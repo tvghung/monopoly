@@ -3,7 +3,7 @@
 // are turned into numbers by `metrics.mjs`; the definitions are in `scripts/perf/README.md`.
 //
 // Needs an UNMINIFIED client build (`--minify false`): the frame scheduler is recognised by the source text of its
-// callbacks (`this.advance(` + `pendingFrames` for the rAF callback, `this.requestFrame()` + `timeoutId` for its timer).
+// rAF callback (`this.advance(` + `pendingFrames`).
 // If no scheduler frame is ever seen the driver fails loudly instead of reporting zeros.
 (() => {
   if (window.__PROBE__) return;
@@ -330,12 +330,10 @@
     }
   }
 
-  // ---- The frame scheduler: rAF callbacks and timers, identified by source text --------------------------------
+  // ---- The frame scheduler: rAF callbacks, identified by source text -------------------------------------------
   const originalRAF = window.requestAnimationFrame.bind(window);
-  const originalSetTimeout = window.setTimeout.bind(window);
   const sourceOf = fn => { try { return Function.prototype.toString.call(fn); } catch { return ''; } };
   const isSchedulerFrame = fn => { const text = sourceOf(fn); return text.includes('this.advance(') && text.includes('pendingFrames'); };
-  const isSchedulerTimer = fn => { const text = sourceOf(fn); return text.includes('this.requestFrame()') && text.includes('timeoutId'); };
   let inScheduler = false;
   let continued = false;
   const pendingQueries = [];
@@ -388,13 +386,6 @@
           if (query) pendingQueries.push({ query, record });
         }
       });
-    };
-    window.setTimeout = function setTimeoutProbe(callback, delay, ...rest) {
-      if (typeof callback === 'function' && isSchedulerTimer(callback)) {
-        if (inScheduler) continued = true;
-        return originalSetTimeout(callback, delay, ...rest);
-      }
-      return originalSetTimeout(callback, delay, ...rest);
     };
   }
 

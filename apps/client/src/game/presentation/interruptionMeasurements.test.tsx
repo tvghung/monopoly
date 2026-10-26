@@ -1,9 +1,14 @@
 import { act, cleanup, render } from '@testing-library/react';
-import { expect, it, vi } from 'vitest';
-import { writeFileSync } from 'node:fs';
+import { afterAll, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PresentationController } from './PresentationController';
 import { PresentationProvider } from './PresentationProvider';
 import { makeRoom } from './testFixtures';
+// Test-generated measurements must never overwrite preserved B8 evidence.
+const evidenceDirectory = mkdtempSync(join(tmpdir(), 'otb-b8-visibility-'));
+afterAll(() => rmSync(evidenceDirectory, { recursive: true, force: true }));
 it('records restoration with suspended timer delivery', async () => {
   vi.useFakeTimers();
   const c = new PresentationController();
@@ -20,7 +25,7 @@ it('records restoration with suspended timer delivery', async () => {
   visibility.mockReturnValue('visible');
   act(() => { document.dispatchEvent(new Event('visibilitychange')); });
   await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-  writeFileSync('../../project-document/ui-ux-overhaul/08L_evidence/after-visibility.json', JSON.stringify({ kind: 'jsdom simulation with suspended timer delivery', hiddenMs: 60000, afterRestoreMs: 1000, authoritativeTile: 12, settledTile: c.getState().settledPositions['player-a'], queueStatus: c.queue.getStatus() }, null, 2) + '\n');
+  writeFileSync(join(evidenceDirectory, 'after-visibility.json'), JSON.stringify({ kind: 'jsdom simulation with suspended timer delivery', hiddenMs: 60000, afterRestoreMs: 1000, authoritativeTile: 12, settledTile: c.getState().settledPositions['player-a'], queueStatus: c.queue.getStatus() }, null, 2) + '\n');
   expect(c.getState().settledPositions['player-a']).toBe(12);
   cleanup();
   c.dispose();

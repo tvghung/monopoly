@@ -76,7 +76,7 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
 
 - [x] `[AUTO]` `rooms.teamplay.test.ts`: `ROOM_SNAPSHOT_SCHEMA_VERSION` là phiên bản hiện tại (describe "snapshot schema v11"), round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
   rescue, hai người một ghế, yêu cầu đổi chỗ ngoài sảnh 2v2/trùng người xin/người không còn trong sảnh), `upgradeRoomSnapshotV8ToV9` và
-  `upgradeRoomSnapshotV9ToV10` (+ `upgradeRoomSnapshotV10ToV11`; helper chỉ được test gọi) không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
+  `upgradeRoomSnapshotV9ToV10` (+ `upgradeRoomSnapshotV10ToV11`; helpers trong `apps/server/src/testSupport/historicalRoomSnapshotUpgrades.ts` chỉ phục vụ fixture tests) không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
   team/ghế/revive/rescue. SQL migrations 010 và 011 chỉ còn là tài liệu lịch sử.
 - [x] `[RAM]` Host giữ state 2v2 trong cùng process; host process thoát/khởi động lại xóa phòng, ghế, rescue và token. Bằng chứng host
   process restart nằm trong packaged host proof (khác với in-process server restart dùng lại store ở mục Emergency Rescue phía trên).

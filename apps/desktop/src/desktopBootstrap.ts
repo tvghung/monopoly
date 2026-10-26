@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, powerMonitor, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, net, powerMonitor, protocol, session, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -15,6 +15,11 @@ import { probeDefaultRouteAddress } from './networkInterfaces';
 import { selectInstaller } from './update/installers';
 import { resolveUpdateEndpoints } from './update/updateConfig';
 import { UpdateService } from './update/updateService';
+import {
+  loopbackAcceptanceEnvironment,
+  shouldEnableAutomaticUpdater,
+  type LoopbackAcceptanceConfig,
+} from './localAcceptance';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
@@ -24,7 +29,7 @@ let lanFinder: LanFinder | undefined;
 let quitController: QuitRequestController | undefined;
 let updateService: UpdateService | undefined;
 
-function createHostServices(): void {
+function createHostServices(localAcceptance?: LoopbackAcceptanceConfig): void {
   const generatedRoot = path.join(__dirname, '../generated');
   const resourcesRoot = app.isPackaged ? process.resourcesPath : generatedRoot;
   const helperRoot = path.join(resourcesRoot, 'server-helper');
@@ -32,28 +37,32 @@ function createHostServices(): void {
     helperPath: path.join(helperRoot, 'server-helper.cjs'),
     clientDist: rendererRoot(),
     appVersion: app.getVersion(),
-    routeProbe: probeDefaultRouteAddress,
-    // Public probes use the same Chromium network stack as the installed app's browser and updater.
-    onlineFetch: (input, init) => net.fetch(input, init),
-    onlineResolver: {
-      resolve: async (hostname, source) => {
-        // cacheUsage disallowed observes the current resolver result, including after a cached DNS failure.
-        await session.defaultSession.resolveHost(hostname, { source, cacheUsage: 'disallowed' });
+    ...(localAcceptance ? {
+      localAcceptance: true,
+      helperEnvironment: loopbackAcceptanceEnvironment(process.env, localAcceptance.profile),
+    } : {
+      routeProbe: probeDefaultRouteAddress,
+      // Public probes use the same Chromium network stack as the installed app's browser and updater.
+      onlineFetch: (input, init) => net.fetch(input, init),
+      onlineResolver: {
+        resolve: async (hostname, source) => {
+          // cacheUsage disallowed observes the current resolver result, including after a cached DNS failure.
+          await session.defaultSession.resolveHost(hostname, { source, cacheUsage: 'disallowed' });
+        },
+        clearCache: () => session.defaultSession.clearHostResolverCache(),
       },
-      clearCache: () => session.defaultSession.clearHostResolverCache(),
-    },
-    registryUrl: resolveRegistryUrl(process.env, app.isPackaged ? packagedReleaseConfig() : undefined),
-    cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH
-      ?? path.join(resourcesRoot, 'cloudflared', `${process.platform}-${process.arch}`,
-        process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'),
+      registryUrl: resolveRegistryUrl(process.env, app.isPackaged ? packagedReleaseConfig() : undefined),
+      cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH
+        ?? path.join(resourcesRoot, 'cloudflared', `${process.platform}-${process.arch}`,
+          process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'),
+    }),
   });
-  lanFinder = new LanFinder();
+  lanFinder = localAcceptance ? undefined : new LanFinder();
 }
 
-/** A LAN room of this machine is open (or opening): restarting for an update would close it for everyone in it. */
+/** Hosting startup, live resources and incomplete shutdown all block a restart update. */
 function hostIsBusy(): boolean {
-  const state = hostRuntime?.status.state;
-  return state !== undefined && state !== 'IDLE' && state !== 'FAILED';
+  return hostRuntime?.isBusy ?? false;
 }
 
 function createUpdateService(): UpdateService {
@@ -87,8 +96,7 @@ function createUpdateService(): UpdateService {
 }
 
 async function stopRuntime(): Promise<void> {
-  const needsStop = hostRuntime?.status.state !== 'IDLE';
-  if (!needsStop) return;
+  // Stop owns pending startup as well as resources; a status-only check can miss preflight.
   await hostRuntime?.stop();
 }
 
@@ -128,7 +136,7 @@ function registerProductionRenderer(): void {
   });
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(localAcceptanceMode = false): BrowserWindow {
   const development = !app.isPackaged;
   const window = new BrowserWindow({
     width: 1440,
@@ -154,7 +162,24 @@ function createWindow(): BrowserWindow {
   window.webContents.on('devtools-opened', () => {
     if (!development) window.webContents.closeDevTools();
   });
-  const windowQuitController = new QuitRequestController(window);
+  const windowQuitController = new QuitRequestController(
+    window,
+    process.platform === 'darwin'
+      ? {
+        isBusy: hostIsBusy,
+        stop: stopRuntime,
+        reportFailure: error => {
+          console.error('macOS Host window close was blocked because Host shutdown did not complete.', error);
+          if (window.isDestroyed()) return;
+          void dialog.showMessageBox(window, {
+            type: 'error',
+            title: 'Own the Block',
+            message: 'Không thể dừng máy chủ. Cửa sổ vẫn mở để bạn thử lại.',
+          }).catch(dialogError => console.error('Unable to show the Host shutdown error.', dialogError));
+        },
+      }
+      : undefined,
+  );
   quitController = windowQuitController;
   window.on('close', event => windowQuitController.handleClose(event));
   registerWindowHandlers(
@@ -162,7 +187,12 @@ function createWindow(): BrowserWindow {
     development,
     windowQuitController,
     hostRuntime
-      ? { hostRuntime, ...(lanFinder ? { lanFinder } : {}), ...(updateService ? { updateService } : {}) }
+      ? {
+        hostRuntime,
+        ...(lanFinder ? { lanFinder } : {}),
+        ...(updateService ? { updateService } : {}),
+        ...(localAcceptanceMode ? { localAcceptanceMode: true } : {}),
+      }
       : undefined,
   );
   installExternalNavigationGuards(window, development);
@@ -180,7 +210,8 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-export function startDesktopRuntime(): void {
+export function startDesktopRuntime(localAcceptance?: LoopbackAcceptanceConfig): void {
+  const automaticUpdaterEnabled = shouldEnableAutomaticUpdater(localAcceptance);
   protocol.registerSchemesAsPrivileged([{
     scheme: 'app',
     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
@@ -227,18 +258,18 @@ export function startDesktopRuntime(): void {
         });
       return;
     }
-    createHostServices();
-    updateService = createUpdateService();
+    createHostServices(localAcceptance);
+    if (automaticUpdaterEnabled) updateService = createUpdateService();
     powerMonitor.on('resume', () => {
       void hostRuntime?.verifyAndRecover().catch(error => {
         console.error('Desktop host recovery after resume failed.', error);
       });
     });
     if (app.isPackaged) registerProductionRenderer();
-    createWindow();
-    updateService.start();
+    createWindow(Boolean(localAcceptance));
+    if (automaticUpdaterEnabled) updateService?.start();
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(Boolean(localAcceptance));
     });
   }).catch(error => {
     console.error('Own the Block desktop failed to start.', error);

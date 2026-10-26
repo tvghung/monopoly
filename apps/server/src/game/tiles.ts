@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   areTeammates,
-  CHANCE_TILE_INDICES,
   CARD_MINIMUM_VISIBLE_MS,
-  CHEST_TILE_INDICES,
   effectiveRailroadOwnershipCount,
   effectiveUtilityOwnershipCount,
   formatMoney,
   gameCardsById,
+  railroadRentForCount,
   tileState,
+  utilityRentMultiplier,
   type CardDeck,
   type DiceValue,
   type GameCard,
@@ -186,7 +186,7 @@ export const railroadRent = (state: GameState, tileID: number): number => {
   const landed = state.boardState.ownedProps[tileID];
   if (!landed) return 0;
   const count = effectiveRailroadOwnershipCount(state, landed.id);
-  return count > 0 ? 25 * 2 ** (count - 1) : 0;
+  return railroadRentForCount(count);
 };
 
 // Likewise the Công Ty of the owner's team in 2v2: one from each teammate counts as holding both.
@@ -194,7 +194,7 @@ export const utilityRent = (state: GameState, tileID: number, diceTotal: number)
   const landed = state.boardState.ownedProps[tileID];
   if (!landed) return 0;
   const count = effectiveUtilityOwnershipCount(state, landed.id);
-  return diceTotal * (count === 2 ? 10 : 4);
+  return diceTotal * utilityRentMultiplier(count);
 };
 
 interface CardResolutionResult {
@@ -492,18 +492,6 @@ export const resolveTile = (
     completeTurnResolution(state, continuation);
 };
 
-// Compatibility helper retained for callers while ownership waits move into resolveTile.
-export const checkOwned = (
-  state: GameState,
-  playerId: PlayerId,
-  currentTile: number,
-  payRent: () => void,
-): void => {
-  const owned = state.boardState.ownedProps[currentTile];
-  if (!owned) return;
-  if (owned.id !== playerId) payRent();
-};
-
 export const handleJailRoll = (
   state: GameState,
   playerId: PlayerId,
@@ -546,9 +534,4 @@ export const resumePaymentContinuation = (
 ): void => {
   void options;
   completeTurnResolution(state, continuation);
-};
-
-export const cardTileIndices = {
-  chance: CHANCE_TILE_INDICES,
-  chest: CHEST_TILE_INDICES,
 };

@@ -162,6 +162,35 @@ describe('rules.ts', () => {
 });
 
 describe('rules.ts agrees with the server', () => {
+  it('keeps independent numeric golden values at server economy boundaries', () => {
+    expect(createFreshPlayer('Ada', 'red', 'dog').accountBalance).toBe(1500);
+
+    const railroads = [0, 1, 2, 3, 4].map((ownedCount) => {
+      const state = makeState();
+      RAILROAD_TILE_INDICES.slice(0, ownedCount).forEach((tileID) => own(state, tileID, 'p2'));
+      return railroadRent(state, RAILROAD_TILE_INDICES[0]);
+    });
+    expect(railroads).toEqual([0, 25, 50, 100, 200]);
+
+    const oneUtility = makeState();
+    own(oneUtility, UTILITY_TILE_INDICES[0], 'p2');
+    const bothUtilities = makeState();
+    UTILITY_TILE_INDICES.forEach((tileID) => own(bothUtilities, tileID, 'p2'));
+    expect([
+      utilityRent(makeState(), UTILITY_TILE_INDICES[0], 7),
+      utilityRent(oneUtility, UTILITY_TILE_INDICES[0], 7),
+      utilityRent(bothUtilities, UTILITY_TILE_INDICES[0], 7),
+    ]).toEqual([0, 28, 70]);
+
+    expect([forcedSaleGrossPrice(1, 0), forcedSaleGrossPrice(1, 2)]).toEqual([42, 112]);
+
+    const sale = makeState();
+    own(sale, 1, 'p1', 5);
+    expect(sellHouse(sale, 'p1', 1)).toBe(true);
+    expect(sale.players.p1.accountBalance).toBe(1525);
+    expect(sale.boardState.ownedProps[1].houses).toBe(4);
+  });
+
   it('starts every player with the starting cash on Xuất Phát', () => {
     const player = createFreshPlayer('Ada', 'red', 'dog');
     expect(player.accountBalance).toBe(STARTING_CASH);

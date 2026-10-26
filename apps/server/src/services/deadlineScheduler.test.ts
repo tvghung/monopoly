@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createServer } from '../createServer.js';
 import { InMemoryPersistenceStore } from '../persistence/inMemory.js';
@@ -10,7 +10,7 @@ import {
   type RoomSnapshot,
 } from '../rooms.js';
 import type { AppServer } from '../socket/types.js';
-import { recoverRoomIfDue } from './deadlineScheduler.js';
+import { DeadlineScheduler, recoverRoomIfDue } from './deadlineScheduler.js';
 import { createAppRuntime, type AppRuntime } from './runtime.js';
 
 const PLAYER_A = randomUUID();
@@ -116,6 +116,221 @@ function addDueBankDebt(snapshot: RoomSnapshot, now: Date): void {
 }
 
 describe('durable deadline recovery', () => {
+  it('cancels offers invalidated by deadline bankruptcy once, privately, after commit and before the public update', async () => {
+    const { persistence, runtime, io } = createRuntime();
+    const now = new Date(Date.now() + 1_000);
+    const roomId = randomUUID();
+    const snapshot = activeSnapshot();
+    addDueBankDebt(snapshot, now);
+    await persistence.rooms.create({
+      id: roomId,
+      code: 'DEADLINE-OFFER-CANCEL',
+      status: 'IN_PROGRESS',
+      hostPlayerId: PLAYER_B,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot: snapshot,
+      nextActionAt: now,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+    const offerIds = [randomUUID(), randomUUID()];
+    for (const [index, id] of offerIds.entries()) {
+      await persistence.tradeOffers.create({
+        id,
+        roomId,
+        proposerPlayerId: index === 0 ? PLAYER_B : PLAYER_A,
+        recipientPlayerId: index === 0 ? PLAYER_A : PLAYER_B,
+        offered: { cash: 800 + index, propertyIds: [], jailFreeCardIds: [] },
+        requested: { cash: 0, propertyIds: [index + 1], jailFreeCardIds: [] },
+        expiresAt: new Date(now.getTime() + 60_000),
+      });
+    }
+    const pendingBefore = await persistence.tradeOffers.listPendingForPlayer(roomId, PLAYER_A);
+    const emissions: Array<{ roomName: string; event: string; payload: unknown }> = [];
+    const toSpy = vi.spyOn(io, 'to').mockImplementation((roomName: string | string[]) => ({
+      emit(event: string, payload: unknown) {
+        emissions.push({ roomName: Array.isArray(roomName) ? roomName.join(',') : roomName, event, payload });
+        return true;
+      },
+    }) as never);
+
+    try {
+      await recoverRoomIfDue(io, runtime, roomId, now);
+      const cancellationEmissions = emissions.filter((entry) => entry.event === 'offer cancelled');
+      expect(cancellationEmissions).toHaveLength(offerIds.length * 2);
+      expect(cancellationEmissions.map((entry) => entry.roomName)).toEqual(pendingBefore.flatMap((offer) => [
+        `player:${offer.proposerPlayerId}`,
+        `player:${offer.recipientPlayerId}`,
+      ]));
+      expect(cancellationEmissions.map((entry) => (entry.payload as { offerId: string }).offerId)).toEqual(
+        pendingBefore.flatMap((offer) => [offer.id, offer.id]),
+      );
+      expect(cancellationEmissions.every((entry) => entry.roomName !== `room:${roomId}`)).toBe(true);
+      expect(emissions.findIndex((entry) => entry.event === 'offer cancelled'))
+        .toBeLessThan(emissions.findIndex((entry) => entry.event === 'update'));
+
+      const stored = await Promise.all(offerIds.map((id) => persistence.tradeOffers.findById(id)));
+      const expected = pendingBefore.map((offer) => {
+        const resolved = stored.find((candidate) => candidate?.id === offer.id);
+        if (!resolved?.resolvedAt) throw new Error('Deadline cancellation did not persist resolvedAt');
+        return {
+          offerId: resolved.id,
+          status: 'CANCELLED',
+          proposerPlayerId: resolved.proposerPlayerId,
+          recipientPlayerId: resolved.recipientPlayerId,
+          proposerName: resolved.proposerPlayerId === PLAYER_A ? 'Ada' : 'Grace',
+          recipientName: resolved.recipientPlayerId === PLAYER_A ? 'Ada' : 'Grace',
+          offered: resolved.offered,
+          requested: resolved.requested,
+          resolvedAt: resolved.resolvedAt.toISOString(),
+        };
+      });
+      const actualByOffer = new Map<string, unknown>();
+      for (const entry of cancellationEmissions) {
+        const payload = entry.payload as { offerId: string };
+        actualByOffer.set(payload.offerId, payload);
+      }
+      expect([...actualByOffer.values()]).toEqual(expected);
+      expect(JSON.stringify([...actualByOffer.values()])).toBe(JSON.stringify(expected));
+      const publicUpdate = emissions.find((entry) => entry.event === 'update')?.payload;
+      const publicJson = JSON.stringify(publicUpdate);
+      for (const id of offerIds) expect(publicJson).not.toContain(id);
+      expect(publicJson).not.toContain('offered');
+      expect(publicJson).not.toContain('requested');
+
+      const eventCountAfterCommit = emissions.length;
+      await recoverRoomIfDue(io, runtime, roomId, now);
+      expect(emissions).toHaveLength(eventCountAfterCommit);
+      for (const id of offerIds) expect((await persistence.tradeOffers.findById(id))?.status).toBe('CANCELLED');
+    } finally {
+      toSpy.mockRestore();
+    }
+  });
+
+  it('keeps offer deadline expiry on its distinct private expired event', async () => {
+    const { persistence, runtime, io } = createRuntime();
+    const expiresAt = new Date(Date.now() + 10_000);
+    const now = new Date(expiresAt.getTime() + 1);
+    const roomId = randomUUID();
+    await persistence.rooms.create({
+      id: roomId,
+      code: 'DEADLINE-OFFER-EXPIRE',
+      status: 'IN_PROGRESS',
+      hostPlayerId: PLAYER_A,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot: activeSnapshot(),
+      nextActionAt: new Date(now.getTime() + 86_400_000),
+      expiresAt: new Date(now.getTime() + 172_800_000),
+    });
+    const offerId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: offerId,
+      roomId,
+      proposerPlayerId: PLAYER_A,
+      recipientPlayerId: PLAYER_B,
+      offered: { cash: 12, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt,
+    });
+    const emissions: Array<{ roomName: string; event: string; payload: unknown }> = [];
+    const toSpy = vi.spyOn(io, 'to').mockImplementation((roomName: string | string[]) => ({
+      emit(event: string, payload: unknown) {
+        emissions.push({ roomName: Array.isArray(roomName) ? roomName.join(',') : roomName, event, payload });
+        return true;
+      },
+    }) as never);
+
+    try {
+      const scheduler = new DeadlineScheduler(io, runtime);
+      await scheduler.runOnce(now);
+      expect(emissions).toEqual([
+        {
+          roomName: `player:${PLAYER_A}`,
+          event: 'offer expired',
+          payload: {
+            offerId,
+            status: 'EXPIRED',
+            proposerPlayerId: PLAYER_A,
+            recipientPlayerId: PLAYER_B,
+            proposerName: 'Ada',
+            recipientName: 'Grace',
+            offered: { cash: 12, propertyIds: [], jailFreeCardIds: [] },
+            requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+            resolvedAt: now.toISOString(),
+          },
+        },
+        {
+          roomName: `player:${PLAYER_B}`,
+          event: 'offer expired',
+          payload: {
+            offerId,
+            status: 'EXPIRED',
+            proposerPlayerId: PLAYER_A,
+            recipientPlayerId: PLAYER_B,
+            proposerName: 'Ada',
+            recipientName: 'Grace',
+            offered: { cash: 12, propertyIds: [], jailFreeCardIds: [] },
+            requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+            resolvedAt: now.toISOString(),
+          },
+        },
+      ]);
+      expect(emissions.some((entry) => entry.event === 'offer cancelled')).toBe(false);
+      expect((await persistence.tradeOffers.findById(offerId))?.status).toBe('EXPIRED');
+      const eventCountAfterExpiry = emissions.length;
+      await scheduler.runOnce(now);
+      expect(emissions).toHaveLength(eventCountAfterExpiry);
+    } finally {
+      toSpy.mockRestore();
+    }
+  });
+
+  it('publishes no cancellation if the room deadline transaction fails before commit', async () => {
+    const { persistence, runtime, io } = createRuntime();
+    const now = new Date(Date.now() + 1_000);
+    const roomId = randomUUID();
+    const snapshot = activeSnapshot();
+    addDueBankDebt(snapshot, now);
+    await persistence.rooms.create({
+      id: roomId,
+      code: 'DEADLINE-ROLLBACK',
+      status: 'IN_PROGRESS',
+      hostPlayerId: PLAYER_B,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot: snapshot,
+      nextActionAt: now,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+    const offerId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: offerId,
+      roomId,
+      proposerPlayerId: PLAYER_B,
+      recipientPlayerId: PLAYER_A,
+      offered: { cash: 800, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+    const before = await persistence.rooms.findById(roomId);
+    const emissions: Array<{ roomName: string; event: string; payload: unknown }> = [];
+    const toSpy = vi.spyOn(io, 'to').mockImplementation((roomName: string | string[]) => ({
+      emit(event: string, payload: unknown) {
+        emissions.push({ roomName: Array.isArray(roomName) ? roomName.join(',') : roomName, event, payload });
+        return true;
+      },
+    }) as never);
+    const transactionSpy = vi.spyOn(persistence, 'transaction').mockRejectedValue(new Error('controlled transaction failure'));
+
+    try {
+      await expect(recoverRoomIfDue(io, runtime, roomId, now)).rejects.toThrow('controlled transaction failure');
+      expect(emissions).toEqual([]);
+      expect(await persistence.rooms.findById(roomId)).toEqual(before);
+      expect((await persistence.tradeOffers.findById(offerId))?.status).toBe('PENDING');
+    } finally {
+      transactionSpy.mockRestore();
+      toSpy.mockRestore();
+    }
+  });
+
   it('bankrupts a connected but idle debtor when the durable debt deadline expires', async () => {
     const { persistence, runtime, io } = createRuntime();
     const now = new Date('2026-08-12T12:00:00.000Z');

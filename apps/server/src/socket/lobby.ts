@@ -7,7 +7,6 @@ import {
   type CharacterId,
   type GameState,
   type LeaveRoomResult,
-  type OfferResult,
   type PlayerColorId,
   type RemovedFromRoomInfo,
 } from '@monopoly/shared';
@@ -44,7 +43,6 @@ import {
 } from '../teamLobby';
 import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import type { RoomRecord, TradeOfferRecord } from '../persistence';
-import { projectPrivateOffer } from '../services/privateOffers';
 import { emitCancelledOffers } from '../services/offerInvalidation';
 import { recordActivityEvent } from '../game/activity';
 import { requirePlayer } from './authority';
@@ -545,22 +543,7 @@ export function registerLobbyHandlers(
         for (const affectedPlayerId of new Set(proposalPlayers)) {
           io.to(privatePlayerRoomName(affectedPlayerId)).emit('forced sale proposal', null);
         }
-        for (const record of committed.result) {
-          const offer = projectPrivateOffer(record, committed.room);
-          const offerResult: OfferResult = {
-            offerId: offer.offerId,
-            status: 'CANCELLED',
-            proposerPlayerId: offer.proposerPlayerId,
-            recipientPlayerId: offer.recipientPlayerId,
-            proposerName: offer.proposerName,
-            recipientName: offer.recipientName,
-            offered: offer.offered,
-            requested: offer.requested,
-            resolvedAt: offer.resolvedAt ?? now.toISOString(),
-          };
-          io.to(privatePlayerRoomName(offer.proposerPlayerId)).emit('offer cancelled', offerResult);
-          io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer cancelled', offerResult);
-        }
+        emitCancelledOffers(io, committed.room, committed.result, now);
         broadcastRoom(io, runtime, committed.room);
       }
       acknowledge(successAck(result, committed.room?.aggregateVersion));

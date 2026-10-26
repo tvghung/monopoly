@@ -501,6 +501,45 @@ describe('DesktopMultiplayerLauncher "Thoát"', () => {
 });
 
 describe('DesktopMultiplayerLauncher host form', () => {
+  it('forces local acceptance hosting to LAN loopback without requiring a LAN interface', async () => {
+    const localIdle: HostRuntimeStatus = {
+      ...status,
+      localAcceptanceMode: true,
+      lanAvailable: false,
+      interfaces: [],
+      advertisedEndpoints: [],
+      selectedLanUrl: null,
+    };
+    const localHosting: HostRuntimeStatus = {
+      ...localIdle,
+      state: 'HOSTING',
+      gamePort: 53_120,
+      localEndpoint: 'http://127.0.0.1:53120',
+    };
+    const { host } = installHostBridge(localIdle);
+    host.start.mockResolvedValueOnce({ ok: true, status: localHosting, hostCapability: 'a'.repeat(64) });
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher
+      configuredRuntimeConfig={{ target: 'desktop', localAcceptanceMode: true }}
+      onReady={onReady}
+    />);
+    await settleStatus();
+    expect(screen.getByRole('note').textContent).toContain('máy chủ chỉ nhận kết nối từ máy này');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
+    await waitFor(() => expect(host.refreshNetwork).toHaveBeenCalled());
+    expect(screen.queryByText('Cách kết nối')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeConfig: expect.objectContaining({ socketUrl: 'http://127.0.0.1:53120' }) as unknown,
+      connectionMode: 'LAN',
+    })));
+    expect(host.start).toHaveBeenCalledWith(expect.objectContaining({ mode: 'LAN' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('asks for a name only: no network choice and no technical hint', async () => {
     const twoNetworks: HostRuntimeStatus = {
       ...status,
@@ -681,6 +720,35 @@ function settleStatus(): Promise<void> {
 }
 
 describe('DesktopMultiplayerLauncher join form', () => {
+  it('blocks public invitations and room-code discovery in local acceptance mode', async () => {
+    const localStatus: HostRuntimeStatus = {
+      ...status,
+      localAcceptanceMode: true,
+      interfaces: [],
+      lanAvailable: false,
+      selectedLanUrl: null,
+      advertisedEndpoints: [],
+    };
+    const { lan } = installHostBridge(localStatus, () => Promise.resolve(FOUND));
+    const online = { findRoom: vi.fn(() => Promise.resolve({ ok: true as const, endpoint: 'https://room.trycloudflare.com' })) };
+    window.ownTheBlockDesktop!.online = online;
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher
+      configuredRuntimeConfig={{ target: 'desktop', localAcceptanceMode: true }}
+      onReady={onReady}
+    />);
+    await settleStatus();
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm('https://room.trycloudflare.com/?room=otb-abc234');
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+
+    expect((await screen.findByRole('alert')).textContent)
+      .toBe('Chế độ kiểm thử cục bộ chỉ nhận liên kết 127.0.0.1.');
+    expect(lan?.findRoom).not.toHaveBeenCalled();
+    expect(online.findRoom).not.toHaveBeenCalled();
+    expect(onReady).not.toHaveBeenCalled();
+  });
+
   it('uses one field for a code or invitation and keeps the text intact', () => {
     installHostBridge(status);
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);

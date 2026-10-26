@@ -2,6 +2,7 @@ import {
   gameCardsById,
   getOpposingTeamId,
   isTeamMode,
+  JAIL_ROUND_LIMIT,
   teamActivePlayerIds,
   TEAM_IDS,
   type FinishedPlayerReason,
@@ -187,6 +188,29 @@ const rebasePaymentContinuationAfterPlayerRemoval = (
   };
 };
 
+// Every committed handoff that actually selects a jailed player applies the
+// same one-step jail bookkeeping, regardless of why the previous seat ended.
+const progressJailForSelectedPlayer = (state: GameState): void => {
+  const selectedPlayerId = state.boardState.currentPlayer.id;
+  const selected = state.players[selectedPlayerId];
+  if (!selected?.isJail) return;
+
+  selected.jailOpponentRoundsElapsed = Math.min(
+    JAIL_ROUND_LIMIT,
+    selected.jailOpponentRoundsElapsed + 1,
+  );
+  if (selected.jailOpponentRoundsElapsed >= JAIL_ROUND_LIMIT) {
+    selected.isJail = false;
+    selected.jailOpponentRoundsElapsed = 0;
+    recordPublicGameplayEvent(state, {
+      type: 'JAIL_RELEASED',
+      playerId: selectedPlayerId,
+      cause: 'TIME_SERVED',
+    });
+    sendToLog(state, `${selected.name} đã tự động ra tù sau hai vòng đối thủ.`);
+  }
+};
+
 // Declare a winner once only one player is left standing and at least one other
 // player has already been eliminated. The guard makes both the state and win log
 // idempotent when recovery or a repeated command checks the result again.
@@ -288,7 +312,10 @@ export const removePlayerFromGame = (
     }
   }
 
-  if (!options.deferWinner) checkWinner(state);
+  // A current-player handoff must know whether a successor will receive a turn
+  // before it prepares that player's jail state. Deferred callers still perform
+  // their idempotent winner check after removal returns.
+  if (!options.deferWinner || (wasCurrent && !options.deferTurnHandoff)) checkWinner(state);
   if (wasCurrent) {
     state.boardState.turnRecovery = null;
     state.turnInfo = {};
@@ -298,6 +325,7 @@ export const removePlayerFromGame = (
       && !state.boardState.winner
       && state.boardState.currentPlayer.id
     ) {
+      progressJailForSelectedPlayer(state);
       resetForFreshTurn(state);
     }
   }
@@ -338,6 +366,7 @@ export const checkBalance = (state: GameState, advanceTurn = false): void => {
   }
 
   if (currentWasRemoved) {
+    progressJailForSelectedPlayer(state);
     resetForFreshTurn(state);
     bankrupt.forEach((playerId) => {
       rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
@@ -379,21 +408,7 @@ export const nextTurn = (state: GameState): void => {
   state.boardState.currentPlayer.id = currentIndex < 0
     ? playerIds[0]
     : playerIds[(currentIndex + 1) % playerIds.length];
-  const selected = state.players[state.boardState.currentPlayer.id];
-  if (selected?.isJail) {
-    const elapsed = selected.jailOpponentRoundsElapsed;
-    selected.jailOpponentRoundsElapsed = Math.min(2, elapsed + 1);
-    if (selected.jailOpponentRoundsElapsed >= 2) {
-      selected.isJail = false;
-      selected.jailOpponentRoundsElapsed = 0;
-      recordPublicGameplayEvent(state, {
-        type: 'JAIL_RELEASED',
-        playerId: state.boardState.currentPlayer.id,
-        cause: 'TIME_SERVED',
-      });
-      sendToLog(state, `${selected.name} đã tự động ra tù sau hai vòng đối thủ.`);
-    }
-  }
+  progressJailForSelectedPlayer(state);
   resetForFreshTurn(state);
 };
 

@@ -2,8 +2,6 @@ export interface FrameSchedulerHost {
   now: () => number;
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (id: number) => void;
-  setTimeout: (callback: () => void, delayMs: number) => number;
-  clearTimeout: (id: number) => void;
   isVisible: () => boolean;
   onVisibilityChange: (callback: () => void) => () => void;
 }
@@ -12,8 +10,6 @@ const browserHost: FrameSchedulerHost = {
   now: () => performance.now(),
   requestAnimationFrame: callback => window.requestAnimationFrame(callback),
   cancelAnimationFrame: id => window.cancelAnimationFrame(id),
-  setTimeout: (callback, delayMs) => window.setTimeout(callback, delayMs),
-  clearTimeout: id => window.clearTimeout(id),
   isVisible: () => !document.hidden,
   onVisibilityChange: callback => {
     document.addEventListener('visibilitychange', callback);
@@ -27,7 +23,6 @@ export class DemandFrameScheduler {
   private lastFrameAt: number | null = null;
   private nextFrameAt: number | null = null;
   private frameId: number | null = null;
-  private timeoutId: number | null = null;
   private inFrame = false;
   private disposed = false;
   private holds = 0;
@@ -95,10 +90,9 @@ export class DemandFrameScheduler {
   }
 
   private schedule(): void {
-    if (this.disposed || this.holds > 0 || this.pendingFrames === 0 || this.frameId !== null || this.timeoutId !== null
+    if (this.disposed || this.holds > 0 || this.pendingFrames === 0 || this.frameId !== null
       || !this.host.isVisible()) return;
-    // Stay subscribed to display ticks during an active burst. A timeout followed by RAF can miss
-    // the very tick it was waiting for, especially on non-divisor refresh rates.
+    // Stay subscribed to display ticks during an active burst.
     this.requestFrame();
   }
 
@@ -132,8 +126,6 @@ export class DemandFrameScheduler {
 
   private cancelScheduled(): void {
     if (this.frameId !== null) this.host.cancelAnimationFrame(this.frameId);
-    if (this.timeoutId !== null) this.host.clearTimeout(this.timeoutId);
     this.frameId = null;
-    this.timeoutId = null;
   }
 }

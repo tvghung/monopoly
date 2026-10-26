@@ -30,7 +30,7 @@
   buttons: pay bail (`pay bail`) and use a jail-free card (`use jail card`, only when the player holds one); trying for a double
   is the ordinary roll button ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). No UI component emits `wait in jail`:
   `socketFunctions.waitInJail` exists in `apps/client/src/App.tsx` but is unused by the UI; bots use the server command. It is shown
-  only to the jailed current player while `canMutate`, and — CURRENT DEVELOPMENT (vNext, unreleased, commit 1937a73) — only while
+  only to the jailed current player while `canMutate`, and — RELEASED v1.8.0 (commit 1937a73) — only while
   `!currentPlayer.hasMoved`, i.e. at the start of their own turn: a player sent to jail mid-turn stays current until the hand-off
   but no longer sees the panel until their next turn (test "JailPanel turn gate" in
   `apps/client/src/components/dashboard/JailPanel.test.tsx`). It is a named `region` (no live region around the

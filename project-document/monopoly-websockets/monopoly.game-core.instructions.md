@@ -27,7 +27,7 @@
 | Turn/payment shortfall/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts`, `game/payment.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
 | Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
 | 2v2 Teamplay (đội, thuê theo đội, hồi sinh, Emergency Rescue) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts` | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md) |
-| Bot seats/policy/driver (difficulty: CURRENT DEVELOPMENT) | `apps/server/src/bots/policy.ts`, `apps/server/src/bots/driver.ts`, `apps/server/src/commands/gameplay.ts`, `apps/server/src/socket/bots.ts` | [GameCore/bot-players.instruction.md](./GameCore/bot-players.instruction.md) |
+| Bot seats and Balanced policy (RELEASED v1.7.0); difficulty (RELEASED v1.8.0) | `apps/server/src/bots/policy.ts`, `apps/server/src/bots/driver.ts`, `apps/server/src/commands/gameplay.ts`, `apps/server/src/socket/bots.ts` | [GameCore/bot-players.instruction.md](./GameCore/bot-players.instruction.md) |
 | Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
 | Forced sale | `game/payment.ts`, `game/bankruptcy.ts`, `socket/debt.ts` | [testcase/payment-shortfall-and-forced-sale.md](./testcase/payment-shortfall-and-forced-sale.md) |
 

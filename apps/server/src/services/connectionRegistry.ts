@@ -18,7 +18,27 @@ export class ConnectionRegistry {
 
   private readonly lastGenerationByPlayer = new Map<PlayerId, number>();
 
+  private nextResumeAttempt = 0;
+
+  private readonly lastBoundResumeByPlayer = new Map<PlayerId, number>();
+
+  /** Capture request order before session processing can yield; failed requests never claim a player. */
+  beginResumeAttempt(): number {
+    return ++this.nextResumeAttempt;
+  }
+
+  activateResume(playerId: PlayerId, socketId: string, attempt: number): ActivateConnectionResult | undefined {
+    if (attempt <= (this.lastBoundResumeByPlayer.get(playerId) ?? 0)) return undefined;
+    this.lastBoundResumeByPlayer.set(playerId, attempt);
+    return this.bind(playerId, socketId);
+  }
+
   activate(playerId: PlayerId, socketId: string): ActivateConnectionResult {
+    this.lastBoundResumeByPlayer.set(playerId, this.beginResumeAttempt());
+    return this.bind(playerId, socketId);
+  }
+
+  private bind(playerId: PlayerId, socketId: string): ActivateConnectionResult {
     const previous = this.activeByPlayer.get(playerId);
     const generation = (this.lastGenerationByPlayer.get(playerId) ?? 0) + 1;
     const active = { socketId, generation };

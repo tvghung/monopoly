@@ -9,7 +9,7 @@
 | Số luật (start cash, thưởng Xuất Phát, tiền thuê Ga/Công Ty, bán bắt buộc, vòng chờ tù, thời hạn) | `rules.ts` | Cùng instruction; `apps/server/src/rulesContract.test.ts` giữ khớp với server |
 
 Hằng số hiện hành: `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) và `ROOM_SNAPSHOT_SCHEMA_VERSION`
-(`apps/server/src/rooms.ts`). Lịch sử từng version, bản phát hành chứa nó và phần CURRENT DEVELOPMENT (vNext, unreleased)
+(`apps/server/src/rooms.ts`). Lịch sử từng version, bản phát hành chứa nó và các phần CURRENT DEVELOPMENT sau v1.10.0
 chỉ nằm ở [Version history](./socket-and-state-contracts.instruction.md#version-history). Compile-time
 types và Zod validation runtime là hai lớp khác nhau; schema parse không thay server
 authority.

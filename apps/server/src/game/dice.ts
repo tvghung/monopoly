@@ -6,13 +6,14 @@ import type {
   PlayerId,
   SentToJailCause,
 } from '@monopoly/shared';
+import { GO_REWARD } from '@monopoly/shared';
 import { sendToLog } from './text';
 import { recordPublicGameplayEvent } from './semanticEvents';
 
 export const BOARD_SIZE = 40;
 export const START_TILE = 0;
 export const JAIL_TILE = 10;
-export const START_REWARD = 200;
+export const START_REWARD = GO_REWARD;
 
 export type DiceRoller = () => DiceValue;
 

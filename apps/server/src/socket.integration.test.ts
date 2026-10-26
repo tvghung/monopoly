@@ -524,6 +524,119 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
     expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
   });
 
+  it('rolls back a leave handoff, held jail-free card and pending offer together before successful publication', async () => {
+    const persistence = new FailAfterCommandPersistenceStore();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'leave-jail-handoff');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'leave-jail-handoff');
+    const observer = await joinPlayer(await connect(subject.url), 'Observer', 'leave-jail-handoff');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    await setReady(observer.socket);
+    const waitForStartedUpdate = (socket: TestSocket) => new Promise<void>(resolve => {
+      const onUpdate = (room: PublicRoomState) => {
+        if (room.status !== 'IN_PROGRESS') return;
+        socket.off('update', onUpdate);
+        resolve();
+      };
+      socket.on('update', onUpdate);
+    });
+    const startedUpdates = Promise.all([
+      waitForStartedUpdate(guest.socket),
+      waitForStartedUpdate(observer.socket),
+    ]);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    await startedUpdates;
+    await mutateRoom(persistence, host.room.roomId, room => {
+      const state = room.gameSnapshot.gameState;
+      state.boardState.currentPlayer = { id: host.playerId, hasMoved: true };
+      state.boardState.turnNumber = 7;
+      state.players[host.playerId].heldJailFreeCardIds = ['chance-jail-free'];
+      state.privateState.decks.chance.drawPile = state.privateState.decks.chance.drawPile
+        .filter((cardId) => cardId !== 'chance-jail-free');
+      state.boardState.ownedProps[1] = {
+        id: observer.playerId,
+        color: state.players[observer.playerId].color,
+        houses: 0,
+      };
+      state.players[guest.playerId].isJail = true;
+      state.players[guest.playerId].jailOpponentRoundsElapsed = 1;
+    });
+    const offerId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: offerId,
+      roomId: host.room.roomId,
+      proposerPlayerId: host.playerId,
+      recipientPlayerId: observer.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    const before = await persistence.rooms.findById(host.room.roomId);
+    if (!before) throw new Error('Expected the active room before leave');
+    const updates: PublicRoomState[] = [];
+    const observerEvents: Array<{ event: 'offer cancelled' | 'update'; payload: unknown }> = [];
+    guest.socket.on('update', room => updates.push(room));
+    observer.socket.on('update', room => updates.push(room));
+    observer.socket.on('offer cancelled', payload => observerEvents.push({ event: 'offer cancelled', payload }));
+    observer.socket.on('update', payload => observerEvents.push({ event: 'update', payload }));
+
+    persistence.failNextTransactionAfterOperation = true;
+    const failedLeave = await leaveRoom(host.socket);
+
+    expect(failedLeave).toMatchObject({ ok: false, error: { code: 'INTERNAL_ERROR', retryable: true } });
+    expect(updates).toHaveLength(0);
+    expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
+    expect((await persistence.tradeOffers.findById(offerId))?.status).toBe('PENDING');
+    expect(observerEvents).toEqual([]);
+    expect(subject.runtime.connections.isConnected(host.playerId)).toBe(true);
+
+    const cancelledOffer = new Promise<unknown>(resolve => observer.socket.once('offer cancelled', resolve));
+    const successorUpdates = Promise.all([new Promise<PublicRoomState>(resolve => {
+      guest.socket.once('update', resolve);
+    }), new Promise<PublicRoomState>(resolve => {
+      observer.socket.once('update', resolve);
+    })]);
+    const committedLeave = await leaveRoom(host.socket);
+    expect(committedLeave).toMatchObject({ ok: true, data: { roomDeleted: false } });
+    const [publicRoom, observerRoom] = await successorUpdates;
+    const cancellationPayload = await cancelledOffer;
+    const after = await persistence.rooms.findById(host.room.roomId);
+
+    expect(after?.gameSnapshot.members[host.playerId]?.membershipStatus).toBe('LEFT');
+    expect(after?.gameSnapshot.gameState.boardState).toMatchObject({
+      currentPlayer: { id: guest.playerId, hasMoved: false },
+      turnNumber: 8,
+    });
+    expect(after?.gameSnapshot.gameState.players[guest.playerId]).toMatchObject({
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+    });
+    expect(after?.gameSnapshot.gameState.boardState.gameplayEvents.events.filter(
+      event => event.type === 'JAIL_RELEASED' && event.playerId === guest.playerId,
+    )).toHaveLength(1);
+    expect(after?.gameSnapshot.gameState.players[host.playerId]).toBeUndefined();
+    expect(after?.gameSnapshot.gameState.privateState.decks.chance.drawPile
+      .filter(cardId => cardId === 'chance-jail-free')).toHaveLength(1);
+    expect((await persistence.tradeOffers.findById(offerId))?.status).toBe('CANCELLED');
+    expect(cancellationPayload).toMatchObject({
+      offerId,
+      status: 'CANCELLED',
+      proposerPlayerId: host.playerId,
+      recipientPlayerId: observer.playerId,
+    });
+    expect(observerEvents.map(event => event.event)).toEqual(['offer cancelled', 'update']);
+    expect(publicRoom.gameState.boardState.currentPlayer.id).toBe(guest.playerId);
+    expect(publicRoom.gameState.boardState.gameplayEvents.events.filter(
+      event => event.type === 'JAIL_RELEASED' && event.playerId === guest.playerId,
+    )).toHaveLength(1);
+    expect(observerRoom.gameState.boardState.currentPlayer.id).toBe(guest.playerId);
+    expect(observerRoom.gameState.boardState.gameplayEvents.events.filter(
+      event => event.type === 'JAIL_RELEASED' && event.playerId === guest.playerId,
+    )).toHaveLength(1);
+    expect(updates).toHaveLength(2);
+  });
+
   it('lets the newest connection win without a stale disconnect deactivating it', async () => {
     const subject = await startServer();
     const oldSocket = await connect(subject.url);
@@ -1653,6 +1766,487 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(observerReceivedOffer).toBe(false);
+  });
+
+  it('cancels every offer touching a changed asset once, privately and before the room update', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'asset-cancellation');
+    const buyer = await joinPlayer(await connect(subject.url), 'Buyer', 'asset-cancellation');
+    const otherBuyer = await joinPlayer(await connect(subject.url), 'Other buyer', 'asset-cancellation');
+    await setReady(owner.socket);
+    await setReady(buyer.socket);
+    await setReady(otherBuyer.socket);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 2,
+      };
+    });
+    const offerIds = [randomUUID(), randomUUID()];
+    await persistence.tradeOffers.create({
+      id: offerIds[0],
+      roomId: owner.room.roomId,
+      proposerPlayerId: buyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 987_654, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    await persistence.tradeOffers.create({
+      id: offerIds[1],
+      roomId: owner.room.roomId,
+      proposerPlayerId: otherBuyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 876_543, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+
+    const spectatorSocket = await connect(subject.url);
+    const spectator = successData(await waitForAck<JoinRoomResult>((acknowledge) => {
+      spectatorSocket.emit('join room', { name: 'Spectator', roomCode: 'asset-cancellation' }, acknowledge);
+    }));
+    expect(spectator.kind).toBe('SPECTATOR');
+
+    const trace = (socket: TestSocket) => {
+      const events: Array<{ event: 'offer cancelled' | 'update'; payload: unknown }> = [];
+      socket.on('offer cancelled', (payload) => events.push({ event: 'offer cancelled', payload }));
+      socket.on('update', (payload) => events.push({ event: 'update', payload }));
+      return events;
+    };
+    const ownerEvents = trace(owner.socket);
+    const buyerEvents = trace(buyer.socket);
+    const otherBuyerEvents = trace(otherBuyer.socket);
+    const spectatorEvents = trace(spectatorSocket);
+    const pendingBefore = await persistence.tradeOffers.listPendingForRoom(owner.room.roomId);
+
+    const sellFirstHouse = () => waitForAck((acknowledge) => {
+      owner.socket.emit('sell house', { tileID: 1, requestId: randomUUID() }, acknowledge);
+    });
+    expect((await sellFirstHouse()).ok).toBe(true);
+    await waitUntil(() => ownerEvents.some((event) => event.event === 'update')
+      && buyerEvents.some((event) => event.event === 'update')
+      && otherBuyerEvents.some((event) => event.event === 'update')
+      && spectatorEvents.some((event) => event.event === 'update'), 'Participants did not receive the asset update');
+
+    expect(ownerEvents.map((event) => event.event)).toEqual(['offer cancelled', 'offer cancelled', 'update']);
+    expect(buyerEvents.map((event) => event.event)).toEqual(['offer cancelled', 'update']);
+    expect(otherBuyerEvents.map((event) => event.event)).toEqual(['offer cancelled', 'update']);
+    expect(spectatorEvents.map((event) => event.event)).toEqual(['update']);
+
+    const expectedFor = (record: NonNullable<Awaited<ReturnType<typeof persistence.tradeOffers.findById>>>) => {
+      if (!record.resolvedAt) throw new Error('Cancellation did not persist resolvedAt');
+      return {
+        offerId: record.id,
+        status: 'CANCELLED',
+        proposerPlayerId: record.proposerPlayerId,
+        recipientPlayerId: record.recipientPlayerId,
+        proposerName: record.proposerPlayerId === buyer.playerId ? 'Buyer' : 'Other buyer',
+        recipientName: 'Owner',
+        offered: record.offered,
+        requested: record.requested,
+        resolvedAt: record.resolvedAt.toISOString(),
+      };
+    };
+    const storedOffers = await Promise.all(offerIds.map((offerId) => persistence.tradeOffers.findById(offerId)));
+    const storedById = new Map(storedOffers.flatMap((record) => (record ? [[record.id, record] as const] : [])));
+    const expected = pendingBefore.map((record) => {
+      const stored = storedById.get(record.id);
+      if (!stored) throw new Error('Cancelled offer disappeared');
+      return expectedFor(stored);
+    });
+    const ownerCancellations = ownerEvents.filter((event) => event.event === 'offer cancelled').map((event) => event.payload);
+    expect(ownerCancellations.map((payload) => (payload as { offerId: string }).offerId))
+      .toEqual(pendingBefore.map((record) => record.id));
+    expect(ownerCancellations).toEqual(expected);
+    expect(JSON.stringify(ownerCancellations)).toBe(JSON.stringify(expected));
+    for (const [socketEvents, playerId] of [[buyerEvents, buyer.playerId], [otherBuyerEvents, otherBuyer.playerId]] as const) {
+      const result = socketEvents.find((event) => event.event === 'offer cancelled')?.payload;
+      expect(result).toEqual(expected.find((payload) => payload.proposerPlayerId === playerId));
+    }
+
+    const ownerUpdates = ownerEvents.filter((event) => event.event === 'update');
+    const publicUpdate = ownerUpdates[ownerUpdates.length - 1]?.payload;
+    const serializedPublicUpdate = JSON.stringify(publicUpdate);
+    expect(serializedPublicUpdate).not.toContain(offerIds[0]);
+    expect(serializedPublicUpdate).not.toContain(offerIds[1]);
+    expect(serializedPublicUpdate).not.toContain('987654');
+    expect(serializedPublicUpdate).not.toContain('876543');
+    expect(serializedPublicUpdate).not.toContain('requested');
+    expect(serializedPublicUpdate).not.toContain('offered');
+
+    // The same property can be changed again, but its already-terminal offers do not notify anyone a second time.
+    expect((await sellFirstHouse()).ok).toBe(true);
+    await waitUntil(() => ownerEvents.filter((event) => event.event === 'update').length === 2, 'Owner did not receive the second update');
+    expect(ownerEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(2);
+    expect(buyerEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(1);
+    expect(otherBuyerEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(1);
+    expect(spectatorEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(0);
+    expect((await persistence.tradeOffers.findById(offerIds[0]))?.status).toBe('CANCELLED');
+    expect((await persistence.tradeOffers.findById(offerIds[1]))?.status).toBe('CANCELLED');
+  });
+
+  it('does not publish a cancellation when the asset transaction rolls back', async () => {
+    const persistence = new FailAfterCommandPersistenceStore();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'rollback-cancel');
+    const buyer = await joinPlayer(await connect(subject.url), 'Buyer', 'rollback-cancel');
+    await setReady(owner.socket);
+    await setReady(buyer.socket);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 1,
+      };
+    });
+    const offerId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: offerId,
+      roomId: owner.room.roomId,
+      proposerPlayerId: buyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 111_111, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    let cancellationCount = 0;
+    let updateCount = 0;
+    owner.socket.on('offer cancelled', () => { cancellationCount += 1; });
+    owner.socket.on('update', () => { updateCount += 1; });
+    const before = await persistence.rooms.findById(owner.room.roomId);
+
+    persistence.failNextTransactionAfterOperation = true;
+    const result = await waitForAck((acknowledge) => {
+      owner.socket.emit('sell house', { tileID: 1, requestId: randomUUID() }, acknowledge);
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'INTERNAL_ERROR' } });
+    expect(cancellationCount).toBe(0);
+    expect(updateCount).toBe(0);
+    expect(await persistence.rooms.findById(owner.room.roomId)).toEqual(before);
+    expect((await persistence.tradeOffers.findById(offerId))?.status).toBe('PENDING');
+  });
+
+  it('publishes the accepted result before cancellations caused by that asset transfer', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'accept-cancel-order');
+    const proposer = await joinPlayer(await connect(subject.url), 'Proposer', 'accept-cancel-order');
+    const otherProposer = await joinPlayer(await connect(subject.url), 'Other', 'accept-cancel-order');
+    await setReady(owner.socket);
+    await setReady(proposer.socket);
+    await setReady(otherProposer.socket);
+    const waitForStartedRoom = (socket: TestSocket) => new Promise<void>((resolve) => {
+      const onUpdate = (room: PublicRoomState) => {
+        if (room.status === 'IN_PROGRESS') {
+          socket.off('update', onUpdate);
+          resolve();
+        }
+      };
+      socket.on('update', onUpdate);
+    });
+    const startedRoomUpdates = [owner.socket, proposer.socket, otherProposer.socket].map(waitForStartedRoom);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+    await Promise.all(startedRoomUpdates);
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 0,
+      };
+    });
+    const acceptedId = randomUUID();
+    const cancelledId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: acceptedId,
+      roomId: owner.room.roomId,
+      proposerPlayerId: proposer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    await persistence.tradeOffers.create({
+      id: cancelledId,
+      roomId: owner.room.roomId,
+      proposerPlayerId: otherProposer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 20, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    const trace = (socket: TestSocket) => {
+      const events: Array<{ event: 'offer accepted' | 'offer cancelled' | 'update'; payload: unknown }> = [];
+      socket.on('offer accepted', (payload) => events.push({ event: 'offer accepted', payload }));
+      socket.on('offer cancelled', (payload) => events.push({ event: 'offer cancelled', payload }));
+      socket.on('update', (payload) => events.push({ event: 'update', payload }));
+      return events;
+    };
+    const ownerEvents = trace(owner.socket);
+    const proposerEvents = trace(proposer.socket);
+    const otherProposerEvents = trace(otherProposer.socket);
+
+    expect((await answerOffer(owner.socket, 'accept offer', acceptedId)).ok).toBe(true);
+    await waitUntil(() => ownerEvents.some((event) => event.event === 'update')
+      && proposerEvents.some((event) => event.event === 'update')
+      && otherProposerEvents.some((event) => event.event === 'update'), 'Trade participants did not receive the committed update');
+
+    expect(ownerEvents.map((event) => event.event)).toEqual(['offer accepted', 'offer cancelled', 'update']);
+    expect(proposerEvents.map((event) => event.event)).toEqual(['offer accepted', 'update']);
+    expect(otherProposerEvents.map((event) => event.event)).toEqual(['offer cancelled', 'update']);
+    const accepted = await persistence.tradeOffers.findById(acceptedId);
+    const cancelled = await persistence.tradeOffers.findById(cancelledId);
+    if (!accepted?.resolvedAt || !cancelled?.resolvedAt) throw new Error('Offer resolutions were not persisted');
+    expect(accepted.status).toBe('ACCEPTED');
+    expect(cancelled.status).toBe('CANCELLED');
+    const expectedAccepted = {
+      offerId: acceptedId,
+      status: 'ACCEPTED',
+      proposerPlayerId: proposer.playerId,
+      recipientPlayerId: owner.playerId,
+      proposerName: 'Proposer',
+      recipientName: 'Owner',
+      offered: accepted.offered,
+      requested: accepted.requested,
+      resolvedAt: accepted.resolvedAt.toISOString(),
+    };
+    const expectedCancelled = {
+      offerId: cancelledId,
+      status: 'CANCELLED',
+      proposerPlayerId: otherProposer.playerId,
+      recipientPlayerId: owner.playerId,
+      proposerName: 'Other',
+      recipientName: 'Owner',
+      offered: cancelled.offered,
+      requested: cancelled.requested,
+      resolvedAt: cancelled.resolvedAt.toISOString(),
+    };
+    const ownerResults = ownerEvents.slice(0, 2).map((event) => event.payload);
+    expect(ownerResults).toEqual([expectedAccepted, expectedCancelled]);
+    expect(JSON.stringify(ownerResults)).toBe(JSON.stringify([expectedAccepted, expectedCancelled]));
+    const publicState = JSON.stringify(ownerEvents.find((event) => event.event === 'update')?.payload);
+    expect(publicState).not.toContain(cancelledId);
+    expect(publicState).not.toContain('offered');
+    expect(publicState).not.toContain('requested');
+  });
+
+  it('revalidates a trade against the current room state after its asset changes', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'stale-trade-asset');
+    const proposer = await joinPlayer(await connect(subject.url), 'Proposer', 'stale-trade-asset');
+    await setReady(owner.socket);
+    await setReady(proposer.socket);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 0,
+      };
+    });
+
+    const offer = successData(await makeOffer(proposer.socket, {
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+    }));
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: proposer.playerId,
+        color: room.gameSnapshot.gameState.players[proposer.playerId].color,
+        houses: 0,
+      };
+    });
+    const before = await persistence.rooms.findById(owner.room.roomId);
+    if (!before) throw new Error('Expected the room before accepting the stale trade');
+    const offerBefore = await persistence.tradeOffers.findById(offer.offerId);
+    const sideEffects: string[] = [];
+    for (const socket of [owner.socket, proposer.socket]) {
+      socket.on('offer accepted', () => sideEffects.push('accepted'));
+      socket.on('offer cancelled', () => sideEffects.push('cancelled'));
+      socket.on('update', () => sideEffects.push('update'));
+    }
+
+    expect(await answerOffer(owner.socket, 'accept offer', offer.offerId)).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(await persistence.rooms.findById(owner.room.roomId)).toEqual(before);
+    expect(await persistence.tradeOffers.findById(offer.offerId)).toEqual(offerBefore);
+    expect(sideEffects).toEqual([]);
+  });
+
+  it('commits one of two concurrent accepts for the same offer', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'duptrade');
+    const proposer = await joinPlayer(await connect(subject.url), 'Proposer', 'duptrade');
+    await setReady(owner.socket);
+    await setReady(proposer.socket);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 0,
+      };
+    });
+    const offer = successData(await makeOffer(proposer.socket, {
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+    }));
+    const acceptedEvents: unknown[] = [];
+    owner.socket.on('offer accepted', (payload) => acceptedEvents.push(payload));
+
+    const results = await Promise.all([
+      answerOffer(owner.socket, 'accept offer', offer.offerId),
+      answerOffer(owner.socket, 'accept offer', offer.offerId),
+    ]);
+    await waitUntil(() => acceptedEvents.length === 1, 'The accepted offer result was not published once');
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok)).toHaveLength(1);
+    const room = await persistence.rooms.findById(owner.room.roomId);
+    if (!room) throw new Error('Expected the committed room');
+    expect(room.gameSnapshot.gameState.boardState.ownedProps[1]?.id).toBe(proposer.playerId);
+    expect(room.gameSnapshot.gameState.players[owner.playerId]?.accountBalance).toBe(1600);
+    expect(room.gameSnapshot.gameState.players[proposer.playerId]?.accountBalance).toBe(1400);
+    expect((await persistence.tradeOffers.findById(offer.offerId))?.status).toBe('ACCEPTED');
+    expect(acceptedEvents).toHaveLength(1);
+  });
+
+  it('rolls back an accepted trade when its room transaction fails', async () => {
+    const persistence = new FailAfterCommandPersistenceStore();
+    const subject = await startServer(persistence);
+    const owner = await joinPlayer(await connect(subject.url), 'Owner', 'failed-trade-commit');
+    const proposer = await joinPlayer(await connect(subject.url), 'Proposer', 'failed-trade-commit');
+    await setReady(owner.socket);
+    await setReady(proposer.socket);
+    expect((await startGame(owner.socket)).ok).toBe(true);
+    await mutateRoom(persistence, owner.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
+        id: owner.playerId,
+        color: room.gameSnapshot.gameState.players[owner.playerId].color,
+        houses: 0,
+      };
+    });
+    const offer = successData(await makeOffer(proposer.socket, {
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+    }));
+    const before = await persistence.rooms.findById(owner.room.roomId);
+    if (!before) throw new Error('Expected the room before the failed trade');
+    const acceptedEvents: unknown[] = [];
+    const updates: PublicRoomState[] = [];
+    for (const socket of [owner.socket, proposer.socket]) {
+      socket.on('offer accepted', (payload) => acceptedEvents.push(payload));
+      socket.on('update', (room) => updates.push(room));
+    }
+
+    persistence.failNextTransactionAfterOperation = true;
+    expect(await answerOffer(owner.socket, 'accept offer', offer.offerId)).toMatchObject({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', retryable: true },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await persistence.rooms.findById(owner.room.roomId)).toEqual(before);
+    expect((await persistence.tradeOffers.findById(offer.offerId))?.status).toBe('PENDING');
+    expect(acceptedEvents).toEqual([]);
+    expect(updates).toEqual([]);
+  });
+
+  it('keeps leave cancellation private to the current participant and preserves leave-before-emit behavior', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const proposer = await joinPlayer(await connect(subject.url), 'Proposer', 'leave-cancellation');
+    const leaver = await joinPlayer(await connect(subject.url), 'Leaver', 'leave-cancellation');
+    const unrelated = await joinPlayer(await connect(subject.url), 'Unrelated', 'leave-cancellation');
+    await setReady(proposer.socket);
+    await setReady(leaver.socket);
+    await setReady(unrelated.socket);
+    expect((await startGame(proposer.socket)).ok).toBe(true);
+    const offerId = randomUUID();
+    await persistence.tradeOffers.create({
+      id: offerId,
+      roomId: proposer.room.roomId,
+      proposerPlayerId: proposer.playerId,
+      recipientPlayerId: leaver.playerId,
+      offered: { cash: 765_432, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [4], jailFreeCardIds: [] },
+      expiresAt: new Date(Date.now() + 120_000),
+    });
+    const spectatorSocket = await connect(subject.url);
+    const spectator = successData(await waitForAck<JoinRoomResult>((acknowledge) => {
+      spectatorSocket.emit('join room', { name: 'Spectator', roomCode: 'leave-cancellation' }, acknowledge);
+    }));
+    expect(spectator.kind).toBe('SPECTATOR');
+
+    const staleProposerSocket = proposer.socket;
+    let staleSocketCancellations = 0;
+    staleProposerSocket.on('offer cancelled', () => { staleSocketCancellations += 1; });
+    const currentProposerSocket = await connect(subject.url);
+    const resumeUpdate = new Promise<void>((resolve) => currentProposerSocket.once('update', () => resolve()));
+    await resumePlayer(currentProposerSocket, proposer.token);
+    await resumeUpdate;
+    proposer.socket = currentProposerSocket;
+    const trace = (socket: TestSocket) => {
+      const events: Array<{ event: 'offer cancelled' | 'update'; payload: unknown }> = [];
+      socket.on('offer cancelled', (payload) => events.push({ event: 'offer cancelled', payload }));
+      socket.on('update', (payload) => events.push({ event: 'update', payload }));
+      return events;
+    };
+    const proposerEvents = trace(currentProposerSocket);
+    const leaverEvents = trace(leaver.socket);
+    const unrelatedEvents = trace(unrelated.socket);
+    const spectatorEvents = trace(spectatorSocket);
+
+    expect(await leaveRoom(leaver.socket)).toMatchObject({ ok: true, data: { roomDeleted: false } });
+
+    expect(staleProposerSocket.connected).toBe(false);
+    expect(currentProposerSocket.connected).toBe(true);
+    expect(proposerEvents.map((event) => event.event)).toEqual(['offer cancelled', 'update']);
+    expect(leaverEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(0);
+    expect(unrelatedEvents.some((event) => event.event === 'update')).toBe(true);
+    expect(spectatorEvents.some((event) => event.event === 'update')).toBe(true);
+    expect(unrelatedEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(0);
+    expect(spectatorEvents.filter((event) => event.event === 'offer cancelled')).toHaveLength(0);
+    expect(staleSocketCancellations).toBe(0);
+
+    const persisted = await persistence.tradeOffers.findById(offerId);
+    if (!persisted?.resolvedAt) throw new Error('Leave did not persist the offer cancellation');
+    expect(persisted.status).toBe('CANCELLED');
+    const expectedCancellation = {
+      offerId,
+      status: 'CANCELLED',
+      proposerPlayerId: proposer.playerId,
+      recipientPlayerId: leaver.playerId,
+      proposerName: 'Proposer',
+      recipientName: 'Leaver',
+      offered: persisted.offered,
+      requested: persisted.requested,
+      resolvedAt: persisted.resolvedAt.toISOString(),
+    };
+    const deliveredCancellations = proposerEvents
+      .filter((event) => event.event === 'offer cancelled')
+      .map((event) => event.payload);
+    expect(deliveredCancellations).toEqual([expectedCancellation]);
+    expect(JSON.stringify(deliveredCancellations)).toBe(JSON.stringify([expectedCancellation]));
+    const serializedPublicState = JSON.stringify(proposerEvents.find((event) => event.event === 'update')?.payload);
+    expect(serializedPublicState).not.toContain(offerId);
+    expect(serializedPublicState).not.toContain('765432');
+    expect(serializedPublicState).not.toContain('requested');
+    expect(serializedPublicState).not.toContain('offered');
   });
 
   it('rejects accept and decline actions after the authoritative offer expiry', async () => {

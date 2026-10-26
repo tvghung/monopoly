@@ -8,18 +8,18 @@ links them and records only what their evidence states. Feature-level checklists
 never upgraded to `PASS`. An automated `PASS` is never a manual `PASS`. Acceptance owner for every release: the project owner
 (the person who approves the tag).
 
-## Post-v1.9.1 CURRENT DEVELOPMENT — owner manual full-match acceptance (2026-10-20)
+## HISTORICAL — Owner manual full-match acceptance on the pre-release B8 worktree (2026-10-20)
 
 | Scope / binary | Manual result | Evidence / boundary |
 | --- | --- | --- |
-| Owner-played full match using local `phase-b8` packaged Windows `OwnTheBlock.exe` (`apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe` in that worktree) | **OWNER-REPORTED PASS** | Owner confirmed completing a full-game UAT and that all checked items passed. The [B8 implementation record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md#owner-full-match-uat-follow-up--20-october-2026) records this later testimony. Archived B8 packaged proof was built at application SHA `30060c3a3685b3cad6a41baa0df32c67ad61d32c`; the exact owner's executable hash was not supplied. This is **not** a post-merge-main binary acceptance or a published v1.9.1 release test. No per-case log, setup, visual recording or proof of specific feature coverage was supplied. |
+| Owner-played full match using local `phase-b8` packaged Windows `OwnTheBlock.exe` (`apps/desktop/out/Own the Block-win32-x64/OwnTheBlock.exe` in that worktree) | **OWNER-REPORTED PASS** | Owner confirmed completing a full-game UAT and that all checked items passed. The [B8 implementation record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md#owner-full-match-uat-follow-up--20-october-2026) records this later testimony. Archived B8 packaged proof was built at application SHA `30060c3a3685b3cad6a41baa0df32c67ad61d32c`; the exact owner's executable hash was not supplied. This is **not** post-merge-main binary acceptance or acceptance of a published installer, including v1.10.0. No per-case log, setup, visual recording or proof of specific feature coverage was supplied. |
 | B8 native suspended-renderer recovery (≤1 second) and external hardware/platform/network checks | **BLOCKED / NOT RUN** | The packaged Electron minimize/restore did not suspend rendering. Full-match owner confirmation does not turn a non-reproduced suspended-renderer test or independent-network, macOS, other-GPU/high-refresh testing into PASS. B8 remains **PARTIAL — CLOSED**, merged in [PR #24](https://github.com/tvghung/monopoly/pull/24). |
 
-This entry records product-owner manual feedback, **not independently observed PASS results for every item** in the bot-plan, game-rule or release checklists. The published version below remains v1.9.1; no newer release is claimed.
+This is pre-publication owner feedback for the B8 worktree, **not acceptance of the published v1.10.0 installer** and not independently observed PASS results for every item in the bot-plan, game-rule or release checklists. See the v1.10.0 row below and the canonical [release contract](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
 
 ## Published releases
 
-All rows below are published GitHub Releases (`gh release list`, verified 2026-10-09). Protocol and snapshot numbers come from
+All rows below are published GitHub Releases, verified 2026-10-21. v1.10.0 publication is corroborated by the public GitHub Release and successful tag workflow; protocol and snapshot numbers come from
 each version's release notes in `.github/release-notes/`.
 
 | Version | Published | Protocol / snapshot | Release notes | Detailed acceptance record |
@@ -37,7 +37,22 @@ each version's release notes in `.github/release-notes/`.
 | v1.7.0 | 2026-10-09 | 12 / 11 | `.github/release-notes/v1.7.0.md` | The final copies at tag `v1.7.0`: `own-the-block-vnext/ACCEPTANCE_MATRIX.md`, `RELEASE_CANDIDATE.md`, `USER_MANUAL_BOT_TEST_PLAN.md` (commit `e88b959`, not on this branch; read with `git show v1.7.0:<path>`). The copies on this branch are the pre-QA versions: [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md) |
 | v1.8.0 | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
 | v1.9.0 | 2026-10-11 | 14 / 11 | `.github/release-notes/v1.9.0.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.0); tag workflow 38119202459 succeeded. The Online hosting reliability fix was added in v1.9.1 |
-| **v1.9.1** (latest) | 2026-10-14 | 14 / 11 | `.github/release-notes/v1.9.1.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.1); tag workflow [38524488302](https://github.com/tvghung/monopoly/actions/runs/38524488302) succeeded on `3590444` |
+| v1.9.1 | 2026-10-14 | 14 / 11 | `.github/release-notes/v1.9.1.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.1); tag workflow [38524488302](https://github.com/tvghung/monopoly/actions/runs/38524488302) succeeded on `3590444` |
+| v1.10.0 | 2026-10-20 | 14 / 11 | `.github/release-notes/v1.10.0.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.10.0); tag workflow [39434544013](https://github.com/tvghung/monopoly/actions/runs/39434544013) succeeded on `5a93a29`; [v1.10.0 release record](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md) |
+
+
+## v1.10.0 stable release — hồ sơ kỹ thuật và nghiệm thu
+
+**Trạng thái:** ĐÃ PHÁT HÀNH ngày 2026-10-20. Tag có chú thích `v1.10.0` trỏ tới commit baseline `5a93a29c29ee91ad941ecf07eb958fc78e83bf9b`; tag workflow đã thành công. Release notes xác định protocol 14, snapshot schema 11 và minimum supported version 1.9.0. Working tree hiện có các E1 patch được tạo sau release; chúng không thuộc tag hoặc installer v1.10.0.
+
+| Phạm vi | Bằng chứng tự động / phát hành | Bằng chứng thủ công / thiết bị | Giới hạn |
+| --- | --- | --- | --- |
+| Release CI, tag và asset đã phát hành | PASS — tag workflow 39434544013 thành công; GitHub Release và các asset nền tảng đã được công bố | NOT APPLICABLE | Build và công bố artifact không chứng minh từng binary đã cài được nghiệm thu trên thiết bị vật lý. |
+| Phạm vi hiệu năng và trình bày B4/B5/B7/B8 | B4, B5, B8 PARTIAL — CLOSED; B7 PASS — CLOSED theo [release notes](../../../.github/release-notes/v1.10.0.md) và implementation records | UAT trọn ván do chủ dự án báo cáo trên executable `phase-b8` tại local worktree; chưa cung cấp hash executable | Không xem UAT đó là nghiệm thu đã đối chiếu hash với installer v1.10.0 công khai. |
+| Native Electron renderer suspend/recovery | BLOCKED — thao tác minimize/restore không suspend renderer, vì vậy chưa chứng minh mục tiêu phục hồi renderer sau suspend trong ≤1 giây | NOT RUN / BLOCKED | Chưa có PASS cho nghiệm thu suspend của native OS. |
+| Chạy installer, màn hình high-refresh vật lý, GPU khác, sử dụng macOS, gameplay qua mạng độc lập và cập nhật thật v1.9.1 → v1.10.0 | Đã có artifact phát hành và CI build | NOT RUN | Không suy ra nghiệm thu install/update thật, phiên registry/tunnel bên ngoài hoặc game cross-network từ mocked test, loopback cục bộ, web build hay CI. |
+
+B6 Adaptive Graphics bị loại theo quyết định của chủ dự án. Cold-board first-frame và lần chuyển graphics tier đầu tiên vẫn có thể chậm. Release notes ghi các gói chưa ký số và macOS chưa notarized. Đây là dữ kiện của release; E1 fixes hiện tại được ghi riêng trong audit reports 12–16 và chưa phát hành.
 
 `v1.9.1-rc.1` is an unpublished validation candidate, not a published release row. It retains protocol 14,
 snapshot 11 and the 1.9.0 minimum supported version. **External-device Online hosting: FAIL** on the original
@@ -163,3 +178,61 @@ Protocol 14 is required because Income Tax changes from v1.8.0's fixed 150 to 30
 | Official publication | Pending tag-triggered Release Candidate workflow | Not applicable |
 
 Local suite evidence: desktop 491/491, client 2,337/2,337, server 559/559 across the single-fork rerun (29/29 files), and 42 root contract/registry/artwork validator tests passed. Music transport passed 22/22. Mobile Chromium and WebKit E2E passed 4/4. The first aggregate pnpm test invocation exited on a Vitest worker error in the server package without an assertion failure; the stable server rerun passed. CI remains the required independent gate.
+
+
+## v1.10.0 current-development F3 local artifact checks — 2026-10-23
+
+Đây là candidate cục bộ `LOCAL-CONTROLLED-RC` từ working tree `codex/v1.10.0-refactor`; nó không thay thế hay xác nhận lại artifact v1.10.0 đã phát hành. Hồ sơ chi tiết: Report 26 (local-only historical evidence: `26_PHASE_F3_CONTROLLED_RC_ARTIFACT_VERIFICATION.md`; unavailable in a clean checkout), artifact manifest (local-only evidence: test-results/phase-f3-controlled-rc/run-2026-10-23T07-20-30-210Z/F3-RC-ARTIFACT-MANIFEST.json; unavailable in a clean checkout).
+
+| Phạm vi | Automated | Manual | Bằng chứng / giới hạn |
+| --- | --- | --- | --- |
+| Windows x64 local Forge package, ASAR, entrypoint và external resources | **PASS** | NOT RUN | Candidate fingerprint `72273d1c6979132a2f68587ee915480ba86fff1897e8cf82f5ffcafbd0061379`; không tạo installer, không publish hoặc ký số. |
+| E1 regression/characterization và workspace release gates | **PASS** | NOT APPLICABLE | 30/30 mỗi chế độ E1; `pnpm test` 3.988/3.988; xem report26 và log trong F3 evidence. |
+| Native launch, installer, cập nhật 1.9.1 → 1.10.0, macOS, thiết bị/GPU, suspend/resume và cross-network | NOT RUN | NOT RUN | Không chạy trong F3 vì chưa thiết lập được môi trường isolated đủ an toàn; không suy ra PASS từ static artifact checks. |
+| AUDIT-018 / nghiệm thu phát hành đầy đủ | **NOT RUN — OPEN** | NOT RUN | Artifact F3 đã xác minh; các kiểm tra native, installer, cập nhật và thiết bị nêu trên vẫn còn mở. |
+
+## v1.10.0 current-development F6 installer parity and Host isolation — 2026-10-23
+
+Đây là kiểm tra cục bộ tiếp nối F3/F4/F5, không thay thế artifact v1.10.0 đã phát hành. Chi tiết và hash: Report 28 (local-only historical evidence: `28_PHASE_F6_INSTALLER_PARITY_AND_HOST_ISOLATION.md`; unavailable in a clean checkout); evidence nằm trong `test-results/phase-f6-release-hardening/`.
+
+| Phạm vi | Automated | Manual | Bằng chứng / giới hạn |
+| --- | --- | --- | --- |
+| F6.0 preflight và bảo toàn | **PASS** | NOT RUN | Branch/HEAD khớp baseline; 184 tệp F3 và artifact F5 được băm lại; reports 00–27 và protected outputs được ghi nhận. |
+| F6.1 NuSpec root cause | **VERIFIED** | NOT APPLICABLE | Installed template chỉ liệt kê glob cụ thể; thiếu root `LICENSES.chromium.html` và `version`; `additionalFiles` là API được hỗ trợ. |
+| F6.2 installer parity | **PASS — local controlled artifact** | NOT RUN | 184/184 F3 payload files byte-identical; hai executable Squirrel được phân loại riêng; Setup unsigned. Không cài hoặc publish. |
+| F6.3 Host isolation | **BLOCKED** | NOT RUN | Packaged HostRuntime cố định bind `0.0.0.0`; có Wi-Fi interface đang hoạt động, không tìm thấy VM/container cô lập; không chạy packaged Host. |
+| Native Host / local multiplayer | **BLOCKED** | NOT RUN | Mocked Host lifecycle và explicit-loopback Socket tests chạy; không có packaged HostRuntime/native multiplayer evidence. |
+| Installation / update | **BLOCKED** | NOT RUN | Không có sandbox; không tìm thấy installer/feed 1.9.1; candidate tiếp tục là 1.10.0. |
+| Automated regression / quality gates | **PASS** | NOT APPLICABLE | Report 28 ghi riêng E1, package, Host characterization, client/server/desktop/root tests, typecheck, lint, build, docs, v1 contract và diff check. Build có cảnh báo chunk >500 kB. |
+
+## v1.10.0 current-development F7 safe Host test infrastructure — 2026-10-23
+
+Chi tiết: Report 29 (local-only historical evidence: `29_PHASE_F7_SAFE_HOST_TEST_INFRASTRUCTURE.md`; unavailable in a clean checkout); logs và snapshot riêng tại `test-results/phase-f7-safe-host-infrastructure/`.
+
+| Phạm vi | Automated | Manual | Bằng chứng / giới hạn |
+| --- | --- | --- | --- |
+| F7.0 preflight / preservation | **PASS** | NOT RUN | Snapshot trước test; reports 00–28, F3/F5/F6, B8, E1 và client dist được kiểm chứng/khôi phục. |
+| F7.1 fail-closed test listeners | **PASS** | NOT APPLICABLE | 44 focused PASS; 2 LAN-peer tests SKIPPED. Worker setup, child preload và explicit loopback fixture; không thử bind LAN thật. |
+| F7.2 local Host fixture feasibility | **VERIFIED** | NOT RUN | Loopback Socket.IO và mocked Host lifecycle chạy được; packaged Host không có loopback bind configuration. |
+| F7.3 Windows VM preparation | **PASS — plan** | NOT RUN | Runbook 16 bước; hiện không có VM hoặc network boundary được xác minh. |
+| Full automated suite | **PASS** | NOT APPLICABLE | 4.015 PASS, 2 server LAN tests SKIPPED; E1 regression/characterization 30/30 mỗi mode. |
+| Packaged Host / native multiplayer | **BLOCKED** | NOT RUN | Không launch F3; máy hiện tại không chứng minh inbound/outbound isolation. |
+| Install / update acceptance | **BLOCKED** | NOT RUN | F6 Setup chỉ dành cho disposable VM; thiếu v1.9.1 installer/feed, signing và version progression test-only. |
+
+
+## v1.10.0 current-development F8 VM-free native Host and local acceptance — 2026-10-23
+
+Chi tiết: Report 30 (local-only historical evidence: `30_PHASE_F8_VM_FREE_NATIVE_HOST_ACCEPTANCE.md`; unavailable in a clean checkout); evidence tại test-results/phase-f8-vm-free-native/run-2026-10-23T15-27-10.976Z/.
+
+| Phạm vi | Automated | Native/manual | Bằng chứng / giới hạn |
+| --- | --- | --- | --- |
+| F8.0 preflight và preservation | **PASS** | NOT RUN | 114 trạng thái Git trước F8, sáu deletion, reports 00–29, F3/F5/F6, E1 và client dist được xác minh/khôi phục. |
+| F8.1 trusted loopback mode | **PASS** | NOT RUN | Focused desktop 35/35, server 47/47, client 70/70; production bind vẫn 0.0.0.0. |
+| F8.2 candidate unpacked | **PASS** | NOT RUN | Candidate riêng 184 tệp; EXE/ASAR/resources và 40/40 ASAR integrity entries được băm. Không tạo installer. |
+| F8.3 native isolation | **BLOCKED** | NOT RUN | Firewall ON nhưng BlockInbound,AllowOutbound; không chứng minh được egress block cho candidate. |
+| F8.4 Host Start/Stop | **BLOCKED** | NOT RUN | Không launch candidate theo điều kiện F8.3. |
+| F8.5 local multiplayer | NOT RUN | NOT RUN | Chưa có packaged local Host để kết nối hai client. |
+| F8.6 board/input | NOT RUN | NOT RUN | Chưa mở game board trong candidate. |
+| Automated quality gates | **PASS** | NOT APPLICABLE | 4,031 PASS, 2 server LAN tests SKIPPED; E1 regression/characterization 30/30 mỗi mode; typecheck, lint, build, docs, protocol và diff gates đạt. |
+
+Không suy ra native acceptance cho F3, installer, LAN hoặc WAN từ candidate/package verification.

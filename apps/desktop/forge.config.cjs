@@ -44,6 +44,8 @@ module.exports = {
     ignore: [
       /^\/node_modules/,
       /^\/(?:generated|src|tests|scripts)(?:\/|$)/,
+      // The opt-in E1 regression harness and fixtures are development-only.
+      /^\/e1(?:\/|$)/,
       /^\/(?:update-policy|tsconfig(?:\.build)?)\.json$/,
       /^\/forge\.config\.cjs$/,
     ],
@@ -76,6 +78,10 @@ module.exports = {
         name: 'own_the_block',
         setupExe: `OwnTheBlock-${releaseVersion}-win32-x64-Setup.exe`,
         setupIcon: nativeIcon,
+        additionalFiles: [
+          { src: 'LICENSES.chromium.html', target: 'lib\\net45\\LICENSES.chromium.html' },
+          { src: 'version', target: 'lib\\net45\\version' },
+        ],
         ...windowsSigning,
       },
     },

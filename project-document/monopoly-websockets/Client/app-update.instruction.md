@@ -91,7 +91,8 @@ tệp đó chứ **không** tải `Setup.exe`. Manifest của một release Wind
 `unsupported` (không có kênh cập nhật) · `idle` · `checking` · `up-to-date` · `available` · `downloading` · `ready` ·
 `installing` · `error` (`error.stage` là `check`, `download` hoặc `install`). `update` có từ `available` trở đi (kể cả khi
 tải hoặc cài lỗi), `progress` khi đang tải. `installMode` là `restart` hoặc `open-installer`; `followUp` là
-`installer-opened` hoặc `restart-manually`; `installBlocked: 'HOST_OPEN'` khi một phòng LAN của máy này đang mở.
+`installer-opened` hoặc `restart-manually`; `installBlocked: 'HOST_OPEN'` khi bộ cập nhật kiểu `restart` bị chặn bởi Host của
+máy này (LAN hoặc Online, gồm startup/Stop đang chạy ở CURRENT DEVELOPMENT — E1-FIX-003).
 
 - Kiểm tra: 2 giây sau khi cửa sổ mở, rồi mỗi 6 giờ, và khi người chơi bấm "Kiểm tra cập nhật". Chỉ chạy khi chưa biết bản
   mới nào (`idle`, `up-to-date`, hoặc lỗi kiểm tra trước đó); các lần gọi chồng nhau dùng chung một request; timeout 15 giây.
@@ -139,10 +140,21 @@ tải hoặc cài lỗi), `progress` khi đang tải. `installMode` là `restart
 
 ## Thời điểm an toàn
 
-- Không bao giờ tự đóng hay khởi động lại giữa phòng/ván: nút khởi động lại chỉ bấm được ở màn hình bắt đầu khi **không** có
-  phòng LAN nào của máy này đang mở. Renderer biết người chơi đang ở lobby/ván (`AppUpdateProvider.inSession`, tức là
-  `launch !== null` trong `AppBootstrap`); main process biết phòng của Host (`installBlocked`) và **từ chối** `install` khi phòng
-  đang mở. Tải xuống vẫn tiếp tục được trong ván.
+- Không bao giờ tự đóng hay khởi động lại giữa phòng/ván: nút khởi động lại chỉ bấm được ở màn hình bắt đầu khi Host của
+  máy này không còn bận. Renderer biết người chơi đang ở lobby/ván (`AppUpdateProvider.inSession`, tức là
+  `launch !== null` trong `AppBootstrap`); main process quyết định `installBlocked` và **từ chối** `install` kiểu `restart` khi
+  Host đang mở. Tải xuống vẫn tiếp tục được trong ván.
+- **CURRENT DEVELOPMENT — E1-FIX-003:** `desktopBootstrap.ts` dùng cùng `HostRuntimeController.isBusy` cho safety của
+  `UpdateService`, bao gồm Start đã được nhận trước await preflight đầu tiên, Stop đang chờ và tài nguyên chưa cleanup xong.
+  Lời gọi `installUpdate()` trong những giai đoạn này trả `HOST_OPEN`, không gọi installer. Sau Stop thành công, startup cũ
+  không thể mở helper/tunnel muộn; chỉ khi barrier này đã hoàn tất mới bỏ chặn khởi động lại. Cleanup lỗi tiếp tục giữ busy
+  cho đến khi Stop retry thành công. Nguồn sở hữu lifecycle và ngữ nghĩa hủy nằm ở
+  [Desktop shell](../Desktop/electron-shell-and-packaging.instruction.md#host-runtime-and-helper-supervision).
+- **CURRENT DEVELOPMENT — AUDIT-020 (macOS window close):** the close guard reads this same `isBusy` authority and waits on
+  the same Host Stop barrier. It does not invoke the updater or bypass `AppQuitCoordinator`; updater restart remains blocked
+  while startup, shutdown or owned cleanup is busy. The window-close guard does not quit the macOS app process.
+- Giữ nguyên hành vi `open-installer`: app chỉ mở bộ cài và không tự thoát, nên gate `HOST_OPEN` hiện hữu chỉ áp dụng cho
+  `restart`. E1-FIX-003 không đổi installer, tải tệp, manifest hay giao diện cập nhật.
 - Trong lobby/ván không có hộp thoại nào: chỉ một toast "Bản cập nhật đã sẵn sàng. Bạn có thể cập nhật sau khi kết thúc ván
   chơi." (một lần cho mỗi bản, không nhắc người đã bấm "Để sau") hoặc "Cần cập nhật Own the Block. Bạn có thể cập nhật sau khi
   rời phòng." khi vừa biết có bản bắt buộc. Mục "Cập nhật" trong Cài đặt vẫn dùng được trong ván, nút khởi động lại bị tắt kèm

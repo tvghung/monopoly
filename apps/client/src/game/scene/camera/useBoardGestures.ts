@@ -12,9 +12,11 @@ const WHEEL_ZOOM_PER_PIXEL = 0.0015;
  * Touch and mouse gestures of the board camera, attached to the element that holds the canvas: one pointer drags the zoomed board,
  * two pointers pinch (zoom about their midpoint, pan with it), the wheel zooms about the cursor. Everything goes to
  * `boardViewStore`, which never touches game state; a tap that was a drag does not reach the tiles (the capture-phase click is
- * stopped), so panning cannot open a property or send anything. At zoom 1 a drag does nothing, so a plain tap is always a tap.
+ * stopped), so panning cannot open a property or send anything. Window capture listeners end a gesture when release, cancel or
+ * lost capture happens outside the canvas, and blur clears pointers lost with browser focus. At zoom 1 a drag does nothing, so a
+ * plain tap is always a tap.
  */
-export function useBoardGestures(ref: RefObject<HTMLElement | null>): void {
+export function useBoardGestures(ref: RefObject<HTMLElement | null>, resetKey?: string): void {
   useEffect(() => {
     const element = ref.current;
     if (!element) return undefined;
@@ -89,6 +91,13 @@ export function useBoardGestures(ref: RefObject<HTMLElement | null>): void {
       }
     };
 
+    const onBlur = () => {
+      pointers.clear();
+      last = null;
+      pinch = null;
+      moved = 0;
+    };
+
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const c = center();
@@ -105,17 +114,21 @@ export function useBoardGestures(ref: RefObject<HTMLElement | null>): void {
 
     element.addEventListener('pointerdown', onDown);
     element.addEventListener('pointermove', onMove);
-    element.addEventListener('pointerup', onUp);
-    element.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onUp, true);
+    window.addEventListener('lostpointercapture', onUp, true);
+    window.addEventListener('blur', onBlur);
     element.addEventListener('wheel', onWheel, { passive: false });
     element.addEventListener('click', onClickCapture, true);
     return () => {
       element.removeEventListener('pointerdown', onDown);
       element.removeEventListener('pointermove', onMove);
-      element.removeEventListener('pointerup', onUp);
-      element.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onUp, true);
+      window.removeEventListener('lostpointercapture', onUp, true);
+      window.removeEventListener('blur', onBlur);
       element.removeEventListener('wheel', onWheel);
       element.removeEventListener('click', onClickCapture, true);
     };
-  }, [ref]);
+  }, [ref, resetKey]);
 }

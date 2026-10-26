@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { activityFeedSchema, boardStateSchema, gameplayEventStreamSchema } from '@monopoly/shared';
 import {
@@ -11,11 +11,13 @@ import {
   hydrateGameState,
   nextAvailableColor,
   storeGameState,
+} from './rooms.js';
+import {
   upgradeRoomSnapshotV4ToV5,
   upgradeRoomSnapshotV5ToV6,
   upgradeRoomSnapshotV6ToV7,
   upgradeRoomSnapshotV7ToV8,
-} from './rooms.js';
+} from './testSupport/historicalRoomSnapshotUpgrades.js';
 import { freshState } from './rooms.js';
 import {
   progressPaymentQueue,
@@ -328,6 +330,19 @@ describe('durable room snapshot compatibility', () => {
     })).toThrow(UnsupportedRoomSnapshotVersionError);
   });
 
+  it('rejects V10 at the runtime boundary without migrating the snapshot', () => {
+    const gameSnapshot = createRoomSnapshot();
+    delete (gameSnapshot.gameState.boardState as unknown as { matchId?: string | null }).matchId;
+    const room = {
+      snapshotSchemaVersion: 10,
+      gameSnapshot,
+    };
+
+    expect(() => assertSupportedRoomSnapshot(room)).toThrow(UnsupportedRoomSnapshotVersionError);
+    expect(room.snapshotSchemaVersion).toBe(10);
+    expect(gameSnapshot.gameState.boardState).not.toHaveProperty('matchId');
+  });
+
   it('normalizes legacy V5 character ids before validating the snapshot', () => {
     const gameSnapshot = createActiveSnapshot();
     (gameSnapshot.gameState.players[PLAYER_ONE] as unknown as { characterId: unknown }).characterId = 'shiba';
@@ -365,6 +380,58 @@ describe('durable room snapshot compatibility', () => {
 
     expect(gameSnapshot.gameState.boardState.gameStartedAt).toBe(startedAt);
     expect(hydrateGameState(gameSnapshot, 'IN_PROGRESS').boardState.rollSequence).toBe(17);
+  });
+
+  it('clones the persisted game state once per hydration and isolates every nested board and private value', () => {
+    const gameSnapshot = createActiveSnapshot();
+    gameSnapshot.gameState.boardState.gameStartedAt = '2030-01-01T00:00:00.000Z';
+    gameSnapshot.gameState.boardState.ownedProps[1] = {
+      id: PLAYER_ONE,
+      color: 'red',
+      houses: 2,
+    };
+    const originalPlayers = [...gameSnapshot.gameState.boardState.players];
+    const originalDrawPile = [...gameSnapshot.gameState.privateState.decks.chance.drawPile];
+    const cloneSpy = vi.spyOn(globalThis, 'structuredClone');
+    let hydrated: ReturnType<typeof hydrateGameState>;
+    try {
+      hydrated = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+      expect(cloneSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      cloneSpy.mockRestore();
+    }
+
+    expect(hydrated).toMatchObject({
+      loaded: true,
+      boardState: {
+        gameStarted: true,
+        gameStartedAt: '2030-01-01T00:00:00.000Z',
+        players: originalPlayers,
+        ownedProps: { 1: { id: PLAYER_ONE, houses: 2 } },
+      },
+      players: { [PLAYER_ONE]: { accountBalance: 1500 } },
+    });
+    expect(hydrated.boardState.players).not.toBe(gameSnapshot.gameState.boardState.players);
+    expect(hydrated.boardState.ownedProps[1]).not.toBe(gameSnapshot.gameState.boardState.ownedProps[1]);
+    expect(hydrated.players[PLAYER_ONE]).not.toBe(gameSnapshot.gameState.players[PLAYER_ONE]);
+    expect(hydrated.privateState.decks.chance.drawPile).not.toBe(gameSnapshot.gameState.privateState.decks.chance.drawPile);
+
+    gameSnapshot.gameState.boardState.players.reverse();
+    gameSnapshot.gameState.boardState.ownedProps[1].houses = 4;
+    gameSnapshot.gameState.players[PLAYER_ONE].accountBalance = 1;
+    gameSnapshot.gameState.privateState.decks.chance.drawPile.push('chance-jail-free');
+    expect(hydrated.boardState.players).toEqual(originalPlayers);
+    expect(hydrated.boardState.ownedProps[1].houses).toBe(2);
+    expect(hydrated.players[PLAYER_ONE].accountBalance).toBe(1500);
+    expect(hydrated.privateState.decks.chance.drawPile).toEqual(originalDrawPile);
+
+    hydrated.boardState.players.reverse();
+    hydrated.boardState.ownedProps[1].houses = 3;
+    hydrated.players[PLAYER_ONE].accountBalance = 900;
+    hydrated.privateState.decks.chance.drawPile.pop();
+    expect(gameSnapshot.gameState.boardState.ownedProps[1].houses).toBe(4);
+    expect(gameSnapshot.gameState.players[PLAYER_ONE].accountBalance).toBe(1);
+    expect(gameSnapshot.gameState.privateState.decks.chance.drawPile).toEqual([...originalDrawPile, 'chance-jail-free']);
   });
 
   it('rejects non-UUID domain player identities in a persisted snapshot', () => {

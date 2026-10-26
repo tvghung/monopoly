@@ -177,6 +177,8 @@ export default function DesktopMultiplayerLauncher({
     ? { kind: 'message', key: 'launcher.configurationError' }
     : initialJoin?.failure ? { kind: 'find-room', code: initialJoin.failure, roomCode: initialJoin.roomCode } : null);
   const [copiedTroubleshooting, setCopiedTroubleshooting] = useState(false);
+  const localAcceptanceMode = configuredRuntimeConfig?.localAcceptanceMode === true
+    || hostStatus?.localAcceptanceMode === true;
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
@@ -229,7 +231,8 @@ export default function DesktopMultiplayerLauncher({
     void bridge.host.refreshNetwork().then(status => {
       if (!active) return;
       setHostStatus(status);
-      if (status.interfaces.length === 0) setError({ kind: 'message', key: 'launcher.noNetwork' });
+      if (status.localAcceptanceMode) setHostMode('LAN');
+      else if (status.interfaces.length === 0) setError({ kind: 'message', key: 'launcher.noNetwork' });
     }).catch(() => {
       if (active) setError({ kind: 'message', key: 'launcher.noNetwork' });
     });
@@ -249,11 +252,14 @@ export default function DesktopMultiplayerLauncher({
     setBusy(true);
     setError(null);
     try {
+      const latestStatus = hostStatus ?? await bridge.host.getStatus();
+      setHostStatus(latestStatus);
+      const requestedHostMode = localAcceptanceMode || latestStatus.localAcceptanceMode ? 'LAN' : hostMode;
       // The main process picks the network the device is connected to.
       let result: Awaited<ReturnType<NonNullable<typeof bridge.host>['start']>> | undefined;
       let nextRoomCode = generateHostRoomCode();
-      for (let attempt = 0; attempt < (hostMode === 'ONLINE' ? 4 : 1); attempt += 1) {
-        result = await bridge.host.start({ mode: hostMode, roomCode: nextRoomCode });
+      for (let attempt = 0; attempt < (requestedHostMode === 'ONLINE' ? 4 : 1); attempt += 1) {
+        result = await bridge.host.start({ mode: requestedHostMode, roomCode: nextRoomCode });
         if (result.ok || result.status.errorCode !== 'CODE_TAKEN') break;
         nextRoomCode = generateHostRoomCode();
       }
@@ -263,7 +269,7 @@ export default function DesktopMultiplayerLauncher({
         setError({ kind: 'host', code: result.status.errorCode ?? 'RUNTIME_FAILED' });
         return;
       }
-      if (!result.status.lanAvailable) {
+      if (!result.status.lanAvailable && !result.status.localAcceptanceMode) {
         setError({ kind: 'host', code: 'NO_LAN_INTERFACE' });
         return;
       }
@@ -272,7 +278,7 @@ export default function DesktopMultiplayerLauncher({
         initialJoin: { name: name.trim(), roomCode: nextRoomCode, hostCapability: result.hostCapability },
         targetRoomCode: nextRoomCode,
         hosting: true,
-        connectionMode: hostMode,
+        connectionMode: requestedHostMode,
       });
     } catch {
       const latest = await bridge.host.getStatus().catch(() => hostStatus);
@@ -304,6 +310,24 @@ export default function DesktopMultiplayerLauncher({
     const input = parseJoinInput(roomCode);
     if (input.kind === 'invalid') {
       setError({ kind: 'message', key: input.reason === 'CODE' ? 'launcher.invalidRoomCode' : 'launcher.invalidInvite' });
+      return;
+    }
+    if (localAcceptanceMode) {
+      const isLoopbackInvite = input.kind === 'invitation' && (() => {
+        try {
+          const endpoint = new URL(input.endpoint);
+          return endpoint.protocol === 'http:' && endpoint.hostname === '127.0.0.1'
+            && !endpoint.username && !endpoint.password;
+        } catch {
+          return false;
+        }
+      })();
+      if (!isLoopbackInvite) {
+        setError({ kind: 'message', key: 'launcher.loopbackOnlyJoin' });
+        return;
+      }
+      setError(null);
+      enterRoom(input.endpoint, input.roomCode);
       return;
     }
     if (mode === 'configured') {
@@ -397,6 +421,10 @@ export default function DesktopMultiplayerLauncher({
         <header className="desktop-launcher__header">
           <h1 id="desktop-launcher-title">{t('brand.name')}</h1>
         </header>
+
+        {localAcceptanceMode ? (
+          <p className="desktop-launcher__status" role="note">{t('launcher.loopbackAcceptance')}</p>
+        ) : null}
 
         {error ? <div className="desktop-launcher__error" role="alert">
           <p>{errorMessage(error, t)}</p>
@@ -514,7 +542,7 @@ export default function DesktopMultiplayerLauncher({
               >{t('launcher.back')}</Button>
               <h2>{t(modeTitle[mode])}</h2>
 
-              {mode === 'host' ? (
+              {mode === 'host' && !localAcceptanceMode ? (
                 <div className="desktop-launcher__field">
                   <SegmentedControl
                     label={t('launcher.connectionMode')}

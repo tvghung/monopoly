@@ -149,7 +149,8 @@ export interface LanDiscoveryResponder {
 
 /** Only the desktop Host profile answers discovery requests. */
 export function shouldStartLanDiscovery(environment: NodeJS.ProcessEnv): boolean {
-  return environment.SERVER_RUNTIME_PROFILE?.trim() === 'desktop';
+  return environment.OTB_LOOPBACK_ACCEPTANCE_MODE !== '1'
+    && environment.SERVER_RUNTIME_PROFILE?.trim() === 'desktop';
 }
 
 function errorCode(error: unknown): string {

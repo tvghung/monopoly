@@ -59,8 +59,8 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 ## Standard Mode contracts và game data
 
 - `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) và `ROOM_SNAPSHOT_SCHEMA_VERSION` (`apps/server/src/rooms.ts`)
-  là version hiện hành; client lệch protocol bị từ chối bằng `UPGRADE_REQUIRED`. Lịch sử version và phần CURRENT DEVELOPMENT
-  (vNext, unreleased): [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history).
+  là version hiện hành; client lệch protocol bị từ chối bằng `UPGRADE_REQUIRED`. Lịch sử version và contract CURRENT DEVELOPMENT
+  sau v1.10.0: [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history).
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active
   lobby colors.
@@ -89,7 +89,7 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
   `GamePrivateState.decks.chest.drawPile` giữ exact draw order;
   `heldJailFreeCardIds` nằm trên Player/private player projection. Các ID/order này
   không thuộc public `GameState`.
-- Lịch sử protocol/snapshot (V8 activity feed → V12 bot seats, và bot difficulty CURRENT DEVELOPMENT) chỉ được ghi ở
+- Lịch sử protocol/snapshot (V8 activity feed → V12 bot seats → V13 bot difficulty) chỉ được ghi ở
   [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history); không chép lại ở đây. Team rules
   shared by both sides live in `packages/shared/src/teams.ts`/`packages/shared/src/rules.ts`; see
   [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md).

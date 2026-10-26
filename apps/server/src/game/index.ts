@@ -53,7 +53,6 @@ export {
   createForcedSaleProposal,
   acceptForcedSaleProposal,
   rejectForcedSaleProposal,
-  activePaymentClaim,
   DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS,
   DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS,
 } from './payment';
@@ -97,8 +96,6 @@ export type { BankruptcyResult } from './bankruptcy';
 export {
   applyCard,
   cancelPendingCardInteraction,
-  cardTileIndices,
-  checkOwned,
   dismissPendingCard,
   drawPendingCard,
   handleJailRoll,

@@ -1,6 +1,6 @@
 # Client presentation pipeline
 
-Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundation rules: [monopoly.client.instructions.md](../monopoly.client.instructions.md), [monopoly.shared.instructions.md](../monopoly.shared.instructions.md).
+Status: CURRENT (release baseline v1.10.0; later CURRENT DEVELOPMENT sections are labeled). Foundation rules: [monopoly.client.instructions.md](../monopoly.client.instructions.md), [monopoly.shared.instructions.md](../monopoly.shared.instructions.md).
 
 ## Scope and UI entry
 
@@ -34,10 +34,12 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 
 | Source | When | Effect |
 | --- | --- | --- |
-| `LIVE_UPDATE` | a room `update` while the session is already active | the only source that derives and enqueues animation events from the previous to the next snapshot |
-| `SESSION_SYNC` | first snapshot of a resume, or any `update` while phase is `RESTORING`/`JOINING`/`RECONNECTING` | `queue.reset(room)`: snap display state to the snapshot |
+| `LIVE_UPDATE` | an accepted newer authoritative room `update` while the session is already active | the only source that derives and enqueues animation events from the previous to the next snapshot |
+| `SESSION_SYNC` | first accepted snapshot of a resume, or an accepted newer authoritative `update` while phase is `RESTORING`/`JOINING`/`RECONNECTING` | `queue.reset(room)`: snap display state to the snapshot |
 | `SPECTATOR_SYNC` | spectator admission ACK | same reset/snap |
 | `REPLAY_SYNC` | the same room goes `FINISHED` → `LOBBY` (`play again`) | same reset/snap; private state and private offers are cleared first |
+
+**CURRENT DEVELOPMENT — E1-FIX-001:** `App.tsx` xử lý riêng event `update` cùng version: merge whitelist public presence vào room replica, không gọi controller hoặc queue. Quy tắc identity, ordering và field được phép chỉ thuộc [client snapshot/presence contract](./join-room.instruction.md#public-snapshot-và-presence-current-development--e1-fix-001). Presence không đổi display state, không replay animation, không reset/skip movement hoặc card đang chạy và không phát gameplay command. Admission/resume ACK hoàn tất muộn không dùng nhánh này.
 
 An older snapshot is ignored. Equal-version `LIVE_UPDATE` is ignored; equal-version session/spectator/replay sync still resets active presentation. Even a `LIVE_UPDATE` resets
 instead of animating when: a player disappeared while the queue was busy, a player appeared (2v2 revive), the

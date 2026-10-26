@@ -13,12 +13,12 @@ class FakeHelper implements ServerHelperLike {
   healthError?: Error;
   published: string[][] = [];
   private listener?: (diagnostic: string) => void;
-  constructor(private readonly port = 43123) {}
+  constructor(private readonly port = 43123, private readonly host = '0.0.0.0') {}
   async start(): Promise<ServerHelperInfo> {
     this.starts += 1;
     if (this.startError) throw this.startError;
     this.state = 'READY';
-    return { host: '0.0.0.0', port: this.port, pid: 123 };
+    return { host: this.host, port: this.port, pid: 123 };
   }
   async stop(): Promise<void> { this.stops += 1; this.state = 'STOPPED'; }
   async checkHealth(): Promise<void> { if (this.healthError) throw this.healthError; }
@@ -106,6 +106,60 @@ describe('RAM host runtime', () => {
     const lan = new HostRuntimeController(options({ interfaceProvider: () => [], helperFactory: () => new FakeHelper() }));
     await expect(lan.start()).rejects.toThrow('No usable LAN IPv4');
     expect(lan.status.errorCode).toBe('NO_LAN_INTERFACE');
+  });
+
+  it('uses only IPv4 loopback in local acceptance mode and disables online and network probes', async () => {
+    const routeProbe = vi.fn(() => Promise.resolve('192.168.1.15'));
+    const interfaceProvider = vi.fn(() => interfaces);
+    const tunnel = new FakeTunnel();
+    const helpers = [new FakeHelper(43123, '127.0.0.1'), new FakeHelper(43124, '127.0.0.1')];
+    let nextHelper = 0;
+    const helperFactory = vi.fn((port: number, host: string, localAcceptance: boolean) => {
+      expect(port).toBe(0);
+      expect(host).toBe('127.0.0.1');
+      expect(localAcceptance).toBe(true);
+      return helpers[nextHelper++]!;
+    });
+    const controller = new HostRuntimeController(options({
+      localAcceptance: true,
+      defaultPort: 0,
+      routeProbe,
+      interfaceProvider,
+      connectivity: tunnel,
+      helperFactory,
+    }));
+
+    await expect(controller.start({ mode: 'ONLINE', roomCode: 'LOCAL-1' }))
+      .rejects.toThrow('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
+    await expect(controller.resolveOnlineRoom('LOCAL-1'))
+      .rejects.toThrow('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
+    await expect(controller.activateOnlineRoom('LOCAL-1'))
+      .rejects.toThrow('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
+
+    const first = await controller.start({ mode: 'LAN', roomCode: 'LOCAL-1' });
+    expect(first).toMatchObject({
+      state: 'HOSTING',
+      localAcceptanceMode: true,
+      localEndpoint: 'http://127.0.0.1:43123',
+      selectedLanUrl: null,
+      interfaces: [],
+      advertisedEndpoints: [],
+      lanAvailable: false,
+      onlineEndpoint: null,
+    });
+    expect(helperFactory).toHaveBeenCalledWith(0, '127.0.0.1', true);
+    expect(routeProbe).not.toHaveBeenCalled();
+    expect(interfaceProvider).not.toHaveBeenCalled();
+    expect(tunnel.starts).toBe(0);
+    expect(tunnel.stops).toBe(0);
+    expect(controller.refreshNetwork()).toEqual(first);
+    expect(() => controller.refreshNetwork('192.168.1.15')).toThrow('LAN_ADDRESS_DISABLED_LOOPBACK_ACCEPTANCE');
+
+    await controller.stop();
+    const second = await controller.start({ mode: 'LAN', roomCode: 'LOCAL-2' });
+    expect(second.localEndpoint).toBe('http://127.0.0.1:43124');
+    expect(helperFactory).toHaveBeenCalledTimes(2);
+    await controller.stop();
   });
 });
 

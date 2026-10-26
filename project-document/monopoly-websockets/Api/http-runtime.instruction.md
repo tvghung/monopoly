@@ -35,6 +35,21 @@ The desktop launches a Quick Tunnel without a shell or manual installation. Each
 
 Complete links bypass the optional registry ([services/room-registry](../../../services/room-registry/README.md), deployed by the owner; a build carries its URL from `OWN_THE_BLOCK_REGISTRY_URL` in `release-config.json`, the runtime variable wins). If configured, the registry resolves a bare online room code across networks and serves `/join?room=<code>`. A code another live room already holds fails the start with `CODE_TAKEN` (the launcher draws a new code); any other registry failure never blocks or hides direct-link hosting: the link and QR stay, `onlineState` is `DISCOVERY_UNAVAILABLE` until a renewal succeeds, and `discoveryConfigured` tells the lobby whether code lookup exists at all. Which public origins are acceptable is `packages/shared/src/endpointPolicy.ts` (Quick Tunnel = `experimental`); the desktop adapter mirrors it under a contract test. A tunnel loss hides the old link, keeps the RAM match, and attempts bounded reconnection. If Cloudflare issues a new hostname, the host receives a new link. A guest whose reconnection keeps failing for 20 s is offered to paste the new invitation of the same room in the reconnect overlay (the desktop app also asks the registry): the client stores its token for the new origin in its own storage and reconnects there, so it resumes its seat; the token never travels in a URL. Quick Tunnels are documented by Cloudflare as development/testing infrastructure, without an uptime guarantee. Stable production hosting would need a named tunnel and its account/domain setup.
 
+**CURRENT DEVELOPMENT — E1-FIX-004:** registry activation and renewal continuations may change local discovery state or
+renewal timers only while they still own the active Host, endpoint and captured lease. Pending activations for the same
+owner coalesce; a replacement or retry cannot mix an old room code with a newer lease credential. Stop/tunnel recovery
+invalidate pending operation ownership, including adapters that ignore cancellation. The lifecycle and timer contract is
+owned by [Electron shell and packaging](../Desktop/electron-shell-and-packaging.instruction.md#host-runtime-and-helper-supervision).
+
+Registry cleanup remains best effort. The HTTP adapter has a 5-second request timeout; the provider interface has no
+caller abort signal and the runtime does not claim that detaching an obsolete request cancels its remote work. Stop
+revokes the captured lease once; it does not issue a late revoke against a lease still used by the current Host. The
+registry rechecks current owner hash, proof and expiry after endpoint verification before committing activation, so
+revocation or a different reservation invalidates that old activation. A failed revoke can leave a reservation for its
+180-second TTL or an active lease for its 90-second TTL, measured from the last registry write rather than Stop. The API has no activation revision or endpoint compare-and-swap:
+requests reusing the same lease during tunnel recovery have no guaranteed remote ordering. Local ownership checks do
+not establish remote cleanup or instantaneous registry consistency under network failure.
+
 The server permits the packaged `app://own-the-block` renderer and exact LAN/tunnel browser origins. Incoming commands remain schema checked and actor authenticated. A new desktop room requires Electron main's process-scoped capability for the host-selected code; peer address, `Origin` and forwarding headers never grant it, so Cloudflare's loopback forwarding cannot supply it (see [socket session](./socket-session.instruction.md)).
 
 ### Client identity and request limits behind the tunnel
@@ -49,3 +64,11 @@ Engine.IO reports `handshake.address` as the raw TCP peer, so every visitor arri
 Room admission (`join room`) is limited by this key (30 attempts per minute, shared by players behind one public address), by the connection (8 per minute) and by the process (600 per minute as a backstop, so a flood needs 20 or more distinct visitors to starve everyone). The limiter holds at most 1,024 client keys (further keys share one overflow bucket), expires entries lazily, and records only admitted attempts. The `/_otb/room` probe (60 per minute) and the static-asset limiter use the same key, so one visitor cannot exhaust the Host's readiness probe or the page for the others.
 
 The optional live probe is `scripts/proveQuickTunnel.mjs`; it verifies a public page and four Socket.IO clients through a real Quick Tunnel. Cross-network desktop/mobile acceptance still requires physical devices on independent networks. The retired Docker/Render deployment and PostgreSQL setup are outside the current architecture.
+
+## Loopback acceptance mode (F8)
+
+The opt-in packaged acceptance mode is supplied only by trusted Electron main-process arguments; no renderer IPC field selects a
+bind host. It restricts Host start to LAN mode, bypasses route/interface enumeration, disables registry/tunnel construction,
+omits LAN UDP discovery, and creates invite URLs only for `127.0.0.1`. `ServerHelperController` starts a clean-environment child
+and `startAuthoritativeServer` rejects wildcard or non-loopback addresses before listening, then validates `server.address()`.
+Normal desktop startup continues to bind `0.0.0.0` and retain its existing LAN/Online behavior. See [Electron shell and packaging](../Desktop/electron-shell-and-packaging.instruction.md#loopback-acceptance-mode-f8) and F8 audit report (local-only historical evidence: `30_PHASE_F8_VM_FREE_NATIVE_HOST_ACCEPTANCE.md`; unavailable in a clean checkout).

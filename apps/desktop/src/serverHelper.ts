@@ -9,6 +9,7 @@ export const HOST_CONTROL_VARIABLES = [
   'OTB_ONLINE_ROOM_CODE',
   'OTB_REGISTRY_ROOM_CODE',
   'OTB_REGISTRY_PROOF',
+  'OTB_LOOPBACK_ACCEPTANCE_MODE',
 ] as const;
 
 export type ServerHelperState = 'STOPPED' | 'STARTING' | 'READY' | 'STOPPING' | 'FAILED';
@@ -27,6 +28,10 @@ export interface ServerHelperOptions {
   startupTimeoutMs?: number;
   shutdownTimeoutMs?: number;
   environment?: NodeJS.ProcessEnv;
+  /** Loopback acceptance mode starts from an allowlist and cannot inherit arbitrary parent credentials or settings. */
+  inheritEnvironment?: boolean;
+  /** Restricts the helper bind address and marks its child server as loopback-only. */
+  loopbackOnly?: boolean;
   serviceName?: string;
   fork?: ServerHelperFork;
   fetch?: typeof globalThis.fetch;
@@ -63,6 +68,26 @@ function asStringEnvironment(environment: NodeJS.ProcessEnv): Record<string, str
   return Object.fromEntries(
     Object.entries(environment).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
+}
+
+const SAFE_WINDOWS_ENVIRONMENT = new Set([
+  'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT', 'OS',
+  'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'NUMBER_OF_PROCESSORS',
+]);
+const LOOPBACK_PROFILE_ENVIRONMENT = new Set([
+  'APPDATA', 'LOCALAPPDATA', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'TEMP', 'TMP',
+]);
+
+function safeLoopbackEnvironment(
+  environment: NodeJS.ProcessEnv,
+  includeHostControls = false,
+): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(environment).filter(([name, value]) => value !== undefined
+    && (name.toUpperCase() === 'PATH'
+      || SAFE_WINDOWS_ENVIRONMENT.has(name.toUpperCase())
+      || LOOPBACK_PROFILE_ENVIRONMENT.has(name.toUpperCase())
+      || includeHostControls && HOST_CONTROL_VARIABLES.includes(name as typeof HOST_CONTROL_VARIABLES[number])
+        && name !== 'OTB_LOOPBACK_ACCEPTANCE_MODE')));
 }
 
 function isReadyMessage(value: unknown): value is { type: 'ready'; host: string; port: number } {
@@ -107,6 +132,12 @@ export class ServerHelperController {
     assertAbsolute('Server helper client distribution', options.clientDist);
     if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65_535) {
       throw new Error('Server helper port must be between 0 and 65535');
+    }
+    if (options.loopbackOnly && options.host !== '127.0.0.1') {
+      throw new Error('Loopback-only server helper must bind to 127.0.0.1');
+    }
+    if (options.loopbackOnly && options.inheritEnvironment !== false) {
+      throw new Error('Loopback-only server helper must disable inherited environment variables');
     }
     this.startupTimeoutMs = options.startupTimeoutMs ?? 30_000;
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 10_000;
@@ -173,17 +204,24 @@ export class ServerHelperController {
     this.diagnostics = '';
     // The variables that decide who may create a room and whose address the server believes come only from
     // the Host controller; whatever the player's own environment holds under those names never reaches the helper.
-    const inherited = { ...process.env };
+    const inherited = this.options.loopbackOnly
+      ? safeLoopbackEnvironment(process.env)
+      : this.options.inheritEnvironment === false ? {} : { ...process.env };
     for (const name of HOST_CONTROL_VARIABLES) delete inherited[name];
+    const configured = this.options.loopbackOnly
+      ? safeLoopbackEnvironment(this.options.environment ?? {}, true)
+      : this.options.environment;
     const environment = asStringEnvironment({
       ...inherited,
-      ...this.options.environment,
+      ...configured,
       OWN_THE_BLOCK_CLIENT_DIST: this.options.clientDist,
       SERVER_HOST: this.options.host,
       SERVER_RUNTIME_PROFILE: 'desktop',
       NODE_ENV: 'production',
       PORT: String(this.options.port),
+      ...(this.options.loopbackOnly ? { OTB_LOOPBACK_ACCEPTANCE_MODE: '1' } : {}),
     });
+    if (!this.options.loopbackOnly) delete environment.OTB_LOOPBACK_ACCEPTANCE_MODE;
     delete environment.DATABASE_URL;
     delete environment.OWN_THE_BLOCK_MIGRATIONS_DIR;
     const fork = this.options.fork ?? ((modulePath, args, forkOptions) => (

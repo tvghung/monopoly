@@ -200,7 +200,6 @@ export const assertDebtActionAllowed = (
   return false;
 };
 
-export const activePaymentClaim = activeDebtClaim;
 
 export type ForcedSaleExecutionResult =
   | {

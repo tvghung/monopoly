@@ -109,7 +109,8 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
   (`apps/server/src/rooms.ts`); 2v2 được thêm ở protocol 10/snapshot 9 và ghế sảnh ở protocol 11/snapshot 10
   ([Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)). HISTORICAL: migration
   `011_lobby_seats_v10.sql` từng thêm `Player.teamSlot` và `boardState.seatSwapRequests: []`; migration `010_teamplay_v9.sql`
-  từng nâng snapshot v8; helper TS `upgradeRoomSnapshotV8ToV9` tương đương SQL và chỉ được test gọi (so sánh với mẫu
+  từng nâng snapshot v8; helper TS `upgradeRoomSnapshotV8ToV9` trong
+  `apps/server/src/testSupport/historicalRoomSnapshotUpgrades.ts` tương đương SQL và chỉ phục vụ fixture tests (so sánh với mẫu
   snapshot lịch sử). Các file SQL không chạy trong runtime RAM hiện tại ([Persistence](../Persistence/README.md)).
 - `assertTeamState` (trong `assertRoomSnapshot`) validate: Solo không có team match state; 2v2 màu = màu đội, lobby
   không có match state, `slotOrder` 4 người xen kẽ, `boardState.players` = `slotOrder` lọc người còn sống, windows hợp lệ

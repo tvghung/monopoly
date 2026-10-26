@@ -84,7 +84,8 @@ Development endpoint contract:
 
 ## State và Socket
 
-- `update` thay authoritative `PublicRoomState`; revision cũ phải bị bỏ qua.
+- Quy tắc nhận public room theo identity/revision và merge presence cùng version thuộc
+  [Client/join-room — public snapshot và presence](./Client/join-room.instruction.md#public-snapshot-và-presence-current-development--e1-fix-001).
 - Context cung cấp stable `playerId`, `role`, public room/game state và typed command
   functions.
 - Mọi mutation command có ACK. Authoritative UI state chỉ đổi theo committed update;
@@ -100,7 +101,7 @@ Development endpoint contract:
 - Player lobby thấy roster, host badge, ready controls và start state.
 - Chỉ host có start action; button chỉ enabled khi có 2–4 active seat (người + bot; 2v2: đúng 4, mỗi đội 2), ít nhất
   một người thật (host luôn là người thật), mọi người thật connected và ready (bot luôn ready/có mặt). Host thêm/xóa bot ở
-  sảnh; dropdown "Độ khó của Bot" là CURRENT DEVELOPMENT (vNext, unreleased) — xem
+  sảnh; dropdown "Độ khó của Bot" đã RELEASED trong v1.8.0 — xem
   [Client/game-status.instruction.md](./Client/game-status.instruction.md). Host chọn chế độ Solo/2v2 và có nút X mời người khác ra khỏi phòng (sau xác nhận trung tâm; không đổi chỗ thay ai);
   mỗi người tự đổi chỗ của mình (chỗ trống: chuyển ngay; chỗ có người: gửi yêu cầu, người kia đồng ý mới đổi) và thành viên đổi tên/màu của
   **đội mình**, không ai đổi được đội kia ([GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md),

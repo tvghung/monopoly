@@ -4,7 +4,44 @@
 
 - `[AUTO]` Server configuration starts without `DATABASE_URL`; `/healthz` and `/readyz` represent a live/shutting-down server (`apps/server/src/config.test.ts`, `createServer.test.ts`).
 - `[AUTO]` In-memory transactions serialize direct writes and room commands. Failure discards the draft; room CAS rejects stale versions (`apps/server/src/persistence/inMemory.test.ts`, `apps/server/src/services/roomCommandExecutor.test.ts`).
+- `[AUTO][CURRENT DEVELOPMENT — AUDIT-002]` Current-player leave and bankruptcy handoffs progress the selected jailed successor
+  once at the same boundary as `nextTurn`; non-current removal does not move jail counters and winner completion does not create
+  a successor turn (`apps/server/src/game/turnHandoff.test.ts`). A failed transactional Socket leave publishes no committed
+  room update, and retry commits one release event to each remaining public projection (`apps/server/src/socket.integration.test.ts`).
 - `[AUTO]` Desktop starts one helper, retries automatic port collisions, and treats helper crash/failed readiness as terminal (`apps/desktop/tests/hostRuntime.test.ts`).
+- `[CURRENT DEVELOPMENT — F6.3]` Host lifecycle characterization ran in deterministic desktop tests (helper, registry,
+  tunnel, bootstrap and cancellation adapters mocked) plus the server admission/socket fixture bound to explicit loopback.
+  The two cases that discover and bind a non-loopback LAN interface were skipped under the task's loopback-only test
+  environment. These results do not establish packaged Host binding, native helper ownership, or physical LAN acceptance;
+  see Report 28 (local-only historical evidence: `28_PHASE_F6_INSTALLER_PARITY_AND_HOST_ISOLATION.md`; unavailable in a clean checkout).
+- `CURRENT DEVELOPMENT — F7.1` `apps/server/vitest.config.ts` installs a fail-closed TCP/UDP listener guard inside every server Vitest worker, propagates it to child Node processes, and the Host admission fixture requires `127.0.0.1`. Safety characterization: 44 passed; the two real LAN-peer cases remain skipped until isolated networking is available. Desktop Host lifecycle/adapters: 148 passed. This is loopback and mocked evidence, not packaged Host acceptance; see Report 29 (local-only historical evidence: `29_PHASE_F7_SAFE_HOST_TEST_INFRASTRUCTURE.md`; unavailable in a clean checkout).
+- `[AUTO][CURRENT DEVELOPMENT — E1-FIX-003]` Pending Start owns lifecycle before LAN route/Online reservation; Stop
+  cancels across helper/tunnel startup and waits for cleanup before succeeding. Same-room starts coalesce, different-room
+  requests keep their identity, Start/Stop/Start starts only the new room, and failure/cancellation permits a valid retry
+  (`apps/desktop/tests/hostStartupCancellation.test.ts`, opt-in `apps/desktop/e1/audit003.e1.ts`).
+- `[AUTO][CURRENT DEVELOPMENT — E1-FIX-003]` Actual desktop bootstrap, quit coordinator and UpdateService use the Host
+  lifecycle boundary: quit waits for pending startup cancellation, and restart installation reports `HOST_OPEN` during
+  pending Start/Stop (`apps/desktop/tests/hostStartupBootstrap.test.ts`, `apps/desktop/e1/audit003.e1.ts`; native window,
+  helper, tunnel, registry and installer I/O mocked). These deterministic tests do not establish native Electron, packaged
+  installer, physical LAN/cross-network or OS quit/update acceptance. Registry activation/renewal ownership is covered below.
+- `[AUTO][CURRENT DEVELOPMENT — AUDIT-020]` The macOS-only close guard is tested at the mockable
+  `QuitRequestController` boundary (`apps/desktop/tests/windowHandlers.test.ts`): busy Host confirmation, cancellation, Stop
+  completion before close, accepted startup/Stop barrier, duplicate close coalescing, cleanup failure/retry and changed busy
+  lifecycle. The renderer test confirms a busy startup prompts before room admission (`apps/client/src/App.test.tsx`).
+  Windows/Linux retain the unguarded controller path; existing Quit, updater, pending-start, Host registry and cleanup suites
+  exercise the shared lifecycle. These mocks do not prove native macOS window or OS behavior.
+- `[AUTO][CURRENT DEVELOPMENT — E1-FIX-004]` Obsolete activation/renewal success and failure cannot publish into a
+  stopped or replacement Host, mix room codes and credentials, change the current endpoint, clear a newer timer or create
+  another renewal loop. Pending activations for the same owner coalesce; retries and tunnel endpoint replacement retire
+  the previous operation; renewal skips a tick while that loop already has a request in flight
+  (`apps/desktop/e1/audit004.e1.ts`, both opt-in modes; `apps/desktop/tests/hostRegistryOwnership.test.ts`).
+- `[AUTO][CURRENT DEVELOPMENT — E1-FIX-004]` Default ownership tests use the real controller with deferred registry,
+  public-fetch/body and renewal barriers, rapid replacements, reused room/endpoint values, ignored cancellation, current
+  fallback, and cleanup failure/retry. Stop can detach obsolete activation during tunnel recovery without awaiting an
+  adapter that ignores abort. Helper/tunnel shutdown failures retain their existing retry guarantees; failed registry
+  revocation does not permit local credentials to cross lifecycle ownership. All external adapters are mocked. These
+  assertions establish local lifecycle behavior; they do not prove remote revoke success, same-lease registry ordering,
+  native Electron shutdown, real tunnel/registry networking, suspend/resume or physical cross-network hosting.
 - `[AUTO]` Direct-link Online hosting works without a registry; a public route and existing room must be reached before showing a link (`apps/desktop/src/online/hostLifecycle.test.ts`).
 - `[AUTO]` Tunnel loss replaces the public endpoint while keeping the same helper; helper loss is terminal and stops the tunnel (`apps/desktop/src/online/hostLifecycle.test.ts`).
 - `[AUTO]` cloudflared preparation (`apps/desktop/tests/prepareCloudflared.test.ts`): the
@@ -58,15 +95,13 @@
   Electron check verified that `net.fetch` rejects `redirect: 'manual'` responses and aborts a stalled request. These
   ad hoc checks are not committed automated gates and do not verify a second machine or independent network.
 - `[SOCKET]` Host-only room creation, pending-admission lifecycle and request limits
-  (`apps/server/src/hostAdmission.integration.test.ts`, desktop profile, real Socket.IO clients including a real
-  non-loopback LAN peer): only the matching capability creates a room; a Guest that arrives first, forged
+  (`apps/server/src/hostAdmission.integration.test.ts`, desktop profile, real Socket.IO clients using real Socket.IO clients over explicit loopback): only the matching capability creates a room; a Guest that arrives first, forged
   `Origin`/`X-Forwarded-For`/`CF-Connecting-IP`/capability headers, a wrong or foreign capability and guessed
   codes all get `NOT_FOUND` and create nothing; `resume session` cannot carry a capability; a Guest's pending
   admission gets `ROOM_GONE` after its room is deleted, replaced or expired, and is never turned into a creation;
   Host and Guest racing in either order settle the same; an expired pending token creates nothing; four players
   behind one connector join, a fifth gets `ROOM_FULL`; one flooding visitor is limited (30 per minute) while
-  another visitor and the Host are not; rotating a forwarded header buys nothing without an Online Host or from a LAN
-  peer; a closed runtime answers join and resume with a sanitized, non-retryable error. Units:
+  another visitor and the Host are not; rotating a forwarded header buys nothing without an Online Host; direct LAN-peer integration is skipped pending isolated networking; a closed runtime answers join and resume with a sanitized, non-retryable error. Units:
   `socket/clientIdentity.test.ts` (peer and header rules, IPv6 grouping), `socket/admissionLimiter.test.ts` (window,
   global backstop, bounded state, overflow bucket, lazy expiry), `createServer.test.ts` (HTTP probe/static limiter keys).
 - `[AUTO]` ACK errors (`apps/server/src/socket/errors.test.ts`, `persistence/inMemory.test.ts`): conflict stays
@@ -183,9 +218,31 @@ protocol, the snapshot or PostgreSQL.
 ## Release checks still requiring separate execution
 
 - `[MANUAL-E2E]` Windows and macOS installed hosts with other physical desktops and Android/iOS/tablet browsers on the same LAN, including no Internet and firewall prompts.
+- `[MANUAL-E2E][NOT RUN — macOS close]` On supported macOS hosts, repeat Host close during startup, active LAN/Online hosting,
+  Stop failure/retry, Guest close, idle close, explicit Quit and updater restart. Confirm ordinary last-window close stops Host
+  safely without forcing app quit, Cancel keeps Host running, and failure keeps the window available. Native Mac acceptance is
+  not established by automated Electron mocks.
 - `[MANUAL-E2E]` Host and clients on distinct Wi-Fi/cellular networks; open the HTTPS link, join and play a game on a real remote device.
 - `[PACKAGED]` macOS x64 and arm64 build/proof, signing/notarization and execution of the bundled `cloudflared` binary.
 - `[MANUAL-E2E]` Tunnel loss and changed hostname observed on a live game; new invitation delivered to disconnected clients.
 - `[RELEASE]` A stable public hosting claim requires a named Cloudflare Tunnel and its account/domain provisioning. Quick Tunnels are officially for testing/development and offer no uptime guarantee.
 
 No PostgreSQL, Docker/Render gameplay service, migration command or cross-restart match recovery belongs to the supported workflow.
+
+
+## v1.10.0 current-development F8 VM-free native Host and local acceptance — 2026-10-23
+
+Chi tiết: Report 30 (local-only historical evidence: `30_PHASE_F8_VM_FREE_NATIVE_HOST_ACCEPTANCE.md`; unavailable in a clean checkout); evidence tại test-results/phase-f8-vm-free-native/run-2026-10-23T15-27-10.976Z/.
+
+| Phạm vi | Automated | Native/manual | Bằng chứng / giới hạn |
+| --- | --- | --- | --- |
+| F8.0 preflight và preservation | **PASS** | NOT RUN | 114 trạng thái Git trước F8, sáu deletion, reports 00–29, F3/F5/F6, E1 và client dist được xác minh/khôi phục. |
+| F8.1 trusted loopback mode | **PASS** | NOT RUN | Focused desktop 35/35, server 47/47, client 70/70; production bind vẫn 0.0.0.0. |
+| F8.2 candidate unpacked | **PASS** | NOT RUN | Candidate riêng 184 tệp; EXE/ASAR/resources và 40/40 ASAR integrity entries được băm. Không tạo installer. |
+| F8.3 native isolation | **BLOCKED** | NOT RUN | Firewall ON nhưng BlockInbound,AllowOutbound; không chứng minh được egress block cho candidate. |
+| F8.4 Host Start/Stop | **BLOCKED** | NOT RUN | Không launch candidate theo điều kiện F8.3. |
+| F8.5 local multiplayer | NOT RUN | NOT RUN | Chưa có packaged local Host để kết nối hai client. |
+| F8.6 board/input | NOT RUN | NOT RUN | Chưa mở game board trong candidate. |
+| Automated quality gates | **PASS** | NOT APPLICABLE | 4,031 PASS, 2 server LAN tests SKIPPED; E1 regression/characterization 30/30 mỗi mode; typecheck, lint, build, docs, protocol và diff gates đạt. |
+
+Không suy ra native acceptance cho F3, installer, LAN hoặc WAN từ candidate/package verification.

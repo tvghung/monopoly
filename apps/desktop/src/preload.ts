@@ -18,7 +18,7 @@ export interface OwnTheBlockDesktopBridge {
     onFullscreenChanged(listener: (state: DesktopWindowState) => void): () => void;
   };
   quit: {
-    onQuitRequested(listener: (requestId: string) => void): () => void;
+    onQuitRequested(listener: (requestId: string, requiresConfirmation?: boolean) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
     /** The confirmation dialog for this request is on screen: main waits for the player without the 2 s limit. */
     acknowledge(requestId: string): void;
@@ -68,7 +68,11 @@ const bridge: OwnTheBlockDesktopBridge = {
   },
   quit: {
     onQuitRequested: listener => {
-      const handler = (_event: Electron.IpcRendererEvent, requestId: string) => listener(requestId);
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        requestId: string,
+        requiresConfirmation?: boolean,
+      ) => listener(requestId, requiresConfirmation);
       ipcRenderer.on(IPC_CHANNELS.quitRequested, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.quitRequested, handler);
     },

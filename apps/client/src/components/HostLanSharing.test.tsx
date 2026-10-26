@@ -125,6 +125,23 @@ describe('HostLanSharing', () => {
     expect(screen.getByRole('complementary', { name: 'Mời bạn bè · LAN' })).toBeTruthy();
   });
 
+  it('shares only a 127.0.0.1 invite in local acceptance mode', async () => {
+    const local = hostStatus([], undefined);
+    local.localAcceptanceMode = true;
+    local.lanAvailable = false;
+    local.selectedLanUrl = null;
+    local.advertisedEndpoints = [];
+    installBridge(local);
+
+    const { container } = render(<HostLanSharing roomCode="OTB-ABC234" />);
+    const image = await screen.findByAltText(QR_ALT);
+    expect(image.getAttribute('data-qr-payload')).toBe('http://127.0.0.1:53120/?room=OTB-ABC234');
+    expect(screen.getByText('Mời bạn bè · Kiểm thử cục bộ')).toBeTruthy();
+    expect(screen.getByText(/Chỉ máy tính này truy cập/u)).toBeTruthy();
+    expect(container.querySelector('select')).toBeNull();
+    expect(container.textContent).not.toMatch(/192\.168|trycloudflare|https:\/\//u);
+  });
+
   it('activates an existing Online room before sharing its public link', async () => {
     const pending = { ...hostStatus(), connectionMode: 'ONLINE' as const,
       onlineEndpoint: 'https://room.trycloudflare.com', onlineState: 'AWAITING_ROOM' as const };

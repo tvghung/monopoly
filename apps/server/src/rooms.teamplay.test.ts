@@ -12,11 +12,13 @@ import {
   lobbySeatHolders,
   storeGameState,
   syncMembershipWithGameState,
+  type RoomSnapshot,
+} from './rooms.js';
+import {
   upgradeRoomSnapshotV8ToV9,
   upgradeRoomSnapshotV9ToV10,
   upgradeRoomSnapshotV10ToV11,
-  type RoomSnapshot,
-} from './rooms.js';
+} from './testSupport/historicalRoomSnapshotUpgrades.js';
 import { startTeamMatch } from './game/index.js';
 import type { RoomRecord } from './persistence/types.js';
 import { ConnectionRegistry } from './services/connectionRegistry.js';

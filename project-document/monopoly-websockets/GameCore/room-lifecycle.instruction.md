@@ -113,3 +113,10 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Finished reconnect, host-only same-room replay, finished-player return and explicit
   LEFT exclusion; spectator role/session continuity and fresh second match.
 - Retention cleanup while the server lives; a process restart starts an empty match universe.
+
+## CURRENT DEVELOPMENT — AUDIT-007 (chưa phát hành)
+
+`hydrateGameState` trong `apps/server/src/rooms.ts` clone sâu `snapshot.gameState` một lần, sau đó cập nhật `gameStarted` và
+`gameStartedAt` trên bản clone. `projectPublicRoomState` và room command dùng hàm này; các field board, player và private deck vẫn
+cô lập với snapshot nguồn. Đây là hydrate server snapshot cho command/projection, không phải client `App.tsx` hydration. Client
+presence, reconnect và presentation không đổi; protocol 14 và snapshot schema 11 giữ nguyên. Chưa có thay đổi này trong v1.10.0.

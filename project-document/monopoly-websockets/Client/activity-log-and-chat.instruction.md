@@ -140,6 +140,6 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 - Audit không còn player-facing English/USD trong chat hoặc game-generated log.
 - Chạy typecheck, build, lint và testcase được liên kết ở trên.
 
-## v1.9.0 final drawer refinement (unreleased)
+## HISTORICAL — v1.9.0 final drawer refinement (released in v1.9.0)
 
 The panel stays mounted; CSS slides it from/to the right in 240 ms using transform only. Toggle and panel share width/inset-derived travel and easing, including narrow/landscape safe areas. Closed/closing content is inert, aria-hidden and cannot intercept clicks; visibility becomes hidden after exit. Rapid toggles reverse the same transition without remounting. Escape and focus return to the toggle are preserved. Reduced Motion removes sliding; chat drafts still clear on close, and feed/unread/preference behavior is unchanged.
