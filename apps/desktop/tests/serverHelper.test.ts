@@ -114,6 +114,66 @@ describe('server helper controller', () => {
     }
   });
 
+  it('requires a loopback bind and uses only allowlisted profile and Host values in local acceptance mode', async () => {
+    expect(() => new ServerHelperController({
+      modulePath: path.resolve('proof', 'server-helper.cjs'),
+      clientDist: path.resolve('proof', 'client'),
+      host: '0.0.0.0',
+      port: 43123,
+      loopbackOnly: true,
+      inheritEnvironment: false,
+    })).toThrow('must bind to 127.0.0.1');
+    expect(() => new ServerHelperController({
+      modulePath: path.resolve('proof', 'server-helper.cjs'),
+      clientDist: path.resolve('proof', 'client'),
+      host: '127.0.0.1',
+      port: 43123,
+      loopbackOnly: true,
+    })).toThrow('must disable inherited environment');
+
+    const saved = process.env.GITHUB_TOKEN;
+    process.env.GITHUB_TOKEN = 'never-forward-this';
+    try {
+      const child = new FakeUtilityProcess();
+      const fork = vi.fn<ServerHelperFork>((_modulePath, _args, options) => {
+        queueMicrotask(() => child.emit('message', { type: 'ready', host: '127.0.0.1', port: 43123 }));
+        expect(options.env.OTB_LOOPBACK_ACCEPTANCE_MODE).toBe('1');
+        expect(options.env.APPDATA).toBe(path.resolve('isolated', 'app-data'));
+        expect(options.env.LOCALAPPDATA).toBe(path.resolve('isolated', 'local-app-data'));
+        expect(options.env.OTB_HOST_ROOM_CODE).toBe('LOCAL-ROOM');
+        expect(options.env.OTB_HOST_CREATE_SECRET).toBe('a'.repeat(64));
+        expect(options.env.GITHUB_TOKEN).toBeUndefined();
+        expect(options.env.DATABASE_URL).toBeUndefined();
+        expect(options.env.OWN_THE_BLOCK_REGISTRY_URL).toBeUndefined();
+        expect(options.env.NODE_OPTIONS).toBeUndefined();
+        return child as unknown as UtilityProcess;
+      });
+      const controller = new ServerHelperController({
+        modulePath: path.resolve('proof', 'server-helper.cjs'),
+        clientDist: path.resolve('proof', 'client'),
+        host: '127.0.0.1',
+        port: 43123,
+        loopbackOnly: true,
+        inheritEnvironment: false,
+        environment: {
+          APPDATA: path.resolve('isolated', 'app-data'),
+          LOCALAPPDATA: path.resolve('isolated', 'local-app-data'),
+          OTB_HOST_ROOM_CODE: 'LOCAL-ROOM',
+          OTB_HOST_CREATE_SECRET: 'a'.repeat(64),
+          OTB_LOOPBACK_ACCEPTANCE_MODE: '0',
+          OWN_THE_BLOCK_REGISTRY_URL: 'https://outside.example',
+        },
+        fork,
+        fetch: vi.fn(async (url: string) => new Response(url.endsWith('/readyz') ? 'ready' : 'ok', { status: 200 })),
+      });
+      await controller.start();
+      await controller.stop();
+    } finally {
+      if (saved === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = saved;
+    }
+  });
+
   it('fails when the helper exits before readiness', async () => {
     const child = new FakeUtilityProcess();
     const fork = vi.fn<ServerHelperFork>(() => {

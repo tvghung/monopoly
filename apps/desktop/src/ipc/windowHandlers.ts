@@ -16,12 +16,9 @@ import type { LanFindRoomResult, LanRoomFinder } from '../lanFinder';
 import { hostInstanceId } from '../online/hostInstance';
 import type { AppUpdateController, AppUpdateState } from '../update/updateTypes';
 
-/**
- * How long the renderer has to say anything about a quit request: either the answer, or that it put the question to the
- * player (`acknowledge`). A renderer that does neither is not showing a dialog, so the close proceeds (fail-open).
- */
+/** How long the renderer has to answer or acknowledge that it put the quit question to the player. */
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
-/** Once the player is being asked, a renderer that stays unresponsive this long can no longer be answered: close proceeds. */
+/** Once the player is being asked, a renderer that stays unresponsive this long can no longer be answered. */
 const QUIT_UNRESPONSIVE_GRACE_MS = 30_000;
 
 interface CloseEventLike {
@@ -33,8 +30,16 @@ type QuitIntent = 'window-close' | 'application-quit';
 interface PendingQuitRequest {
   requestId: string;
   intent: QuitIntent;
+  requiresConfirmation: boolean;
   promise: Promise<boolean>;
   resolve: (allowQuit: boolean) => void;
+}
+
+/** Optional guard used only when closing a macOS Host window. */
+export interface HostWindowCloseGuard {
+  isBusy(): boolean;
+  stop(): Promise<void>;
+  reportFailure?(error: unknown): void;
 }
 
 export class QuitRequestController {
@@ -45,7 +50,10 @@ export class QuitRequestController {
   /** Removes the renderer-lifetime listeners that exist while the player is being asked. */
   private detachRendererWatch: (() => void) | null = null;
 
-  public constructor(private readonly window: BrowserWindow) {}
+  public constructor(
+    private readonly window: BrowserWindow,
+    private readonly hostWindowCloseGuard?: HostWindowCloseGuard,
+  ) {}
 
   public handleClose(event: CloseEventLike): void {
     if (this.allowNextClose) {
@@ -75,8 +83,12 @@ export class QuitRequestController {
   }
 
   public respond(requestId: string, allowQuit: boolean): void {
-    if (requestId !== this.pendingRequest?.requestId) return;
-    this.resolvePending(allowQuit);
+    const pending = this.pendingRequest;
+    if (requestId !== pending?.requestId) return;
+    // The renderer acknowledges only after it has put its confirmation dialog on screen.
+    // This also covers an in-game guest prompt when the local Host was idle initially.
+    const playerConfirmed = allowQuit && (pending.requiresConfirmation || this.detachRendererWatch !== null);
+    this.resolvePending(allowQuit, playerConfirmed);
   }
 
   /**
@@ -105,27 +117,93 @@ export class QuitRequestController {
 
   private request(intent: QuitIntent): Promise<boolean> {
     const requestId = randomUUID();
+    const requiresConfirmation = intent === 'window-close'
+      && Boolean(this.hostWindowCloseGuard)
+      && this.hostIsBusy();
     let resolve!: (allowQuit: boolean) => void;
     const promise = new Promise<boolean>(settle => {
       resolve = settle;
     });
-    this.pendingRequest = { requestId, intent, promise, resolve };
+    this.pendingRequest = { requestId, intent, requiresConfirmation, promise, resolve };
+    this.timeout = setTimeout(() => this.resolvePending(true), QUIT_RESPONSE_TIMEOUT_MS);
     try {
-      this.window.webContents.send(IPC_CHANNELS.quitRequested, requestId);
+      if (intent === 'window-close' && this.hostWindowCloseGuard) {
+        this.window.webContents.send(IPC_CHANNELS.quitRequested, requestId, requiresConfirmation);
+      } else {
+        this.window.webContents.send(IPC_CHANNELS.quitRequested, requestId);
+      }
     } catch {
       this.resolvePending(true);
       return promise;
     }
-    this.timeout = setTimeout(() => this.resolvePending(true), QUIT_RESPONSE_TIMEOUT_MS);
     return promise;
   }
 
-  private resolvePending(allowQuit: boolean): void {
+  private resolvePending(allowQuit: boolean, playerConfirmed = false): void {
     const pending = this.pendingRequest;
     if (!pending) return;
+
+    if (pending.intent === 'window-close' && allowQuit && this.hostWindowCloseGuard) {
+      if (!playerConfirmed && this.hostIsBusy()) {
+        void this.finishWindowClose(pending, false, new Error('HOST_CLOSE_NOT_CONFIRMED'));
+        return;
+      }
+      void this.finishWindowClose(pending, playerConfirmed);
+      return;
+    }
+
     this.clearPending();
     pending.resolve(allowQuit);
     if (pending.intent === 'window-close' && allowQuit) this.allowAndClose();
+  }
+
+  private async finishWindowClose(
+    pending: PendingQuitRequest,
+    playerConfirmed: boolean,
+    blockedError?: Error,
+  ): Promise<void> {
+    const guard = this.hostWindowCloseGuard;
+    if (!guard) return;
+    try {
+      if (blockedError) throw blockedError;
+      if (this.hostIsBusy()) {
+        if (!playerConfirmed) throw new Error('HOST_CLOSE_NOT_CONFIRMED');
+        await guard.stop();
+      }
+      if (this.pendingRequest?.requestId !== pending.requestId) return;
+      if (this.window.isDestroyed()) {
+        this.clearPending();
+        pending.resolve(true);
+        return;
+      }
+      // Recheck immediately before closing: a new Host start must not be hidden behind the closing window.
+      if (this.hostIsBusy()) throw new Error('HOST_STILL_ACTIVE');
+      this.clearPending();
+      this.allowAndClose();
+      pending.resolve(true);
+    } catch (error) {
+      if (this.pendingRequest?.requestId !== pending.requestId) return;
+      this.reportHostCloseFailure(error);
+      this.clearPending();
+      pending.resolve(false);
+    }
+  }
+
+  private hostIsBusy(): boolean {
+    try {
+      return this.hostWindowCloseGuard?.isBusy() ?? false;
+    } catch {
+      // An unreadable Host state is treated as active so the close path cannot strand it.
+      return true;
+    }
+  }
+
+  private reportHostCloseFailure(error: unknown): void {
+    try {
+      this.hostWindowCloseGuard?.reportFailure?.(error);
+    } catch {
+      // Error reporting must not turn a failed Host stop into an unhandled rejection.
+    }
   }
 
   private watchRenderer(requestId: string): void {
@@ -188,7 +266,18 @@ function getWindowState(window: BrowserWindow): DesktopWindowState {
   };
 }
 
-function getRuntimeConfigResult(): DesktopRuntimeConfigResult {
+function getRuntimeConfigResult(localAcceptanceMode = false): DesktopRuntimeConfigResult {
+  if (localAcceptanceMode) {
+    return {
+      ok: true,
+      config: {
+        target: 'desktop',
+        platform: process.platform === 'darwin' || process.platform === 'linux' ? process.platform : 'win32',
+        appVersion: app.getVersion(),
+        localAcceptanceMode: true,
+      },
+    };
+  }
   try {
     return { ok: true, config: getDesktopRuntimeConfig() };
   } catch (error) {
@@ -202,6 +291,8 @@ function getRuntimeConfigResult(): DesktopRuntimeConfigResult {
 
 export interface DesktopIpcServices {
   hostRuntime: HostRuntimeController;
+  /** Prevents packaged socket and registry configuration from being read during local acceptance. */
+  localAcceptanceMode?: boolean;
   /** Finds a Host by room code on the local network; without it the find-room channel is not registered. */
   lanFinder?: LanRoomFinder;
   /** The in-app updater; without it the update channels are not registered. */
@@ -270,7 +361,7 @@ export function registerWindowHandlers(
 ): void {
   ipcMain.handle(IPC_CHANNELS.runtimeConfig, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-    return getRuntimeConfigResult();
+    return getRuntimeConfigResult(services?.localAcceptanceMode === true);
   });
   ipcMain.handle(IPC_CHANNELS.windowGetState, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');

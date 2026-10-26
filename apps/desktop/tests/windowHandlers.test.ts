@@ -610,6 +610,204 @@ describe('quit channel ("Thoát" on the start screen)', () => {
   });
 });
 
+describe('guarded macOS Host window close', () => {
+  function registerGuarded(busy: () => boolean, stop: () => Promise<void>) {
+    const fixture = createWindow();
+    const reportFailure = vi.fn();
+    const controller = new QuitRequestController(fixture.window as never, {
+      isBusy: busy,
+      stop,
+      reportFailure,
+    });
+    return { ...fixture, controller, reportFailure };
+  }
+
+  function requestClose(fixture: ReturnType<typeof registerGuarded>) {
+    const event = { preventDefault: vi.fn() };
+    fixture.controller.handleClose(event);
+    const latestCall = fixture.webContents.send.mock.calls[fixture.webContents.send.mock.calls.length - 1];
+    const requestId = latestCall?.[1] as string;
+    return { event, requestId };
+  }
+
+  it('waits for a confirmed Host stop, coalesces duplicate closes, and verifies idle before closing', async () => {
+    let busy = true;
+    let finishStop!: () => void;
+    const stopPromise = new Promise<void>(resolve => { finishStop = resolve; });
+    const stop = vi.fn(() => stopPromise);
+    const fixture = registerGuarded(() => busy, stop);
+    const { requestId, event } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    const duplicate = { preventDefault: vi.fn() };
+    fixture.controller.handleClose(duplicate);
+    fixture.controller.respond(requestId, true);
+    await Promise.resolve();
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(duplicate.preventDefault).toHaveBeenCalledOnce();
+    expect(fixture.webContents.send).toHaveBeenCalledOnce();
+    expect(fixture.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.quitRequested, requestId, true);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(fixture.window.close).not.toHaveBeenCalled();
+
+    busy = false;
+    finishStop();
+    await expect(completion).resolves.toBe(true);
+    expect(fixture.window.close).toHaveBeenCalledOnce();
+    expect(fixture.reportFailure).not.toHaveBeenCalled();
+    fixture.controller.dispose();
+  });
+
+  it('closes an idle Host window after confirmation without stopping the Host', async () => {
+    const stop = vi.fn(async () => undefined);
+    const fixture = registerGuarded(() => false, stop);
+    const { requestId } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    fixture.controller.respond(requestId, true);
+
+    await expect(completion).resolves.toBe(true);
+    expect(stop).not.toHaveBeenCalled();
+    expect(fixture.window.close).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('keeps an active Host open when the player cancels', async () => {
+    const stop = vi.fn(async () => undefined);
+    const fixture = registerGuarded(() => true, stop);
+    const { requestId } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    fixture.controller.respond(requestId, false);
+
+    await expect(completion).resolves.toBe(false);
+    expect(stop).not.toHaveBeenCalled();
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    expect(fixture.reportFailure).not.toHaveBeenCalled();
+    fixture.controller.dispose();
+  });
+
+  it('fails closed on the renderer timeout while the Host is active', async () => {
+    vi.useFakeTimers();
+    const stop = vi.fn(async () => undefined);
+    const fixture = registerGuarded(() => true, stop);
+    requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await expect(completion).resolves.toBe(false);
+    expect(stop).not.toHaveBeenCalled();
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    expect(fixture.reportFailure).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('keeps the window open and permits retry when Host shutdown fails', async () => {
+    let busy = true;
+    const stop = vi.fn()
+      .mockRejectedValueOnce(new Error('helper cleanup failed'))
+      .mockImplementationOnce(async () => { busy = false; });
+    const fixture = registerGuarded(() => busy, stop);
+    const first = requestClose(fixture);
+    const firstCompletion = fixture.controller.requestApplicationQuit();
+
+    fixture.controller.respond(first.requestId, true);
+    await expect(firstCompletion).resolves.toBe(false);
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    expect(fixture.reportFailure).toHaveBeenCalledOnce();
+
+    const second = requestClose(fixture);
+    const secondCompletion = fixture.controller.requestApplicationQuit();
+    fixture.controller.respond(second.requestId, true);
+
+    await expect(secondCompletion).resolves.toBe(true);
+    expect(stop).toHaveBeenCalledTimes(2);
+    expect(fixture.window.close).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('treats an accepted but not-yet-hosting startup as busy and waits for its Stop barrier', async () => {
+    let hostStatus: 'IDLE' | 'STARTING_SERVER' = 'STARTING_SERVER';
+    let finishStartupCleanup!: () => void;
+    const cleanupBarrier = new Promise<void>(resolve => { finishStartupCleanup = resolve; });
+    const fixture = registerGuarded(
+      () => hostStatus === 'STARTING_SERVER',
+      vi.fn(async () => {
+        await cleanupBarrier;
+        hostStatus = 'IDLE';
+      }),
+    );
+    const { requestId } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    fixture.controller.respond(requestId, true);
+    await Promise.resolve();
+
+    expect(fixture.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.quitRequested, requestId, true);
+    expect(fixture.window.close).not.toHaveBeenCalled();
+
+    finishStartupCleanup();
+    await expect(completion).resolves.toBe(true);
+    expect(fixture.window.close).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('does not stop a Host that starts after an idle close request was auto-approved', async () => {
+    let busy = false;
+    const isBusy = vi.fn(() => busy);
+    const stop = vi.fn(async () => undefined);
+    const fixture = registerGuarded(isBusy, stop);
+    const { requestId } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    busy = true;
+    fixture.controller.respond(requestId, true);
+
+    await expect(completion).resolves.toBe(false);
+    expect(fixture.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.quitRequested, requestId, false);
+    expect(stop).not.toHaveBeenCalled();
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    expect(fixture.reportFailure).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('cannot close over a newer busy Host lifecycle after an older Stop continuation', async () => {
+    let busy = true;
+    let finishOldStop!: () => void;
+    const oldStop = new Promise<void>(resolve => { finishOldStop = resolve; });
+    const fixture = registerGuarded(() => busy, vi.fn(() => oldStop));
+    const { requestId } = requestClose(fixture);
+    const completion = fixture.controller.requestApplicationQuit();
+
+    fixture.controller.respond(requestId, true);
+    await Promise.resolve();
+    // The original Host stopped, then a fresh lifecycle acquired resources before the old continuation resumed.
+    busy = true;
+    finishOldStop();
+
+    await expect(completion).resolves.toBe(false);
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    expect(fixture.reportFailure).toHaveBeenCalledOnce();
+    fixture.controller.dispose();
+  });
+
+  it('does not apply the window-close guard to an explicit application quit request', async () => {
+    const stop = vi.fn(async () => undefined);
+    const fixture = registerGuarded(() => true, stop);
+    const completion = fixture.controller.requestApplicationQuit();
+    const requestId = fixture.webContents.send.mock.calls[0]?.[1] as string;
+
+    fixture.controller.respond(requestId, true);
+
+    await expect(completion).resolves.toBe(true);
+    expect(stop).not.toHaveBeenCalled();
+    expect(fixture.window.close).not.toHaveBeenCalled();
+    fixture.controller.dispose();
+  });
+});
+
 describe('quit prompting channel (the confirmation dialog is open)', () => {
   const REQUEST_ID = '00000000-0000-4000-8000-000000000001';
 

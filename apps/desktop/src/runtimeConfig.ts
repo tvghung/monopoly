@@ -39,6 +39,7 @@ export interface DesktopRuntimeConfig {
   socketUrl?: string;
   platform: 'win32' | 'darwin' | 'linux';
   appVersion: string;
+  localAcceptanceMode?: boolean;
 }
 
 export type DesktopRuntimeConfigResult =

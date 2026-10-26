@@ -29,11 +29,26 @@ export interface AuthoritativeServer {
   shutdown(reason?: string): Promise<void>;
 }
 
+/** The opt-in desktop acceptance process cannot request a wildcard or LAN listener. */
+export function resolveListenerHost(
+  requestedHost: string | undefined,
+  configuredHost: string,
+  environment: NodeJS.ProcessEnv,
+): string {
+  const host = requestedHost ?? configuredHost;
+  if (environment.OTB_LOOPBACK_ACCEPTANCE_MODE === '1' && host !== '127.0.0.1') {
+    throw new Error('Loopback acceptance mode requires the server to bind to 127.0.0.1');
+  }
+  return host;
+}
+
 export async function startAuthoritativeServer(
   options: StartAuthoritativeServerOptions = {},
 ): Promise<AuthoritativeServer> {
   const environment = options.environment ?? process.env;
   const config = options.config ?? loadServerConfig(environment);
+  const loopbackOnly = environment.OTB_LOOPBACK_ACCEPTANCE_MODE === '1';
+  const host = resolveListenerHost(options.host, config.listenHost, environment);
   // A new authoritative process always starts a new, empty match universe.
   const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
 
@@ -89,7 +104,6 @@ export async function startAuthoritativeServer(
     await scheduler.runOnce();
     scheduler.start();
     bots.start();
-    const host = options.host ?? config.listenHost;
     const requestedPort = options.port ?? config.port;
     await new Promise<void>((resolve, reject) => {
       const handleError = (error: Error): void => reject(error);
@@ -103,9 +117,13 @@ export async function startAuthoritativeServer(
     if (!address || typeof address === 'string') {
       throw new Error('Authoritative server did not publish a TCP address');
     }
+    if (loopbackOnly && address.address !== '127.0.0.1') {
+      throw new Error('Loopback acceptance server published a non-loopback TCP address');
+    }
     const port = address.port;
-    console.log(`Server is running on ${host}:${String(port)}`);
-    return { runtime, host, port, shutdown };
+    const actualHost = loopbackOnly ? address.address : host;
+    console.log(`Server is running on ${actualHost}:${String(port)}`);
+    return { runtime, host: actualHost, port, shutdown };
   } catch (error) {
     await shutdown('startup failure').catch(() => undefined);
     throw error;

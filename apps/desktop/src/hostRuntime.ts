@@ -60,6 +60,8 @@ export interface HostRuntimeStatus {
   connectionMode?: 'LAN' | 'ONLINE';
   onlineEndpoint?: string | null;
   onlineState?: 'CONNECTING' | 'AWAITING_ROOM' | 'READY' | 'DISCOVERY_UNAVAILABLE' | 'UNAVAILABLE';
+  /** Main-process-only acceptance mode; the server binds to this computer's IPv4 loopback address. */
+  localAcceptanceMode?: boolean;
   /** Whether this build can make an Online room findable by its code from another network (a registry is configured). */
   discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
@@ -72,6 +74,24 @@ export type HostRuntimeOperationResult =
   | { ok: false; status: HostRuntimeStatus };
 
 export type HostRuntimeListener = (status: HostRuntimeStatus) => void;
+
+type OnlineLease = Readonly<{ roomCode: string; credential: string; proof: string }>;
+
+interface OnlineActivationOperation {
+  epoch: number;
+  helper: ServerHelperLike;
+  roomCode: string;
+  endpoint: string;
+  lease: OnlineLease | undefined;
+  discovery: RoomDiscoveryProvider | undefined;
+  discoveryUnavailable: boolean;
+  abort: AbortController;
+}
+
+interface HostStartOperation {
+  options: HostStartOptions;
+  cancelled: boolean;
+}
 
 export interface ServerHelperLike {
   readonly state: ServerHelperState;
@@ -94,7 +114,7 @@ export interface HostRuntimeOptions {
   interfaceProvider?: (defaultRouteAddress?: string) => NetworkInterfaceCandidate[];
   /** Finds the local address of the default route (see `probeDefaultRouteAddress`); without it no route is preferred. */
   routeProbe?: () => Promise<string | undefined>;
-  helperFactory?: (port: number) => ServerHelperLike;
+  helperFactory?: (port: number, host: string, localAcceptance: boolean) => ServerHelperLike;
   healthCheckIntervalMs?: number;
   connectivity?: ConnectivityProvider;
   discovery?: RoomDiscoveryProvider;
@@ -104,6 +124,10 @@ export interface HostRuntimeOptions {
   onlineFetch?: OnlineFetcher;
   /** Electron's host resolver and cache control for DNS failure diagnostics and recovery. */
   onlineResolver?: OnlineHostResolver;
+  /** Enabled only by the main-process command-line acceptance gate. Never accepted through IPC. */
+  localAcceptance?: boolean;
+  /** Isolated Windows runtime and profile paths for the helper's environment. */
+  helperEnvironment?: NodeJS.ProcessEnv;
 }
 
 const LOOPBACK_HOST = '127.0.0.1';
@@ -165,6 +189,7 @@ function initialStatus(options: HostRuntimeOptions): HostRuntimeStatus {
     selectedLanUrl: null,
     connectionMode: 'LAN',
     onlineEndpoint: null,
+    ...(options.localAcceptance ? { localAcceptanceMode: true } : {}),
   };
 }
 
@@ -172,6 +197,9 @@ export class HostRuntimeController {
   private currentStatus: HostRuntimeStatus;
   private helper: ServerHelperLike | undefined;
   private startPromise: Promise<HostRuntimeStatus> | undefined;
+  private startOperation: HostStartOperation | undefined;
+  private cleanupFailed = false;
+  private tunnelOwned = false;
   private stopPromise: Promise<HostRuntimeStatus> | undefined;
   private recoveryPromise: Promise<void> | undefined;
   private healthTimer: NodeJS.Timeout | undefined;
@@ -184,9 +212,11 @@ export class HostRuntimeController {
 
   /** The registry could not reserve this Online room's code: links work, code lookup across networks does not. */
   private discoveryUnavailable = false;
-  private onlineLease: { roomCode: string; credential: string; proof: string } | undefined;
+  private onlineLease: OnlineLease | undefined;
   private onlineRoomCode: string | undefined;
   private renewalTimer: NodeJS.Timeout | undefined;
+  private onlineActivationOperation: OnlineActivationOperation | undefined;
+  private onlineActivationPromise: Promise<HostRuntimeStatus> | undefined;
   private onlineRecoveryPromise: Promise<void> | undefined;
   private onlineEpoch = 0;
   private onlineAbort: AbortController | undefined;
@@ -211,6 +241,12 @@ export class HostRuntimeController {
     return this.snapshot();
   }
 
+  /** Pending startup and incomplete cleanup are busy even before/after visible hosting. */
+  public get isBusy(): boolean {
+    return Boolean(this.startPromise || this.stopPromise || this.helper || this.tunnelOwned || this.cleanupFailed
+      || this.currentStatus.state !== 'IDLE' && this.currentStatus.state !== 'FAILED');
+  }
+
   public get gamePort(): number | null {
     return this.currentStatus.gamePort;
   }
@@ -227,136 +263,248 @@ export class HostRuntimeController {
   }
 
   public async start(options: HostStartOptions = {}): Promise<HostRuntimeStatus> {
+    if (this.options.localAcceptance && options.mode === 'ONLINE') {
+      throw new Error('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
+    }
+    if (this.options.localAcceptance && options.preferredAddress !== undefined) {
+      throw new Error('LAN_ADDRESS_DISABLED_LOOPBACK_ACCEPTANCE');
+    }
+    // Re-evaluate after shutdown: another waiting request may already own the new start.
+    if (this.stopPromise) {
+      await this.stopPromise;
+      return this.start(options);
+    }
+    if (this.startPromise) {
+      const pending = this.startOperation!.options;
+      if ((options.mode ?? 'LAN') !== (pending.mode ?? 'LAN')) throw new Error('HOST_MODE_CONFLICT');
+      if (options.roomCode !== pending.roomCode) throw new Error('HOST_ROOM_CONFLICT');
+      return this.startPromise;
+    }
     if (this.currentStatus.state === 'READY' || this.currentStatus.state === 'HOSTING') {
       if (options.mode && options.mode !== this.currentStatus.connectionMode) throw new Error('HOST_MODE_CONFLICT');
       if (options.roomCode && options.roomCode !== this.hostRoomCode) throw new Error('HOST_ROOM_CONFLICT');
       return this.status;
     }
-    if (this.startPromise) return this.startPromise;
-    if (this.stopPromise) await this.stopPromise;
-    this.startPromise = this.startInternal(options).catch(error => {
-      if (this.currentStatus.state !== 'FAILED') {
-        this.update({ state: 'FAILED', errorCode: classifyHostRuntimeError(error) });
-      }
-      throw error;
-    }).finally(() => {
+    if (this.helper || this.tunnelOwned || this.cleanupFailed) {
+      await this.stop();
+      return this.start(options);
+    }
+    const operation: HostStartOperation = { options: { ...options }, cancelled: false };
+    this.startOperation = operation;
+    // Install ownership before notifying listeners or invoking any injected async preflight.
+    this.startPromise = Promise.resolve().then(() => this.startInternal(operation)).finally(() => {
+      if (this.startOperation !== operation) return;
+      const wasBusy = this.isBusy;
+      this.startOperation = undefined;
       this.startPromise = undefined;
+      if (wasBusy !== this.isBusy) this.update({});
     });
+    this.update({ state: 'STARTING_SERVER', connectionMode: options.mode ?? 'LAN',
+      errorCode: undefined, diagnostic: undefined });
     return this.startPromise;
   }
 
   public async stop(): Promise<HostRuntimeStatus> {
-    if (this.currentStatus.state === 'IDLE') return this.status;
     if (this.stopPromise) return this.stopPromise;
-    this.onlineAbort?.abort();
+    if (this.currentStatus.state === 'IDLE' && !this.startPromise && !this.helper && !this.tunnelOwned && !this.cleanupFailed) return this.status;
+    if (this.startOperation) this.startOperation.cancelled = true;
     const pendingStart = this.startPromise;
     const pendingRecovery = this.recoveryPromise;
     const pendingOnlineRecovery = this.onlineRecoveryPromise;
-    this.stopPromise = (async () => {
+    this.stopPromise = Promise.resolve().then(async () => {
       await pendingStart?.catch(() => undefined);
       await pendingRecovery?.catch(() => undefined);
       this.onlineEpoch += 1;
       await pendingOnlineRecovery?.catch(() => undefined);
       return this.stopInternal();
-    })().finally(() => {
+    }).finally(() => {
+      const wasBusy = this.isBusy;
       this.stopPromise = undefined;
+      if (wasBusy !== this.isBusy) this.update({});
     });
+    this.cancelOnlineActivation();
+    this.onlineAbort?.abort();
+    this.stopHealthMonitor();
+    this.update({ state: 'STOPPING', errorCode: undefined, diagnostic: undefined });
     return this.stopPromise;
   }
 
+  private assertStartCurrent(operation: HostStartOperation): void {
+    if (operation.cancelled || this.startOperation !== operation) throw new Error('HOST_START_CANCELLED');
+  }
+
   public async activateOnlineRoom(roomCode: string): Promise<HostRuntimeStatus> {
+    if (this.options.localAcceptance) throw new Error('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
     const endpoint = this.currentStatus.onlineEndpoint;
-    if (this.onlineRoomCode !== roomCode || !endpoint
+    const helper = this.helper;
+    if (this.onlineRoomCode !== roomCode || !endpoint || !helper || this.stopPromise
       || this.currentStatus.state !== 'HOSTING') throw new Error('ONLINE_ROOM_NOT_READY');
-    const abort = new AbortController();
-    this.onlineAbort = abort;
+    // Duplicate requests for this owner share one probe, activation and renewal loop.
+    const pending = this.onlineActivationOperation;
+    if (pending && this.onlineActivationPromise && this.ownsOnlineActivation(pending)) {
+      return this.onlineActivationPromise;
+    }
+    this.cancelOnlineActivation();
+    const operation: OnlineActivationOperation = {
+      epoch: this.onlineEpoch, helper, roomCode, endpoint, lease: this.onlineLease,
+      discovery: this.discovery, discoveryUnavailable: this.discoveryUnavailable, abort: new AbortController(),
+    };
+    this.onlineActivationOperation = operation;
+    this.onlineAbort = operation.abort;
+    this.onlineActivationPromise = Promise.resolve().then(() => this.activateOnlineRoomInternal(operation)).finally(() => {
+      if (this.onlineActivationOperation === operation) this.onlineActivationPromise = undefined;
+      if (this.onlineAbort === operation.abort) this.onlineAbort = undefined;
+    });
+    return this.onlineActivationPromise;
+  }
+
+  private ownsOnlineActivation(operation: OnlineActivationOperation): boolean {
+    return this.onlineActivationOperation === operation && !operation.abort.signal.aborted
+      && operation.epoch === this.onlineEpoch && operation.helper === this.helper && !this.stopPromise
+      && this.currentStatus.state === 'HOSTING' && operation.roomCode === this.onlineRoomCode
+      && operation.endpoint === this.currentStatus.onlineEndpoint && operation.lease === this.onlineLease
+      && operation.discovery === this.discovery;
+  }
+
+  private assertOnlineActivationCurrent(operation: OnlineActivationOperation): void {
+    if (!this.ownsOnlineActivation(operation)) throw new Error('ONLINE_ROOM_NOT_READY');
+  }
+
+  private cancelOnlineActivation(): void {
+    const operation = this.onlineActivationOperation;
+    this.onlineActivationOperation = undefined;
+    this.onlineActivationPromise = undefined;
+    operation?.abort.abort();
+    if (operation && this.onlineAbort === operation.abort) this.onlineAbort = undefined;
+    if (this.renewalTimer) clearInterval(this.renewalTimer);
+    this.renewalTimer = undefined;
+  }
+
+  /** Detach cancelled work even when an injected fetch/registry ignores cancellation; observe its late rejection too. */
+  private async awaitOnlineActivation<T>(operation: OnlineActivationOperation, work: () => Promise<T>): Promise<T> {
+    this.assertOnlineActivationCurrent(operation);
+    const signal = operation.abort.signal;
+    let cancelled!: () => void;
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      cancelled = () => reject(new Error('ONLINE_ROOM_NOT_READY'));
+      signal.addEventListener('abort', cancelled, { once: true });
+    });
+    try {
+      const result = await Promise.race([cancellation, Promise.resolve().then(() => {
+        this.assertOnlineActivationCurrent(operation);
+        return work();
+      })]);
+      this.assertOnlineActivationCurrent(operation);
+      return result;
+    } finally {
+      signal.removeEventListener('abort', cancelled);
+    }
+  }
+
+  private async activateOnlineRoomInternal(operation: OnlineActivationOperation): Promise<HostRuntimeStatus> {
+    const { endpoint, roomCode, abort, lease, discovery } = operation;
+    this.assertOnlineActivationCurrent(operation);
     const started = Date.now();
     let roomReady = false;
-    try {
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        if (abort.signal.aborted || endpoint !== this.currentStatus.onlineEndpoint) break;
-        this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'STARTED',
-          elapsedMs: Date.now() - started, attempts: attempt } });
-        let reason: OnlineFailure | undefined;
-        let httpStatus: number | undefined;
-        const timeout = AbortSignal.timeout(8_000);
-        try {
-          const response = await (this.options.onlineFetch ?? fetch)(
-            `${endpoint}/_otb/room?code=${encodeURIComponent(roomCode)}`, {
-              redirect: 'manual', credentials: 'omit', cache: 'no-store',
-              signal: AbortSignal.any([abort.signal, timeout]),
-            },
-          );
-          if (response.ok && !abort.signal.aborted && endpoint === this.currentStatus.onlineEndpoint) {
-            await response.body?.cancel().catch(() => undefined);
-            roomReady = true;
-            this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'PASSED',
-              elapsedMs: Date.now() - started, attempts: attempt } });
-            break;
-          }
-          reason = 'HTTP';
-          httpStatus = response.status;
-        } catch (error) {
-          reason = abort.signal.aborted ? 'CANCELLED' : timeout.aborted ? 'TIMEOUT' : classifyNetworkException(error);
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      this.assertOnlineActivationCurrent(operation);
+      this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'STARTED',
+        elapsedMs: Date.now() - started, attempts: attempt } });
+      let reason: OnlineFailure | undefined;
+      let httpStatus: number | undefined;
+      const timeout = AbortSignal.timeout(8_000);
+      try {
+        const response = await this.awaitOnlineActivation(operation, () => (this.options.onlineFetch ?? fetch)(
+          `${endpoint}/_otb/room?code=${encodeURIComponent(roomCode)}`, {
+            redirect: 'manual', credentials: 'omit', cache: 'no-store',
+            signal: AbortSignal.any([abort.signal, timeout]),
+          },
+        ));
+        this.assertOnlineActivationCurrent(operation);
+        if (response.ok) {
+          await this.awaitOnlineActivation(operation, async () => { await response.body?.cancel().catch(() => undefined); });
+          this.assertOnlineActivationCurrent(operation);
+          roomReady = true;
+          this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'PASSED',
+            elapsedMs: Date.now() - started, attempts: attempt } });
+          this.assertOnlineActivationCurrent(operation);
+          break;
         }
-        const retry = attempt < 3 && !abort.signal.aborted && reason !== 'REDIRECT'
-          && !(httpStatus !== undefined && httpStatus >= 300 && httpStatus < 400);
-        this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM',
-          outcome: retry ? 'RETRYING' : 'FAILED',
-          reason, ...(httpStatus === undefined ? {} : { httpStatus }),
-          elapsedMs: Date.now() - started, attempts: attempt } });
-        if (retry) {
-          await new Promise<void>(resolve => {
-            const cancelled = (): void => { clearTimeout(timer); resolve(); };
-            const timer = setTimeout(() => { abort.signal.removeEventListener('abort', cancelled); resolve(); }, 1_000);
-            abort.signal.addEventListener('abort', cancelled, { once: true });
-          });
-        } else break;
+        reason = 'HTTP';
+        httpStatus = response.status;
+      } catch (error) {
+        this.assertOnlineActivationCurrent(operation);
+        reason = timeout.aborted ? 'TIMEOUT' : classifyNetworkException(error);
       }
-    } finally {
-      if (this.onlineAbort === abort) this.onlineAbort = undefined;
+      const retry = attempt < 3 && reason !== 'REDIRECT'
+        && !(httpStatus !== undefined && httpStatus >= 300 && httpStatus < 400);
+      this.assertOnlineActivationCurrent(operation);
+      this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: retry ? 'RETRYING' : 'FAILED',
+        reason, ...(httpStatus === undefined ? {} : { httpStatus }),
+        elapsedMs: Date.now() - started, attempts: attempt } });
+      this.assertOnlineActivationCurrent(operation);
+      if (!retry) break;
+      await this.awaitOnlineActivation(operation, () => new Promise<void>(resolve => {
+        const cancelled = (): void => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => { abort.signal.removeEventListener('abort', cancelled); resolve(); }, 1_000);
+        abort.signal.addEventListener('abort', cancelled, { once: true });
+      }));
     }
+    this.assertOnlineActivationCurrent(operation);
     if (!roomReady) {
-      if (endpoint === this.currentStatus.onlineEndpoint) this.update({ onlineState: 'UNAVAILABLE' });
+      this.update({ onlineState: 'UNAVAILABLE' });
       throw new Error('ONLINE_ROOM_NOT_READY');
     }
-    // The public link works now. Registry trouble only means the bare code cannot be looked up from another network: it is
-    // reported next to the link, never by hiding it.
-    let discoveryOk = !this.discoveryUnavailable;
-    if (this.onlineLease && this.discovery) {
+    // The link works even if registry discovery fails. All credentials and callbacks belong to this captured owner.
+    let discoveryOk = !operation.discoveryUnavailable;
+    if (lease && discovery) {
       try {
-        await this.discovery.activate(roomCode, this.onlineLease.credential, endpoint);
+        await this.awaitOnlineActivation(operation, () => discovery.activate(lease.roomCode, lease.credential, endpoint));
         discoveryOk = true;
       } catch {
+        this.assertOnlineActivationCurrent(operation);
         discoveryOk = false;
       }
     }
+    this.assertOnlineActivationCurrent(operation);
     this.update({ onlineState: discoveryOk ? 'READY' : 'DISCOVERY_UNAVAILABLE' });
-    if (this.renewalTimer) clearInterval(this.renewalTimer);
-    if (this.onlineLease && this.discovery) {
-      const lease = this.onlineLease;
-      this.renewalTimer = setInterval(() => {
-        void this.discovery?.renew(roomCode, lease.credential).then(() => {
-          if (this.currentStatus.onlineState === 'DISCOVERY_UNAVAILABLE' && this.currentStatus.onlineEndpoint) {
-            this.update({ onlineState: 'READY' });
+    this.assertOnlineActivationCurrent(operation);
+    if (lease && discovery) {
+      let inFlight = false;
+      const timer = setInterval(() => {
+        if (!this.ownsOnlineActivation(operation) || this.renewalTimer !== timer || inFlight) return;
+        inFlight = true;
+        void (async () => {
+          try {
+            await this.awaitOnlineActivation(operation, () => discovery.renew(lease.roomCode, lease.credential));
+            if (this.renewalTimer === timer && this.currentStatus.onlineState === 'DISCOVERY_UNAVAILABLE') {
+              this.update({ onlineState: 'READY' });
+            }
+          } catch {
+            if (this.ownsOnlineActivation(operation) && this.renewalTimer === timer) {
+              this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
+            }
+          } finally {
+            inFlight = false;
           }
-        }, () => {
-          if (this.currentStatus.onlineEndpoint) this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
-        });
+        })();
       }, 30_000);
-      this.renewalTimer.unref();
+      this.renewalTimer = timer;
+      timer.unref();
     }
     return this.status;
   }
 
   public async resolveOnlineRoom(roomCode: string): Promise<string | null> {
+    if (this.options.localAcceptance) throw new Error('ONLINE_DISABLED_LOOPBACK_ACCEPTANCE');
     this.discovery ??= this.options.registryUrl
       ? new HttpRoomDiscovery(this.options.registryUrl, this.options.onlineFetch ?? fetch) : undefined;
     if (!this.discovery) throw new Error('REGISTRY_UNAVAILABLE');
     return this.discovery.resolve(roomCode);
   }
 
-  private async stopOnline(): Promise<void> {
+  private async stopOnline(strict = false): Promise<void> {
+    this.cancelOnlineActivation();
     this.onlineAbort?.abort();
     this.onlineAbort = undefined;
     this.onlineEpoch += 1;
@@ -366,12 +514,24 @@ export class HostRuntimeController {
     this.onlineLease = undefined;
     this.onlineRoomCode = undefined;
     if (lease && this.discovery) await this.discovery.revoke(lease.roomCode, lease.credential).catch(() => undefined);
-    await this.connectivity?.stop().catch(() => undefined);
-    this.update({ onlineEndpoint: null, onlineState: undefined });
+    try {
+      if (this.tunnelOwned) {
+        if (strict) {
+          await this.connectivity?.stop();
+          this.tunnelOwned = false;
+        } else {
+          await this.connectivity?.stop().then(() => { this.tunnelOwned = false; }, () => undefined);
+        }
+      }
+    } finally {
+      this.update({ onlineEndpoint: null, onlineState: undefined });
+    }
   }
 
-  private async openOnlineTunnel(): Promise<string> {
+  private async openOnlineTunnel(operation?: HostStartOperation): Promise<string> {
     if (!this.connectivity || !this.currentStatus.localEndpoint) throw new Error('ONLINE_FAILED');
+    if (operation) this.assertStartCurrent(operation);
+    const helper = this.helper;
     const abort = new AbortController();
     this.onlineAbort = abort;
     this.update({ onlineDiagnostic: undefined });
@@ -379,15 +539,20 @@ export class HostRuntimeController {
     let stage: OnlineStage = 'BINARY_VERIFY';
     let tunnelLost = false;
     let tunnelConnected = false;
-    const report = (diagnostic: OnlineDiagnostic): void => this.update({
-      onlineDiagnostic: { ...diagnostic, tunnelConnected },
-    });
+    const report = (diagnostic: OnlineDiagnostic): void => {
+      if (operation?.cancelled || this.helper !== helper) return;
+      this.update({ onlineDiagnostic: { ...diagnostic, tunnelConnected } });
+    };
     try {
+      if (operation) this.assertStartCurrent(operation);
+      this.tunnelOwned = true;
       const publicEndpoint = await this.connectivity.start(this.currentStatus.localEndpoint, () => {
+        if (operation?.cancelled || this.helper !== helper) return;
         tunnelLost = true;
         if (this.currentStatus.state !== 'HOSTING' || this.onlineRecoveryPromise) abort.abort();
         else void this.recoverOnlineTunnel();
       }, { signal: abort.signal, onConnectionRegistered: () => {
+        if (operation?.cancelled || this.helper !== helper) return;
         tunnelConnected = true;
         if (this.onlineAbort === abort && this.currentStatus.onlineDiagnostic) {
           this.update({ onlineDiagnostic: { ...this.currentStatus.onlineDiagnostic, tunnelConnected: true } });
@@ -396,13 +561,17 @@ export class HostRuntimeController {
         stage = next;
         report({ stage, outcome: 'STARTED', elapsedMs: Date.now() - started, attempts: 1 });
       } });
+      if (operation) this.assertStartCurrent(operation);
       if (abort.signal.aborted) throw new OnlineProbeError('TUNNEL_EXIT');
       stage = 'URL_ANNOUNCEMENT';
       report({ stage, outcome: 'PASSED', elapsedMs: Date.now() - started, attempts: 1 });
+      if (operation) this.assertStartCurrent(operation);
       await probePublicTunnel(publicEndpoint, this.options.onlineFetch ?? fetch, abort.signal, report,
         undefined, this.options.onlineResolver);
+      if (operation) this.assertStartCurrent(operation);
       return publicEndpoint;
     } catch (error) {
+      if (operation?.cancelled) throw error;
       if (tunnelLost) {
         const previous = this.currentStatus.onlineDiagnostic;
         report({ stage: previous?.stage ?? stage, outcome: 'FAILED', reason: 'TUNNEL_EXIT',
@@ -427,6 +596,7 @@ export class HostRuntimeController {
     if (!roomCode) return;
     const wasReady = this.currentStatus.onlineState === 'READY';
     const epoch = ++this.onlineEpoch;
+    this.cancelOnlineActivation();
     this.update({ onlineState: 'UNAVAILABLE', onlineEndpoint: null });
     if (this.renewalTimer) clearInterval(this.renewalTimer);
     this.renewalTimer = undefined;
@@ -451,6 +621,10 @@ export class HostRuntimeController {
   }
 
   public refreshNetwork(preferredAddress?: string): HostRuntimeStatus {
+    if (this.options.localAcceptance) {
+      if (preferredAddress !== undefined) throw new Error('LAN_ADDRESS_DISABLED_LOOPBACK_ACCEPTANCE');
+      return this.status;
+    }
     const interfaces = this.interfaceProvider(this.defaultRouteAddress);
     if (preferredAddress && !interfaces.some(candidate => candidate.address === preferredAddress)) {
       throw new Error('Selected LAN address is not available');
@@ -477,8 +651,10 @@ export class HostRuntimeController {
   }
 
   public async verifyAndRecover(): Promise<HostRuntimeStatus> {
-    await this.refreshRoute();
-    this.refreshNetwork();
+    if (!this.options.localAcceptance) {
+      await this.refreshRoute();
+      this.refreshNetwork();
+    }
     if (this.currentStatus.state !== 'HOSTING' || !this.helper?.checkHealth) return this.status;
     try {
       await this.helper.checkHealth();
@@ -490,7 +666,7 @@ export class HostRuntimeController {
 
   /** The network the device is connected to is the one that carries the default route; a failed probe changes nothing. */
   private async refreshRoute(): Promise<void> {
-    if (!this.options.routeProbe) return;
+    if (this.options.localAcceptance || !this.options.routeProbe) return;
     try {
       this.defaultRouteAddress = await this.options.routeProbe();
     } catch {
@@ -498,101 +674,107 @@ export class HostRuntimeController {
     }
   }
 
-  private async startInternal(options: HostStartOptions): Promise<HostRuntimeStatus> {
-    const requestedPort = validatePort(options.port ?? this.options.defaultPort ?? AUTO_GAME_PORT);
+  private async startInternal(operation: HostStartOperation): Promise<HostRuntimeStatus> {
+    const options = operation.options;
     const online = options.mode === 'ONLINE';
-    if (options.roomCode && !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
-    this.hostRoomCode = options.roomCode;
-    this.hostCreationSecret = randomBytes(32).toString('hex');
-    if (online) {
-      if (!options.roomCode || !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
-      this.onlineRoomCode = options.roomCode;
-      this.discovery ??= this.options.registryUrl
-        ? new HttpRoomDiscovery(this.options.registryUrl, this.options.onlineFetch ?? fetch) : undefined;
-      this.connectivity ??= new CloudflareQuickTunnel(this.options.cloudflaredPath);
-      this.discoveryUnavailable = false;
-      if (this.discovery) {
-        // Registry discovery is optional; a complete HTTPS invitation carries its endpoint and code even when the registry is
-        // unavailable. A code another live room already holds is different: the launcher must draw a new one, otherwise the
-        // code would lead other players to that room.
-        try {
-          const reservation = await this.discovery.reserve(options.roomCode);
-          this.onlineLease = { roomCode: options.roomCode, ...reservation };
-        } catch (error) {
-          if (errorText(error) === 'CODE_TAKEN') throw error;
-          this.discoveryUnavailable = true;
-        }
-      }
-      this.update({ discoveryConfigured: Boolean(this.discovery) });
-    }
-    await this.refreshRoute();
-    const interfaces = this.interfaceProvider(this.defaultRouteAddress);
-    const preferredAddress = options.preferredAddress ?? interfaces[0]?.address;
-    if (!online && (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress))) {
-      const error = new Error('No usable LAN IPv4 interface is available');
-      this.update({
-        state: 'FAILED',
-        interfaces,
-        lanAvailable: false,
-        errorCode: 'NO_LAN_INTERFACE',
-        diagnostic: safeDiagnostic(error),
-      });
-      throw error;
-    }
-
-    this.update({
-      state: 'STARTING_SERVER',
-      connectionMode: online ? 'ONLINE' : 'LAN',
-      onlineState: online ? 'CONNECTING' : undefined,
-      onlineEndpoint: null,
-      gamePort: requestedPort || null,
-      localEndpoint: requestedPort ? `http://${LOOPBACK_HOST}:${String(requestedPort)}` : null,
-      interfaces,
-      lanAvailable: interfaces.length > 0,
-      advertisedEndpoints: requestedPort ? advertisedEndpoints(interfaces, requestedPort) : [],
-      selectedLanUrl: preferredAddress && requestedPort ? `http://${preferredAddress}:${String(requestedPort)}` : null,
-      errorCode: undefined,
-      diagnostic: undefined,
-      onlineDiagnostic: online ? { stage: 'HELPER_READY', outcome: 'STARTED', elapsedMs: 0, attempts: 1 } : undefined,
-    });
-    const helperStarted = Date.now();
+    const localAcceptance = this.options.localAcceptance === true;
+    let failureCode: HostRuntimeErrorCode | undefined;
+    let helperStarted = Date.now();
     try {
-      const helperInfo = await this.startHelperWithRetry(requestedPort);
+      this.assertStartCurrent(operation);
+      const requestedPort = validatePort(options.port ?? this.options.defaultPort ?? AUTO_GAME_PORT);
+      if (options.roomCode && !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
+      this.hostRoomCode = options.roomCode;
+      this.hostCreationSecret = randomBytes(32).toString('hex');
+      if (online) {
+        if (!options.roomCode) throw new Error('INVALID_CODE');
+        this.onlineRoomCode = options.roomCode;
+        this.discovery ??= this.options.registryUrl
+          ? new HttpRoomDiscovery(this.options.registryUrl, this.options.onlineFetch ?? fetch) : undefined;
+        this.connectivity ??= new CloudflareQuickTunnel(this.options.cloudflaredPath);
+        this.discoveryUnavailable = false;
+        if (this.discovery) {
+          // A late reservation still belongs to this start: Stop must revoke it before completing.
+          try {
+            const reservation = await this.discovery.reserve(options.roomCode);
+            this.onlineLease = { roomCode: options.roomCode, ...reservation };
+          } catch (error) {
+            this.assertStartCurrent(operation);
+            if (errorText(error) === 'CODE_TAKEN') throw error;
+            this.discoveryUnavailable = true;
+          }
+          this.assertStartCurrent(operation);
+        }
+        this.update({ discoveryConfigured: Boolean(this.discovery) });
+      }
+      this.assertStartCurrent(operation);
+      if (!localAcceptance) await this.refreshRoute();
+      this.assertStartCurrent(operation);
+      const interfaces = localAcceptance ? [] : this.interfaceProvider(this.defaultRouteAddress);
+      const preferredAddress = localAcceptance ? undefined : options.preferredAddress ?? interfaces[0]?.address;
+      if (!localAcceptance && !online && (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress))) {
+        failureCode = 'NO_LAN_INTERFACE';
+        this.update({ interfaces, lanAvailable: false });
+        throw new Error('No usable LAN IPv4 interface is available');
+      }
+
+      this.assertStartCurrent(operation);
+      this.update({
+        state: 'STARTING_SERVER',
+        connectionMode: online ? 'ONLINE' : 'LAN',
+        onlineState: online ? 'CONNECTING' : undefined,
+        onlineEndpoint: null,
+        gamePort: requestedPort || null,
+        localEndpoint: requestedPort ? `http://${LOOPBACK_HOST}:${String(requestedPort)}` : null,
+        interfaces,
+        lanAvailable: interfaces.length > 0,
+        advertisedEndpoints: !localAcceptance && requestedPort ? advertisedEndpoints(interfaces, requestedPort) : [],
+        selectedLanUrl: !localAcceptance && preferredAddress && requestedPort
+          ? `http://${preferredAddress}:${String(requestedPort)}` : null,
+        errorCode: undefined,
+        diagnostic: undefined,
+        onlineDiagnostic: online ? { stage: 'HELPER_READY', outcome: 'STARTED', elapsedMs: 0, attempts: 1 } : undefined,
+      });
+      this.assertStartCurrent(operation);
+      helperStarted = Date.now();
+      const helperInfo = await this.startHelperWithRetry(requestedPort, operation);
+      this.assertStartCurrent(operation);
       const port = helperInfo.port;
       this.update({
         state: online ? 'STARTING_SERVER' : 'HOSTING',
         gamePort: port,
         localEndpoint: `http://${LOOPBACK_HOST}:${String(port)}`,
         interfaces,
-        advertisedEndpoints: advertisedEndpoints(interfaces, port),
-        selectedLanUrl: preferredAddress ? `http://${preferredAddress}:${String(port)}` : null,
+        advertisedEndpoints: localAcceptance ? [] : advertisedEndpoints(interfaces, port),
+        selectedLanUrl: !localAcceptance && preferredAddress ? `http://${preferredAddress}:${String(port)}` : null,
         lanAvailable: interfaces.length > 0,
         errorCode: undefined,
         diagnostic: undefined,
         onlineDiagnostic: online ? { stage: 'HELPER_READY', outcome: 'PASSED',
           elapsedMs: Date.now() - helperStarted, attempts: 1 } : undefined,
       });
+      this.assertStartCurrent(operation);
       this.startHealthMonitor();
       if (online && this.connectivity) {
-        const publicEndpoint = await this.openOnlineTunnel();
+        const publicEndpoint = await this.openOnlineTunnel(operation);
+        this.assertStartCurrent(operation);
         this.update({ state: 'HOSTING', onlineEndpoint: publicEndpoint, onlineState: 'AWAITING_ROOM' });
       }
+      this.assertStartCurrent(operation);
       return this.status;
     } catch (error) {
+      // Stop owns cancelled-start cleanup after the acquisition promise has settled.
+      if (operation.cancelled) throw new Error('HOST_START_CANCELLED', { cause: error });
       if (online && this.currentStatus.onlineDiagnostic?.stage === 'HELPER_READY'
         && this.currentStatus.onlineDiagnostic.outcome === 'STARTED') {
         this.update({ onlineDiagnostic: { stage: 'HELPER_READY', outcome: 'FAILED', reason: 'HELPER',
           elapsedMs: Date.now() - helperStarted, attempts: 1 } });
       }
-      await this.stopOnline();
-      this.detachHelperListener();
-      await this.helper?.stop().catch(() => undefined);
-      this.helper = undefined;
-      this.hostCreationSecret = undefined;
-      this.hostRoomCode = undefined;
+      await this.stopOwnedResources().catch(() => undefined);
+      if (operation.cancelled) throw new Error('HOST_START_CANCELLED', { cause: error });
       this.update({
         state: 'FAILED',
-        errorCode: classifyHostRuntimeError(error),
+        errorCode: failureCode ?? classifyHostRuntimeError(error),
         diagnostic: online ? this.currentStatus.onlineDiagnostic
           ? `${this.currentStatus.onlineDiagnostic.stage}:${this.currentStatus.onlineDiagnostic.reason ?? 'UNKNOWN'}`
           : 'ONLINE_FAILED' : safeDiagnostic(error),
@@ -602,47 +784,80 @@ export class HostRuntimeController {
   }
 
   private createHelper(port: number): ServerHelperLike {
-    return this.options.helperFactory?.(port)
+    const localAcceptance = this.options.localAcceptance === true;
+    const host = localAcceptance ? LOOPBACK_HOST : LAN_BIND_HOST;
+    const hostEnvironment = this.onlineLease ? {
+      OTB_REGISTRY_ROOM_CODE: this.onlineLease.roomCode,
+      OTB_REGISTRY_PROOF: this.onlineLease.proof,
+      OTB_ONLINE_ROOM_CODE: this.onlineLease.roomCode,
+      OTB_HOST_ROOM_CODE: this.hostRoomCode,
+      OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
+    } : {
+      ...(this.onlineRoomCode ? { OTB_ONLINE_ROOM_CODE: this.onlineRoomCode } : {}),
+      ...(this.hostRoomCode ? { OTB_HOST_ROOM_CODE: this.hostRoomCode } : {}),
+      OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
+    };
+    return this.options.helperFactory?.(port, host, localAcceptance)
       ?? new ServerHelperController({
         modulePath: this.options.helperPath,
         clientDist: this.options.clientDist,
-        host: LAN_BIND_HOST,
+        host,
         port,
-        environment: this.onlineLease ? {
-          OTB_REGISTRY_ROOM_CODE: this.onlineLease.roomCode,
-          OTB_REGISTRY_PROOF: this.onlineLease.proof,
-          OTB_ONLINE_ROOM_CODE: this.onlineLease.roomCode,
-          OTB_HOST_ROOM_CODE: this.hostRoomCode,
-          OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
-        } : {
-          ...(this.onlineRoomCode ? { OTB_ONLINE_ROOM_CODE: this.onlineRoomCode } : {}),
-          ...(this.hostRoomCode ? { OTB_HOST_ROOM_CODE: this.hostRoomCode } : {}),
-          OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
-        },
+        environment: { ...(localAcceptance ? this.options.helperEnvironment : {}), ...hostEnvironment },
+        ...(localAcceptance ? { loopbackOnly: true, inheritEnvironment: false } : {}),
       });
   }
 
-  private async startHelperWithRetry(requestedPort: number): Promise<ServerHelperInfo> {
+  private async startHelperWithRetry(requestedPort: number, operation: HostStartOperation): Promise<ServerHelperInfo> {
     const attempts = requestedPort === AUTO_GAME_PORT ? AUTO_PORT_ATTEMPTS : 1;
     let lastError: unknown;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
+      this.assertStartCurrent(operation);
       const helper = this.createHelper(requestedPort);
       this.helper = helper;
+      this.assertStartCurrent(operation);
       try {
         const info = await helper.start();
-        if (info.host !== LAN_BIND_HOST
+        this.assertStartCurrent(operation);
+        const expectedHost = this.options.localAcceptance ? LOOPBACK_HOST : LAN_BIND_HOST;
+        if (info.host !== expectedHost
           || requestedPort !== AUTO_GAME_PORT && info.port !== requestedPort) {
-          throw new Error('Server helper announced an unexpected LAN endpoint');
+          throw new Error('Server helper announced an unexpected bind address');
         }
         this.attachHelperListener(helper);
         return info;
       } catch (error) {
+        this.assertStartCurrent(operation);
         lastError = error;
-        await helper.stop().catch(() => undefined);
+        await this.stopHelper();
+        this.assertStartCurrent(operation);
         if (requestedPort !== AUTO_GAME_PORT || classifyHostRuntimeError(error) !== 'PORT_OCCUPIED') break;
       }
     }
     throw lastError instanceof Error ? lastError : new Error(errorText(lastError));
+  }
+
+  private async stopHelper(): Promise<void> {
+    const helper = this.helper;
+    this.detachHelperListener();
+    await helper?.stop();
+    // Retain ownership on failure so another Stop can retry instead of forgetting a live resource.
+    if (this.helper === helper) this.helper = undefined;
+  }
+
+  private async stopOwnedResources(): Promise<void> {
+    this.stopHealthMonitor();
+    let failed = false;
+    let firstError: unknown;
+    try { await this.stopOnline(true); } catch (error) { failed = true; firstError = error; }
+    try { await this.stopHelper(); } catch (error) {
+      if (!failed) firstError = error;
+      failed = true;
+    }
+    this.hostCreationSecret = undefined;
+    this.hostRoomCode = undefined;
+    this.cleanupFailed = failed;
+    if (failed) throw firstError;
   }
 
   private attachHelperListener(helper: ServerHelperLike): void {
@@ -707,26 +922,11 @@ export class HostRuntimeController {
   }
 
   private async stopInternal(): Promise<HostRuntimeStatus> {
-    await this.stopOnline();
-    this.stopHealthMonitor();
-    this.update({ state: 'STOPPING', errorCode: undefined, diagnostic: undefined });
-    let firstError: unknown;
-    this.detachHelperListener();
     try {
-      await this.helper?.stop();
+      await this.stopOwnedResources();
     } catch (error) {
-      firstError = error;
-    }
-    this.helper = undefined;
-    this.hostCreationSecret = undefined;
-    this.hostRoomCode = undefined;
-    if (firstError) {
-      this.update({
-        state: 'FAILED',
-        errorCode: classifyHostRuntimeError(firstError),
-        diagnostic: safeDiagnostic(firstError),
-      });
-      throw firstError instanceof Error ? firstError : new Error(errorText(firstError));
+      this.update({ state: 'FAILED', errorCode: classifyHostRuntimeError(error), diagnostic: safeDiagnostic(error) });
+      throw error instanceof Error ? error : new Error(errorText(error));
     }
     this.update({
       state: 'IDLE',
