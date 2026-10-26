@@ -678,7 +678,7 @@ function offerResult(offer: ReturnType<typeof projectPrivateOffer>, now: Date): 
 export function emitOfferResult(
   io: AppServer,
   offer: ReturnType<typeof projectPrivateOffer>,
-  event: 'offer declined' | 'offer accepted' | 'offer cancelled',
+  event: 'offer declined' | 'offer accepted',
   now: Date,
 ): void {
   const result = offerResult(offer, now);
@@ -731,17 +731,7 @@ export const acceptOfferCommand: GameCommand<
     // Read before the trade: a debtor who cannot cover the debt even after this sale is eliminated by it.
     const proposerName = state.players[offer.proposerPlayerId]?.name;
     const recipientName = state.players[offer.recipientPlayerId]?.name;
-    const previewState = structuredClone(state);
-    const preview = executeVoluntaryTrade(
-      previewState,
-      offer.proposerPlayerId,
-      offer.recipientPlayerId,
-      offer.offered,
-      offer.requested,
-      offer.id,
-      tradeOptions,
-    );
-    if (!preview.ok) throw new CommandError('CONFLICT', preview.reason ?? 'Giao dịch không còn hợp lệ.');
+    // executeVoluntaryTrade validates the full bundle before its first mutation, so the room draft needs one apply.
     const result = executeVoluntaryTrade(
       state,
       offer.proposerPlayerId,
@@ -789,9 +779,7 @@ export const acceptOfferCommand: GameCommand<
   },
   publish(io, room, result, input) {
     emitOfferResult(io, projectPrivateOffer(result.resolved, room), 'offer accepted', input.now);
-    for (const record of result.cancelled) {
-      emitOfferResult(io, projectPrivateOffer(record, room), 'offer cancelled', input.now);
-    }
+    emitCancelledOffers(io, room, result.cancelled, input.now);
     broadcastRoom(io, input.runtime, room);
   },
 };

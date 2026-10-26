@@ -1,5 +1,7 @@
 import {
   colorSetRentPercent,
+  forcedSaleGrossValue,
+  houseSaleRefund,
   scaleRentPercent,
   tileState,
   type GameState,
@@ -32,7 +34,7 @@ export const sellHouse = (state: GameState, playerId: PlayerId, tileID: number):
   if (!player || !owned || owned.id !== playerId || isPropertyLockedByLandingDecision(state, tileID)) return false;
   if (!tile.houseCost || owned.houses <= 0) return false;
   owned.houses -= 1;
-  const refund = Math.floor(tile.houseCost / 2);
+  const refund = houseSaleRefund(tile.houseCost);
   player.accountBalance += refund;
   recordPublicGameplayEvent(state, {
     type: 'MONEY_TRANSFER',
@@ -59,5 +61,5 @@ export const sellHouse = (state: GameState, playerId: PlayerId, tileID: number):
 export const forcedSaleGrossPrice = (tileID: number, houses: number): number => {
   const tile = tileState[tileID];
   const invested = tile?.tileType === 'normal' ? houses * (tile.houseCost ?? 0) : 0;
-  return Math.floor(((tile?.price ?? 0) + invested) * 70 / 100);
+  return forcedSaleGrossValue(tile?.price ?? 0, invested);
 };

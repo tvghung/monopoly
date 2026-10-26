@@ -335,6 +335,49 @@ describe('property transfer', () => {
       .toBe(state.privateState.privateGameplayEventsByPlayer.p1.events[0]?.eventId);
     expect(state.privateState.privateGameplayEventsByPlayer.p3).toBeUndefined();
   });
+
+  it('rejects stale assets and insufficient balances without mutating the trade state', () => {
+    const staleAsset = makeState();
+    addPlayer(staleAsset, 'p1');
+    addPlayer(staleAsset, 'p2');
+    addPlayer(staleAsset, 'p3');
+    own(staleAsset, 1, 'p3');
+    const staleBefore = structuredClone(staleAsset);
+    expect(executeVoluntaryTrade(
+      staleAsset,
+      'p1',
+      'p2',
+      { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+    )).toMatchObject({ ok: false, reason: 'Gói giao dịch đã lỗi thời.' });
+    expect(staleAsset).toEqual(staleBefore);
+
+    const proposerShort = makeState();
+    addPlayer(proposerShort, 'p1', { accountBalance: 50 });
+    addPlayer(proposerShort, 'p2');
+    const proposerBefore = structuredClone(proposerShort);
+    expect(executeVoluntaryTrade(
+      proposerShort,
+      'p1',
+      'p2',
+      { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+    )).toMatchObject({ ok: false, reason: 'Bên đề nghị không đủ tiền.' });
+    expect(proposerShort).toEqual(proposerBefore);
+
+    const recipientShort = makeState();
+    addPlayer(recipientShort, 'p1');
+    addPlayer(recipientShort, 'p2', { accountBalance: 50 });
+    const recipientBefore = structuredClone(recipientShort);
+    expect(executeVoluntaryTrade(
+      recipientShort,
+      'p1',
+      'p2',
+      { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+      { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+    )).toMatchObject({ ok: false, reason: 'Bên nhận không đủ tiền.' });
+    expect(recipientShort).toEqual(recipientBefore);
+  });
 });
 
 describe('applyCard', () => {
@@ -1085,5 +1128,39 @@ describe('checkBalance / winner', () => {
     // Removing a seat that is already gone changes nothing, so the card cannot be duplicated.
     expect(removePlayerFromGame(state, 'p2')).toBe(false);
     expect(deck.drawPile.filter(id => id === cardId)).toHaveLength(1);
+  });
+
+  it('returns held cards from both decks to their source draw piles and preserves card conservation', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    addPlayer(state, 'p2');
+    const cardIds = ['chance-jail-free', 'chest-jail-free'] as const;
+
+    for (const cardId of cardIds) {
+      const deck = state.privateState.decks[gameCardsById[cardId].sourceDeck];
+      expect(deck.drawPile.filter(id => id === cardId)).toHaveLength(1);
+      deck.drawPile = deck.drawPile.filter(id => id !== cardId);
+    }
+    state.players.p2.heldJailFreeCardIds = [...cardIds];
+
+    const conservedCounts = () => cardIds.map(cardId => (
+      Object.values(state.privateState.decks)
+        .flatMap(deck => deck.drawPile)
+        .filter(id => id === cardId).length
+      + Object.values(state.players)
+        .flatMap(player => player.heldJailFreeCardIds)
+        .filter(id => id === cardId).length
+    ));
+    expect(conservedCounts()).toEqual([1, 1]);
+
+    expect(removePlayerFromGame(state, 'p2', 'BANKRUPT', { deferWinner: true })).toBe(true);
+
+    expect(conservedCounts()).toEqual([1, 1]);
+    for (const cardId of cardIds) {
+      const deck = state.privateState.decks[gameCardsById[cardId].sourceDeck];
+      expect(deck.drawPile.at(-1)).toBe(cardId);
+    }
+    expect(removePlayerFromGame(state, 'p2', 'BANKRUPT', { deferWinner: true })).toBe(false);
+    expect(conservedCounts()).toEqual([1, 1]);
   });
 });

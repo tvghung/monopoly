@@ -1,5 +1,4 @@
 import {
-  gameCardsById,
   type FinishedPlayerReason,
   type GameState,
   type PendingTurnContinuation,
@@ -30,22 +29,9 @@ const ownedTileIds = (state: GameState, playerId: PlayerId): number[] => (
     .sort((left, right) => left - right)
 );
 
-const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
-  const player = state.players[playerId];
-  if (!player) return;
-  for (const cardId of player.heldJailFreeCardIds) {
-    const deck = gameCardsById[cardId]?.sourceDeck;
-    if (deck && !state.privateState.decks[deck].drawPile.includes(cardId)) {
-      state.privateState.decks[deck].drawPile.push(cardId);
-    }
-  }
-  player.heldJailFreeCardIds = [];
-};
-
 const finishElimination = (state: GameState, playerId: PlayerId, reason: FinishedPlayerReason): void => {
   const player = state.players[playerId];
   if (!player) return;
-  returnHeldCardsToDeck(state, playerId);
   removePlayerFromGame(state, playerId, reason, { deferWinner: true });
   checkWinner(state);
 };

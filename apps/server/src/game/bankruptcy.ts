@@ -1,4 +1,4 @@
-import { gameCardsById, type GameState, type PendingTurnContinuation, type PlayerId } from '@monopoly/shared';
+import { type GameState, type PendingTurnContinuation, type PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
   settleAffordableClaims,
@@ -13,22 +13,9 @@ import {
 import { resolveRescueWithoutPayment } from './rescueResolution';
 import { checkWinner, removePlayerFromGame } from './turn';
 
-const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
-  const player = state.players[playerId];
-  if (!player) return;
-  for (const cardId of player.heldJailFreeCardIds) {
-    const deck = gameCardsById[cardId]?.sourceDeck;
-    if (deck && !state.privateState.decks[deck].drawPile.includes(cardId)) {
-      state.privateState.decks[deck].drawPile.push(cardId);
-    }
-  }
-  player.heldJailFreeCardIds = [];
-};
-
 const finishElimination = (state: GameState, playerId: PlayerId, reason: 'BANKRUPT' | 'LEFT'): void => {
   const player = state.players[playerId];
   if (!player) return;
-  returnHeldCardsToDeck(state, playerId);
   removePlayerFromGame(state, playerId, reason, { deferWinner: true });
   checkWinner(state);
 };
