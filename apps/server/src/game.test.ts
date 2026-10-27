@@ -46,6 +46,9 @@ import {
 // `boardState.players` in sync with the `players` map and seeds the first player
 // as the current player, mirroring how the real game is set up.
 
+const P1 = '00000000-0000-4000-8000-000000000001';
+const P2 = '00000000-0000-4000-8000-000000000002';
+
 const makePlayer = (over: Partial<Player> = {}): Player => ({
   name: 'Player',
   currentTile: 0,
@@ -164,27 +167,27 @@ describe('sanitizeName / escapeHtml', () => {
 describe('movePlayer', () => {
   it('advances without a bonus when it does not pass GO', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 5, accountBalance: 1500 });
-    movePlayer(state, 'p1', 3);
-    expect(state.players.p1.currentTile).toBe(8);
-    expect(state.players.p1.accountBalance).toBe(1500);
+    addPlayer(state, P1, { currentTile: 5, accountBalance: 1500 });
+    movePlayer(state, P1, 3);
+    expect(state.players[P1].currentTile).toBe(8);
+    expect(state.players[P1].accountBalance).toBe(1500);
   });
 
   it('wraps the board and pays the 200 GO reward exactly once', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 39, accountBalance: 1500 });
-    movePlayer(state, 'p1', 3);
-    expect(state.players.p1.currentTile).toBe(2);
-    expect(state.players.p1.accountBalance).toBe(1700);
+    addPlayer(state, P1, { currentTile: 39, accountBalance: 1500 });
+    movePlayer(state, P1, 3);
+    expect(state.players[P1].currentTile).toBe(2);
+    expect(state.players[P1].accountBalance).toBe(1700);
     expect(state.boardState.logs.filter((log) => log.includes('200.000 ₫'))).toHaveLength(1);
   });
 
   it('pays the GO bonus when landing exactly on GO', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 38, accountBalance: 1500 });
-    movePlayer(state, 'p1', 2);
-    expect(state.players.p1.currentTile).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(1700);
+    addPlayer(state, P1, { currentTile: 38, accountBalance: 1500 });
+    movePlayer(state, P1, 2);
+    expect(state.players[P1].currentTile).toBe(0);
+    expect(state.players[P1].accountBalance).toBe(1700);
   });
 });
 
@@ -559,18 +562,18 @@ describe('resolveTile', () => {
 
   it('awards exactly 200 once when a card advances to GO', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 7, accountBalance: 1500 });
-    addPlayer(state, 'p2');
+    addPlayer(state, P1, { currentTile: 7, accountBalance: 1500 });
+    addPlayer(state, P2);
     putCardOnTop(state, 'chance', 'chance-advance-start');
 
-    resolveTile(state, 'p1', 0);
+    resolveTile(state, P1, 0);
 
-    expect(state.players.p1.currentTile).toBe(7);
-    expect(state.players.p1.accountBalance).toBe(1500);
-    revealAndDismissPendingCard(state, 'p1');
+    expect(state.players[P1].currentTile).toBe(7);
+    expect(state.players[P1].accountBalance).toBe(1500);
+    revealAndDismissPendingCard(state, P1);
 
-    expect(state.players.p1.currentTile).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(1700);
+    expect(state.players[P1].currentTile).toBe(0);
+    expect(state.players[P1].accountBalance).toBe(1700);
     expect(state.boardState.logs.filter((log) => log.includes('200.000 ₫'))).toHaveLength(1);
     expect(state.boardState.gameplayEvents.events.filter(event => event.type === 'PASS_GO')).toHaveLength(1);
     expect(state.boardState.gameplayEvents.events.filter(
@@ -789,14 +792,14 @@ describe('resolveTile', () => {
 
   it('does not attribute card-destination rent to the original dice total', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { name: 'An', currentTile: 7, accountBalance: 1000 });
-    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
-    own(state, 5, 'p2', { color: 'blue' });
+    addPlayer(state, P1, { name: 'An', currentTile: 7, accountBalance: 1000 });
+    addPlayer(state, P2, { name: 'Bình', accountBalance: 1000 });
+    own(state, 5, P2, { color: 'blue' });
     putCardOnTop(state, 'chance', 'chance-trip-ga-ha-noi');
 
-    resolveTile(state, 'p1', 4);
+    resolveTile(state, P1, 4);
 
-    revealAndDismissPendingCard(state, 'p1');
+    revealAndDismissPendingCard(state, P1);
 
     const rentMessage = `An phải trả ${formatMoney(25)} tiền thuê Ga Hà Nội cho Bình.`;
     expect(state.boardState.logs).toContainEqual(expect.stringContaining(rentMessage));

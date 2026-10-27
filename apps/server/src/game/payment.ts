@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type {
   DebtClaim,
+  MoneyEndpoint,
+  MoneyTransferReason,
   DebtSource,
   GameState,
   PaymentQueue,
@@ -25,6 +27,7 @@ export interface CompulsoryPayment {
   creditorPlayerId?: PlayerId;
   amount: number;
   source: DebtSource;
+  rentRevenueShare?: DebtClaim['rentRevenueShare'];
 }
 
 export interface QueuePaymentOptions {
@@ -63,6 +66,7 @@ export const createPaymentQueue = (
     amount: payment.amount,
     remainingAmount: payment.amount,
     source: payment.source,
+    ...(payment.rentRevenueShare ? { rentRevenueShare: structuredClone(payment.rentRevenueShare) } : {}),
     status: 'PENDING',
   }));
   return {
@@ -93,6 +97,40 @@ export const enqueuePayments = (
   return queue;
 };
 
+/** Credit one realized receipt. A07 uses cumulative integer rounding across all partial payments. */
+export function creditPaymentReceipt(
+  state: GameState,
+  claim: Pick<DebtClaim, 'creditor' | 'creditorPlayerId' | 'source' | 'rentRevenueShare'>,
+  amount: number,
+  source: MoneyEndpoint,
+  operationId: string,
+  reasonOverride?: MoneyTransferReason,
+): void {
+  if (amount <= 0) return;
+  const creditor = claim.creditor === 'PLAYER' && claim.creditorPlayerId ? state.players[claim.creditorPlayerId] : undefined;
+  const share = claim.rentRevenueShare;
+  const beneficiary = share && state.players[share.beneficiaryPlayerId];
+  let diverted = 0;
+  if (share && beneficiary && creditor && claim.source.kind === 'RENT') {
+    share.grossCollected += amount;
+    const cumulative = Math.min(share.capUnits, Math.floor(share.grossCollected * share.percent / 100));
+    diverted = Math.max(0, cumulative - share.forwardedUnits);
+    share.forwardedUnits += diverted;
+    beneficiary.accountBalance += diverted;
+  }
+  if (creditor) creditor.accountBalance += amount - diverted;
+  const reason = reasonOverride ?? (claim.source.kind === 'RENT' ? 'RENT' : claim.source.kind === 'TAX' ? 'TAX' : claim.source.kind === 'CARD' ? 'CARD' : 'OTHER');
+  if (amount > diverted) recordPublicGameplayEvent(state, {
+    type: 'MONEY_TRANSFER', source,
+    destination: creditor && claim.creditorPlayerId ? { kind: 'PLAYER', playerId: claim.creditorPlayerId } : { kind: 'BANK' },
+    amount: amount - diverted, reason, operationId,
+  });
+  if (diverted > 0 && share) recordPublicGameplayEvent(state, {
+    type: 'MONEY_TRANSFER', source, destination: { kind: 'PLAYER', playerId: share.beneficiaryPlayerId },
+    amount: diverted, reason, operationId,
+  });
+}
+
 const settleCurrentClaim = (state: GameState, queue: PaymentQueue): boolean => {
   const claim = queue.orderedClaims[queue.activeClaimIndex];
   if (!claim) return false;
@@ -103,30 +141,28 @@ const settleCurrentClaim = (state: GameState, queue: PaymentQueue): boolean => {
     return true;
   }
   const debtor = state.players[claim.debtorPlayerId];
-  const creditor = claim.creditor === 'PLAYER' && claim.creditorPlayerId
-    ? state.players[claim.creditorPlayerId]
-    : undefined;
   if (!debtor) throw new Error('Khoản nợ đang chờ không có debtor hợp lệ.');
-  const paid = Math.min(debtor.accountBalance, claim.remainingAmount);
-  debtor.accountBalance -= paid;
-  if (creditor) creditor.accountBalance += paid;
-  if (paid > 0) {
-    recordPublicGameplayEvent(state, {
-      type: 'MONEY_TRANSFER',
-      source: { kind: 'PLAYER', playerId: claim.debtorPlayerId },
-      destination: claim.creditor === 'PLAYER' && claim.creditorPlayerId
-        ? { kind: 'PLAYER', playerId: claim.creditorPlayerId }
-        : { kind: 'BANK' },
-      amount: paid,
-      reason: claim.source.kind === 'RENT'
-        ? 'RENT'
-        : claim.source.kind === 'TAX'
-          ? 'TAX'
-          : claim.source.kind === 'CARD' ? 'CARD' : 'OTHER',
-      operationId: queue.operationId,
-    });
+  // A rent-share beneficiary may also be the payer. Returned income can settle the same obligation again.
+  while (claim.remainingAmount > 0) {
+    let paid = Math.min(debtor.accountBalance, claim.remainingAmount);
+    const share = claim.rentRevenueShare;
+    if (share?.beneficiaryPlayerId === claim.debtorPlayerId) {
+      // Net a guaranteed receipt within this atomic payment; cumulative rounding must not strand the last unit.
+      let low = 0; let high = claim.remainingAmount;
+      while (low < high) {
+        const candidate = low + Math.ceil((high - low) / 2);
+        const rebate = Math.max(0, Math.min(share.capUnits,
+          Math.floor((share.grossCollected + candidate) * share.percent / 100)) - share.forwardedUnits);
+        if (candidate - rebate <= debtor.accountBalance) low = candidate;
+        else high = candidate - 1;
+      }
+      paid = low;
+    }
+    if (paid <= 0) break;
+    debtor.accountBalance -= paid;
+    claim.remainingAmount -= paid;
+    creditPaymentReceipt(state, claim, paid, { kind: 'PLAYER', playerId: claim.debtorPlayerId }, queue.operationId);
   }
-  claim.remainingAmount -= paid;
   if (claim.remainingAmount > 0) return false;
   claim.status = 'SETTLED';
   queue.activeClaimIndex += 1;

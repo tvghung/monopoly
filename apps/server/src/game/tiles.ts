@@ -4,7 +4,6 @@ import {
   CARD_MINIMUM_VISIBLE_MS,
   effectiveRailroadOwnershipCount,
   effectiveUtilityOwnershipCount,
-  formatMoney,
   gameCardsById,
   railroadRentForCount,
   tileState,
@@ -27,6 +26,7 @@ import { sendToLog } from './text';
 import { completeTurnResolution } from './turn';
 import { recordPublicGameplayEvent } from './semanticEvents';
 import { activityPlayerName, recordActivityEvent } from './activity';
+import { createPowerUpRentEvent, openPowerUpRentReaction, resolvePowerUpRent } from './powerUps/economy';
 
 export interface TileResolutionOptions {
   now?: number;
@@ -172,13 +172,12 @@ const resolveOwnedProperty = (
     }
     return true;
   }
-  logRentLiability(state, playerId, tileID, amount, diceResult, cause);
-  return processPayments(
-    state,
-    [payment(playerId, 'PLAYER', amount, { kind: 'RENT', tileID }, property.id)],
-    continuation,
-    options,
+  const rentEvent = createPowerUpRentEvent(
+    state, playerId, property.id, tileID, amount, diceResult, cause, continuation, options.now,
   );
+  if (!rentEvent) return true;
+  if (openPowerUpRentReaction(state, rentEvent, options.now)) return false;
+  return resolvePowerUpRent(state, rentEvent, null, null, options.now, false);
 };
 
 // The owner's Ga count for rent includes their teammate's in 2v2 (Solo counts only the owner's own).
@@ -203,33 +202,6 @@ interface CardResolutionResult {
 }
 
 type RentResolutionCause = 'DICE' | 'CARD';
-
-const rentPropertyLabel = (tileID: number, houses: number): string => {
-  const tile = tileState[tileID];
-  if (tile?.tileType === 'normal' && houses === 5) return `Khách sạn tại ${tile.streetName}`;
-  if (tile?.tileType === 'normal' && houses > 0) return `${houses} Nhà tại ${tile.streetName}`;
-  return tile?.streetName ?? `ô ${tileID}`;
-};
-
-const logRentLiability = (
-  state: GameState,
-  debtorPlayerId: PlayerId,
-  tileID: number,
-  amount: number,
-  diceResult: number,
-  cause: RentResolutionCause,
-): void => {
-  if (amount <= 0) return;
-  const debtor = state.players[debtorPlayerId];
-  const property = state.boardState.ownedProps[tileID];
-  const owner = property ? state.players[property.id] : undefined;
-  if (!debtor || !property || property.id === debtorPlayerId || !owner) return;
-  const diceCopy = cause === 'DICE' ? `${debtor.name} đổ được ${diceResult} và ` : `${debtor.name} `;
-  sendToLog(
-    state,
-    `${diceCopy}phải trả ${formatMoney(amount)} tiền thuê ${rentPropertyLabel(tileID, property.houses)} cho ${owner.name}.`,
-  );
-};
 
 export const applyCard = (
   state: GameState,

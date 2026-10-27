@@ -7,6 +7,7 @@
 | Runtime network schemas | `socketSchemas.ts` | Cùng instruction |
 | Board/color groups/cards | `tileState.ts`, Chance/Chest files | [board-and-card-data.instruction.md](./board-and-card-data.instruction.md) |
 | Số luật (start cash, thưởng Xuất Phát, tiền thuê Ga/Công Ty, bán bắt buộc, vòng chờ tù, thời hạn) | `rules.ts` | Cùng instruction; `apps/server/src/rulesContract.test.ts` giữ khớp với server |
+| Power-up state, strict commands and owner/public DTOs (CURRENT DEVELOPMENT) | `packages/shared/src/powerUps.ts`, `packages/shared/src/powerUpConfig.ts`, `packages/shared/src/powerUpEffects.ts` | [Power-up contract](../GameCore/power-ups.instruction.md) |
 
 Hằng số hiện hành: `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) và `ROOM_SNAPSHOT_SCHEMA_VERSION`
 (`apps/server/src/rooms.ts`). Lịch sử từng version, bản phát hành chứa nó và các phần CURRENT DEVELOPMENT sau v1.10.0

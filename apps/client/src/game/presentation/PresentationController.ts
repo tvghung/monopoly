@@ -1,6 +1,8 @@
 import type { PrivatePlayerState, PublicRoomState } from '@monopoly/shared';
 import { NOOP_AUDIO_PORT, type AudioPort } from '../../audio/types';
-import type { MoneyTransferPresentationEvent } from './events/types';
+import { derivePowerUpFeedback } from './events/powerUpFeedback';
+import type { PowerUpOwnerState } from '@monopoly/shared';
+import type { PowerUpFeedbackPresentationEvent, MoneyTransferPresentationEvent } from './events/types';
 import { derivePresentationEvents, semanticEventsSince } from './events/derivePresentationEvents';
 import { createBasicExecutors } from './executors/basicExecutors';
 import { createDiceExecutor } from './executors/diceExecutor';
@@ -31,6 +33,7 @@ export class PresentationController {
   private disposalGeneration = 0;
   private disposed = false;
   private hidden = false;
+  private privatePowerUps: { playerId: string; state: PowerUpOwnerState | undefined; turnNumber: number } | null = null;
   private readonly privateSemanticSequences = new Map<string, number>();
   private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
@@ -48,6 +51,15 @@ export class PresentationController {
     const executors = {
       ...createBasicExecutors(this.store, audio),
       ...createSemanticExecutors(this.store, audio),
+      POWER_UP_FEEDBACK: {
+        run: async (event: PowerUpFeedbackPresentationEvent, context: import('./queue/types').AnimationExecutionContext) => {
+          if (context.signal.aborted || context.isCurrent?.() === false) return;
+          this.store.setPowerUpFeedback(event);
+          try { await context.wait(context.reducedMotion ? 0 : 650); }
+          finally { if (context.isCurrent?.() !== false) this.store.setPowerUpFeedback(null); }
+        },
+        finish: () => this.store.setPowerUpFeedback(null),
+      },
       ROLL_DICE: createDiceExecutor(this.store, audio),
       MOVE_CHARACTER: createMovementExecutor(this.store, audio),
     };
@@ -156,11 +168,23 @@ export class PresentationController {
     return true;
   }
 
+  /** A successful command ACK proves the local action; sync/reset epochs suppress late feedback after reconnect. */
+  public showPowerUpFeedback(kind: PowerUpFeedbackPresentationEvent['kind'], definitionId: string, name: string, instanceId: string, expectedEpoch: number): void {
+    const room = this.acceptedRoom;
+    if (!room || this.hidden || this.disposed || this.store.getSnapshot().presentationResetEpoch !== expectedEpoch) return;
+    void this.queue.enqueue({ type: 'POWER_UP_FEEDBACK', id: room.roomId + ':ack:' + instanceId + ':' + kind,
+      entityId: instanceId, roomId: room.roomId, roomVersion: room.version, kind, definitionId, name });
+  }
+
   public acceptPrivatePlayerState(
     privateState: PrivatePlayerState,
     room: PublicRoomState,
     source: 'LIVE_UPDATE' | 'SESSION_SYNC',
   ): void {
+    const previousPowerUps = this.privatePowerUps?.playerId === privateState.playerId ? this.privatePowerUps.state : undefined;
+    const previousTurnNumber = this.privatePowerUps?.turnNumber;
+    this.privatePowerUps = { playerId: privateState.playerId, state: privateState.powerUps, turnNumber: room.gameState.boardState.turnNumber };
+    if (source === 'LIVE_UPDATE' && !this.hidden) void Promise.all(this.queue.enqueueMany(derivePowerUpFeedback(previousPowerUps, privateState.powerUps, room, previousTurnNumber)));
     const previousSequence = this.privateSemanticSequences.get(privateState.playerId);
     const stream = privateState.gameplayEvents;
     this.privateSemanticSequences.set(privateState.playerId, stream.sequence);

@@ -1,6 +1,8 @@
 import type { GameState } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createPowerUpInventory, createPowerUpState } from '../game/powerUps/foundation';
+import { putCard } from '../game/powerUps/testFixtures';
 import { InMemoryPersistenceStore } from '../persistence/inMemory.js';
 import type { RoomRecord } from '../persistence/types.js';
 import {
@@ -198,5 +200,20 @@ describe('bot information boundary', () => {
     for (const cardId of room.gameSnapshot.gameState.privateState.decks.chance.drawPile.slice(0, 3)) {
       expect(serialized).not.toContain(`"${cardId}"`);
     }
+  });
+});
+
+
+describe('08B bot Power-up command integration',()=>{
+  it('activates an owned card, waits for a human Reaction, then completes its dice decision',async()=>{
+    const original=await vi.importActual<typeof import('./policy.js')>('./policy.js');vi.mocked(policy.decideBotAction).mockImplementation(original.decideBotAction);
+    const{subject,persistence,host,botId,roomId}=await pausedBotGame();
+    await mutateRoom(persistence,roomId,room=>{const state=hydrateGameState(room.gameSnapshot,room.status);state.privateState.powerUps=createPowerUpState();state.privateState.powerUps.inventories[botId]=createPowerUpInventory(3);state.privateState.powerUps.inventories[host.playerId]=createPowerUpInventory(3);putCard(state,botId,'A01');putCard(state,host.playerId,'D02');storeGameState(room.gameSnapshot,state,room.status)});
+    subject.bots?.start();subject.bots?.notify(roomId);
+    await vi.waitFor(async()=>expect((await stored(persistence,roomId)).gameSnapshot.gameState.privateState.powerUps!.pendingReaction, JSON.stringify(subject.bots?.journal(roomId))).toBeTruthy(),{timeout:3000});
+    await pause(400);const pending=await stored(persistence,roomId);expect(pending.gameSnapshot.gameState.boardState.rollSequence).toBe(0);expect(subject.bots?.journal(roomId).some(line=>line.includes('refused'))).toBe(false);
+    okOf(await ack(cb=>host.socket.emit('respond power up',{eventId:pending.gameSnapshot.gameState.privateState.powerUps!.pendingReaction!.eventId,action:'PASS'},cb)));
+    await vi.waitFor(async()=>expect((await stored(persistence,roomId)).gameSnapshot.gameState.boardState.rollSequence).toBe(1));
+    expect(subject.bots?.journal(roomId).some(line=>line.includes('activate power up'))).toBe(true);
   });
 });

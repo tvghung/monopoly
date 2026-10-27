@@ -1,4 +1,7 @@
 import { CommandError } from '../socket/errors';
+import { powerUpCheckpointClear } from './powerUpCheckpoint';
+import { hasMandatoryPowerUpReward } from '../game/powerUps/foundation';
+import { autoPassBotReaction, expirePowerUpInteraction } from '../game/powerUps/runtime';
 import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
@@ -190,6 +193,15 @@ export async function recoverRoomIfDue(
         deadlineAt: candidateCard.deadlineAt,
       }
     : undefined;
+  const candidatePowerUps = candidate.gameSnapshot.gameState.privateState.powerUps;
+  const expectedPowerUpReaction = candidatePowerUps?.pendingReaction
+    && Date.parse(candidatePowerUps.pendingReaction.deadlineAt) <= now.getTime()
+    ? { eventId: candidatePowerUps.pendingReaction.eventId, deadlineAt: candidatePowerUps.pendingReaction.deadlineAt }
+    : undefined;
+  const expectedPowerUpTrade = candidatePowerUps?.pendingTrade
+    && Date.parse(candidatePowerUps.pendingTrade.deadlineAt) <= now.getTime()
+    ? { requestId: candidatePowerUps.pendingTrade.requestId, deadlineAt: candidatePowerUps.pendingTrade.deadlineAt }
+    : undefined;
 
   try {
     const committed = await commitRoomCommand(runtime, roomId, async (context): Promise<RecoveryResult> => {
@@ -221,6 +233,20 @@ export async function recoverRoomIfDue(
         forcedSalePlayers.push(proposal.sellerPlayerId, proposal.buyerPlayerId);
         state.privateState.forcedSaleProposal = null;
         changed = true;
+      }
+
+      const pendingPowerUps = state.privateState.powerUps;
+      const reaction = pendingPowerUps?.pendingReaction;
+      const trade = pendingPowerUps?.pendingTrade;
+      if (
+        (expectedPowerUpReaction && reaction?.eventId === expectedPowerUpReaction.eventId
+          && reaction.deadlineAt === expectedPowerUpReaction.deadlineAt
+          && Date.parse(reaction.deadlineAt) <= now.getTime())
+        || (expectedPowerUpTrade && trade?.requestId === expectedPowerUpTrade.requestId
+          && trade.deadlineAt === expectedPowerUpTrade.deadlineAt
+          && Date.parse(trade.deadlineAt) <= now.getTime())
+      ) {
+        if (expirePowerUpInteraction(state, now.getTime())) changed = true;
       }
 
       if (expectedPayment) {
@@ -266,6 +292,10 @@ export async function recoverRoomIfDue(
         state.boardState.turnRecovery = null;
         changed = true;
         if (isCurrentTurn && !state.boardState.winner && !state.boardState.paymentQueue) {
+          const pendingMovement = state.privateState.powerUps?.pendingMovement;
+          if (pendingMovement?.playerId === recovery.playerId && pendingMovement.turnNumber === recovery.turnNumber) {
+            state.privateState.powerUps!.pendingMovement = null;
+          }
           const player = state.players[recovery.playerId];
           if (state.turnInfo.pendingPropertyDecision && player) {
             const continuation = state.turnInfo.pendingPropertyDecision.continuation;
@@ -291,6 +321,24 @@ export async function recoverRoomIfDue(
         }
       }
 
+      const powerUps = state.privateState.powerUps;
+      if (powerUps && expectedRecovery && hasMandatoryPowerUpReward(state, expectedRecovery.playerId)
+        && !isSeatPresent(runtime.connections, room.gameSnapshot, expectedRecovery.playerId)) {
+        (powerUps.offlineDeadlines ??= {})[expectedRecovery.playerId] ??= expectedRecovery.deadlineAt;
+      }
+      if (powerUps && powerUpCheckpointClear(state) && Object.entries(powerUps.offlineDeadlines ?? {}).some(
+        ([owner, deadline]) => Date.parse(deadline) <= now.getTime()
+          && !isSeatPresent(runtime.connections, room.gameSnapshot, owner),
+      )) changed = true;
+      for (let count = 0; count < 100; count += 1) {
+        const reaction = state.privateState.powerUps?.pendingReaction;
+        const responder = reaction
+          ? ('defenderPlayerId' in reaction ? reaction.defenderPlayerId : reaction.debtorPlayerId)
+          : null;
+        if (!responder || room.gameSnapshot.members[responder]?.kind !== 'BOT') break;
+        if (!autoPassBotReaction(state, now.getTime())) break;
+        changed = true;
+      }
       if (!changed) throw new StaleDeadlineError();
       return { changed, cancelledOffers, forcedSalePlayers };
     }, now);
@@ -319,6 +367,16 @@ export async function reconcileTurnPresence(
   if (isCurrentConnection?.() === false) return;
   await recoverRoomIfDue(io, runtime, roomId, now);
   if (isCurrentConnection?.() === false) return;
+  if (reconnectingPlayerId) {
+    const rewardRoom = await runtime.persistence.rooms.findById(roomId);
+    if (isCurrentConnection?.() === false) return;
+    if (rewardRoom?.gameSnapshot.gameState.privateState.powerUps?.offlineDeadlines?.[reconnectingPlayerId]) {
+      const cleared = await commitRoomCommand(runtime, roomId, () => {
+        if (isCurrentConnection?.() === false) throw new CommandError('SESSION_REPLACED', 'This connection is no longer active.');
+      }, now);
+      if (cleared.room) broadcastRoom(io, runtime, cleared.room);
+    }
+  }
   const current = await runtime.persistence.rooms.findById(roomId);
   if (isCurrentConnection?.() === false) return;
   if (!current || current.status !== 'IN_PROGRESS') return;
@@ -396,6 +454,16 @@ export async function armDisconnectedCurrentPlayer(
   const room = await runtime.persistence.rooms.findById(roomId);
   if (room) assertSupportedRoomSnapshot(room);
   const board = room?.gameSnapshot.gameState.boardState;
+  if (room?.status === 'IN_PROGRESS' && !board?.winner
+    && room.gameSnapshot.gameState.privateState.powerUps?.rewardQueue.offers.some(
+      offer => offer.ownerPlayerId === disconnectedPlayerId && offer.stage !== 'COMPLETED',
+    ) && (board?.currentPlayer.id !== disconnectedPlayerId || board.paymentQueue || board.turnRecovery
+      || room.gameSnapshot.gameState.privateState.forcedSaleProposal
+      || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW')) {
+    const armed = await commitRoomCommand(runtime, roomId, () => {}, now);
+    if (armed.room) broadcastRoom(io, runtime, armed.room);
+    return;
+  }
   if (
     !room
     || room.status !== 'IN_PROGRESS'

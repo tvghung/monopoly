@@ -59,6 +59,7 @@ export const difficultyProfile = (game: PublicGameState): DifficultyProfile => (
 );
 
 export type BotCommandName =
+  | 'activate power up'
   | 'roll dice'
   | 'buy property'
   | 'do not buy'
@@ -297,6 +298,21 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
 
   switch (task.kind) {
     case 'TURN': {
+      const powerUps = view.self.powerUps;
+      if (!self.isJail && !powerUps?.activeUsedThisTurn) {
+        const opponents = Object.entries(game.players).filter(([id]) => !isAlly(game, botId, id));
+        const ownedTile = Object.entries(board.ownedProps).find(([, property]) => property.id === botId);
+        for (const card of powerUps?.inventory?.cards ?? []) {
+          const instanceId = card.instanceId;
+          let payload: object | null = null;
+          if (card.definitionId === 'A08') payload = { instanceId };
+          if (['A02', 'D04'].includes(card.definitionId) && ownedTile) payload = { instanceId, targetTileID: Number(ownedTile[0]) };
+          const target = opponents.find(([id, player]) => card.definitionId === 'A01' ? player.accountBalance > 0
+            : card.definitionId === 'A09' ? Object.values(board.ownedProps).some(property => property.id === id && property.houses > 0) : true);
+          if (['A01', 'A03', 'A05', 'A07', 'A09', 'A10'].includes(card.definitionId) && target) payload = { instanceId, targetPlayerId: target[0] };
+          if (payload) return decision(action('activate power up', payload), action('roll dice'), 'use an eligible owned Active before rolling');
+        }
+      }
       const window = board.teamPlay.reviveWindows.find(candidate => candidate.survivorPlayerId === botId);
       if (window && board.turnNumber > window.openedAtTurnNumber && cash - REVIVE_COST >= reserve + 200) {
         return decision(action('revive teammate'), action('roll dice'), `revive cash=${String(cash)} reserve=${String(reserve)}`);

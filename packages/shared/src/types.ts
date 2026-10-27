@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 14 as const;
+export const SOCKET_PROTOCOL_VERSION = 16 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -441,6 +441,8 @@ export type GameDecks = Record<CardDeck, DeckState>;
 export type DeckCounts = Record<CardDeck, number>;
 
 export interface GamePrivateState {
+  // Server-private reward aggregate, initialized by the authoritative START hook.
+  powerUps?: import('./powerUps').PowerUpState;
   decks: GameDecks;
   forcedSaleProposal?: ForcedSaleProposal | null;
   privateGameplayEventsByPlayer: Record<PlayerId, GameplayEventStream>;
@@ -469,9 +471,11 @@ export interface Player {
 
 export interface PublicPlayer extends Omit<Player, 'heldJailFreeCardIds' | 'teamSlot'> {
   getOutOfJailCardCount: number;
+  powerUps?: import('./powerUps').PowerUpPublicSummary;
 }
 
 export interface PrivatePlayerState {
+  powerUps?: import('./powerUps').PowerUpOwnerState;
   playerId: PlayerId;
   heldJailFreeCardIds: GameCardId[];
   forcedSaleProposal?: ForcedSaleProposal | null;
@@ -564,7 +568,17 @@ export type DebtSource =
 
 export type DebtClaimStatus = 'PENDING' | 'SETTLED' | 'BANKRUPT';
 
+/** Private settlement bookkeeping: split A07 only from rent actually received, including Bank contributions. */
+export interface RentRevenueShare {
+  beneficiaryPlayerId: PlayerId;
+  percent: number;
+  capUnits: number;
+  grossCollected: number;
+  forwardedUnits: number;
+}
+
 export interface DebtClaim {
+  rentRevenueShare?: RentRevenueShare;
   claimId: DebtClaimId;
   debtorPlayerId: PlayerId;
   creditor: DebtCreditor;

@@ -50,8 +50,10 @@ artifact, runtime RAM không bao giờ nạp; các helper `upgradeRoomSnapshotV4
 | V12 | V11 | v1.7.0 (GitHub Release 2026-10-09; minimum supported version 1.7.0) | Ghế bot: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`, `MAX_BOTS_PER_ROOM`. Snapshot V10 hợp lệ như V11 (thiếu `kind` = HUMAN); không có file SQL mới. |
 | V13 (v1.8.0, published 2026-10-09) | V11 (unchanged) | v1.8.0 GitHub Release | Host-only, lobby-only set bot difficulty plus optional BoardState.botDifficulty; fixed Income Tax 150; sell house and make offer requestId idempotency. No snapshot migration. |
 | V14 | V11 (unchanged) | v1.9.0 GitHub Release (2026-10-11); unchanged in v1.9.1 and v1.10.0 (2026-10-20) | Income Tax is 30% of current nonnegative cash, rounded down; revealed-card minimum visibility is enforced by the server and presented to each client; minimum supported version 1.9.0. No persisted snapshot fields or migration. |
+| V15 | V12 | CURRENT DEVELOPMENT — Power-up Phases 04–05 (unreleased) | Strict START reward selection/resolution commands; owner-private reward/inventory projection; public held count/category summary; FIFO reward continuation and offline recovery markers. |
+| V16 | V13 | CURRENT DEVELOPMENT — Power-up Phases 06–08 (unreleased) | Strict Active, Reaction, U06 trade and movement-continuation commands; private active effects, usage, deadlines, pending reactions/trades/movement and status data; public authorized reaction and inventory summaries. |
 
-The V13 row preserves the v1.8.0 release contract. v1.9.0 changes Income Tax from fixed 150 to 30% of current nonnegative cash, rounded down, and requires a revealed card to remain visible for at least three seconds per client. A protocol-13 client and protocol-14 host would use different tax rules, so strict handshake equality rejects mixed versions. These changes add no persisted snapshot fields; schema 11 remains unchanged.
+The V13 row preserves the v1.8.0 release contract. v1.9.0 changes Income Tax from fixed 150 to 30% of current nonnegative cash, rounded down, and requires a revealed card to remain visible for at least three seconds per client. A protocol-13 client and protocol-14 host would use different tax rules, so strict handshake equality rejects mixed versions. These changes add no persisted snapshot fields; schema 11 remains unchanged. Protocol 15 / snapshot 12 are the Phase 04–05 predecessor contract; current development is protocol 16 / snapshot 13. Neither has been released.
 
 HISTORICAL — Quyết định bump 12 → 13 (R-1 RESOLVED trong v1.8.0): v1.7.0 và nhánh trước phát hành cùng ở protocol 12 nhưng khác luật hiển thị (thuế 200 / 150)
 và khác hợp đồng lệnh. Một desktop guest dùng renderer đóng gói riêng hiển thị thuế từ shared data của chính nó trong khi host
@@ -195,3 +197,19 @@ không phụ thuộc client hay board label hiện tại. Host process thoát th
 - Public no-leak assertion cho token/hash/session/private offer/exact deck order and
   hidden pre-reveal card state; activity projection remains spectator-safe.
 - Socket actor spoof/spectator rejection và save-failure no-publish.
+
+## HISTORICAL — Phase 02 optional Power-up foundation
+
+Phase 02 introduced an optional server-private `GamePrivateState.powerUps`, validated through `gamePrivateStateSchema` in `packages/shared/src/stateSchemas.ts`. It made no wire DTO/schema/event or live rule changes at that point. Its projection and lifecycle limitations were superseded by later phases. See the current [Power-up runtime](../GameCore/power-ups.instruction.md) and [design history](../../powerups/02_TECHNICAL_DESIGN.md).
+
+### Protocol 15 / RAM snapshot 12 — HISTORICAL phase contract, Power-up Phases 04–05
+
+Protocol 15 adds strict `select power up` and `resolve power up` commands; owner-only reward/inventory DTOs on existing private state; and public held count/category summaries. Snapshot 12 adds per-owner FIFO, outcomes, saved continuation and offline recovery markers. This is the Phase 04–05 predecessor, not the current working-branch contract. Details: [socket contract](../Api/socket-powerups.instruction.md), [domain](../GameCore/power-ups.instruction.md).
+
+### Protocol 16 / RAM snapshot 13 — HISTORICAL, pre-08B development contract
+
+Protocol 16 adds strict `activate power up`, `respond power up`, `resolve power up trade`, and `continue power up movement` commands. Snapshot 13 adds the authoritative Active allowance, effect statuses, pending movement/reaction/trade state and resolved event identities. Owner-private projection carries card descriptions, effect statuses, eligible reaction IDs and the 15-second server deadline; public projection exposes only inventory counts/category totals. Every event uses the existing authenticated, serialized room transaction path. Older handshakes and snapshot envelopes are refused rather than migrated across a host exit. This is unreleased CURRENT DEVELOPMENT; the published v1.10.0 contract remains protocol 14 / snapshot 11. See the current [socket contract](../Api/socket-powerups.instruction.md) and [domain runtime](../GameCore/power-ups.instruction.md).
+
+### Protocol 16 / RAM snapshot 14 — CURRENT DEVELOPMENT, Phase 08B
+
+Snapshot 14 adds optional private `DebtClaim.rentRevenueShare` cumulative collection/forwarding counters. A07 divides actual receipts, including D07/D08 and Emergency Rescue, with one 100-unit cap and cumulative integer rounding across liquidation. The metadata never enters the public or owner DTO. Socket event names, payloads, ACKs and projections retain protocol 16; no update-policy or product-version change is needed. Snapshot 13 envelopes are refused; the RAM-only runtime has no process-restart migration. Tests: `apps/server/src/game/powerUps/stabilization.test.ts`, `apps/server/src/socket.powerUps.allCards.integration.test.ts`.

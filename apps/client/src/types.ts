@@ -17,6 +17,12 @@ export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 export type DevelopmentRequest = Parameters<ClientToServerEvents['resolve development']>[0];
 
 export interface SocketFunctions {
+  activatePowerUp?: (request: Parameters<ClientToServerEvents['activate power up']>[0]) => Promise<Ack>;
+  respondPowerUp?: (request: Parameters<ClientToServerEvents['respond power up']>[0]) => Promise<Ack>;
+  resolvePowerUpTrade?: (request: Parameters<ClientToServerEvents['resolve power up trade']>[0]) => Promise<Ack>;
+  continuePowerUpMovement?: (request: Parameters<ClientToServerEvents['continue power up movement']>[0]) => Promise<Ack>;
+  selectPowerUp?: (request: Parameters<ClientToServerEvents['select power up']>[0]) => Promise<Ack>;
+  resolvePowerUp?: (request: Parameters<ClientToServerEvents['resolve power up']>[0]) => Promise<Ack>;
   rollDice: () => Promise<Ack>;
   buyProperty: (operationId: string) => void | Promise<Ack>;
   doNotBuy?: (operationId: string) => void | Promise<Ack>;

@@ -12,6 +12,9 @@ import {
   type TeamId,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
+import { hasMandatoryPowerUpReward } from './powerUps/foundation';
+import { cleanupPowerUpOwner, cleanupFinishedPowerUps } from './powerUps/rewards';
+import { beginPowerUpPlayerTurn, completePowerUpOwnerTurn } from './powerUps/lifecycle';
 import { transferProperty } from './transfer';
 import { recordPublicGameplayEvent } from './semanticEvents';
 import { recordActivityEvent } from './activity';
@@ -76,6 +79,7 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
       paymentQueue.rescue = null;
     }
     for (const claim of paymentQueue.orderedClaims) {
+      if (claim.rentRevenueShare?.beneficiaryPlayerId === playerId) delete claim.rentRevenueShare;
       if (claim.debtorPlayerId === playerId && claim.status === 'PENDING') {
         claim.status = 'BANKRUPT';
         claim.remainingAmount = 0;
@@ -83,6 +87,7 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
       if (claim.creditor === 'PLAYER' && claim.creditorPlayerId === playerId) {
         claim.creditor = 'BANK';
         delete claim.creditorPlayerId;
+        delete claim.rentRevenueShare;
       }
     }
     while (
@@ -139,6 +144,7 @@ const removePlayerRecord = (
     state,
     `<span class="bankrupt-message">${removalMessage(player.name, reason)}</span>`,
   );
+  cleanupPowerUpOwner(state, playerId);
   delete state.players[playerId];
   clearPlayerReferences(state, playerId);
   // 2v2: a bankruptcy (never a voluntary leave) leaves the player revivable by their surviving teammate for a few turns.
@@ -238,6 +244,7 @@ const checkTeamWinner = (state: GameState): void => {
   };
   state.boardState.winningTeamId = winningTeamId;
   closeAllReviveWindows(state);
+  cleanupFinishedPowerUps(state);
   recordActivityEvent(state, {
     type: 'GAME_FINISHED',
     winnerPlayerId: representativeId,
@@ -270,6 +277,7 @@ export const checkWinner = (state: GameState): void => {
       characterId: winner.characterId,
       teamId: winner.teamId,
     };
+    cleanupFinishedPowerUps(state);
     recordActivityEvent(state, {
       type: 'GAME_FINISHED',
       winnerPlayerId: playerId,
@@ -327,6 +335,7 @@ export const removePlayerFromGame = (
     ) {
       progressJailForSelectedPlayer(state);
       resetForFreshTurn(state);
+      beginPowerUpPlayerTurn(state, state.boardState.currentPlayer.id);
     }
   }
   rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
@@ -368,6 +377,7 @@ export const checkBalance = (state: GameState, advanceTurn = false): void => {
   if (currentWasRemoved) {
     progressJailForSelectedPlayer(state);
     resetForFreshTurn(state);
+    beginPowerUpPlayerTurn(state, state.boardState.currentPlayer.id);
     bankrupt.forEach((playerId) => {
       rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
     });
@@ -386,6 +396,17 @@ export const checkBalance = (state: GameState, advanceTurn = false): void => {
 export const nextTurn = (state: GameState): void => {
   const previousCurrent = state.boardState.currentPlayer.id;
   checkBalance(state);
+  // Balance cleanup already hands a removed actor's turn to the successor. Never suspend an instruction to end that fresh turn.
+  if (previousCurrent && !state.players[previousCurrent]) return;
+  const owner = state.boardState.currentPlayer.id;
+  if (!state.boardState.winner && state.players[owner] && hasMandatoryPowerUpReward(state, owner)) {
+    state.privateState.powerUps!.continuation ??= { playerId: owner, turnNumber: state.boardState.turnNumber };
+    return;
+  }
+
+  if (previousCurrent && state.players[previousCurrent]) {
+    completePowerUpOwnerTurn(state, previousCurrent);
+  }
 
   state.boardState.turnRecovery = null;
   state.turnInfo = {};
@@ -410,6 +431,7 @@ export const nextTurn = (state: GameState): void => {
     : playerIds[(currentIndex + 1) % playerIds.length];
   progressJailForSelectedPlayer(state);
   resetForFreshTurn(state);
+  beginPowerUpPlayerTurn(state, state.boardState.currentPlayer.id);
 };
 
 export type TurnResolutionOutcome = 'ADVANCE_TURN';
@@ -453,6 +475,10 @@ export const completeTurnResolution = (
     return null;
   }
 
+  if (hasMandatoryPowerUpReward(state, continuation.playerId)) {
+    state.privateState.powerUps!.continuation = structuredClone(continuation);
+    return null;
+  }
   nextTurn(state);
   return 'ADVANCE_TURN';
 };

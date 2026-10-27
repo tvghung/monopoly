@@ -750,6 +750,14 @@ export class PresentationStore implements PresentationStoreLike {
     this.moneyTransferCleanupTimers.set(signal.id, cleanupTimer);
   }
 
+  public setPowerUpFeedback(powerUpFeedback: PresentationState['powerUpFeedback']): void {
+    this.state = { ...this.state, powerUpFeedback }; this.notify();
+  }
+
+  public setPowerUpTargets(powerUpTargets: PresentationState['powerUpTargets']): void {
+    this.state = { ...this.state, powerUpTargets }; this.notify();
+  }
+
   public setCardPresentation(signal: CardPresentationSignal | null): void {
     this.state = { ...this.state, cardPresentation: signal };
     this.notify();

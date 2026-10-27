@@ -6,6 +6,7 @@ import { AdmissionLimiter } from './admissionLimiter';
 import { registerBotHandlers } from './bots';
 import { registerBuildingHandlers } from './building';
 import { registerCardHandlers } from './card';
+import { registerPowerUpHandlers } from './powerUps';
 import { registerChatHandlers } from './chat';
 import { registerDebtHandlers } from './debt';
 import { registerJailHandlers } from './jail';
@@ -84,6 +85,7 @@ export function registerSocketHandlers(
     registerTradingHandlers(io, socket, runtime);
     registerBuildingHandlers(io, socket, runtime);
     registerCardHandlers(io, socket, runtime);
+    registerPowerUpHandlers(io, socket, runtime);
     registerJailHandlers(io, socket, runtime);
   });
 }

@@ -30,6 +30,13 @@ import type {
   TradeBundle,
 } from './types';
 import type { ClientToServerEvents } from './events';
+import {
+  continuePowerUpMovementRequestSchema,
+  powerUpActivationRequestSchema as activatePowerUpRequestSchema,
+  powerUpReactionRequestSchema,
+  resolvePowerUpTradeRequestSchema,
+} from './powerUps';
+export { activatePowerUpRequestSchema, continuePowerUpMovementRequestSchema, resolvePowerUpTradeRequestSchema };
 
 export const playerIdSchema = z.uuid();
 export const roomIdSchema = z.uuid();
@@ -228,6 +235,16 @@ export const offerActionSchema = z.strictObject({
   offerId: offerIdSchema,
 }) satisfies z.ZodType<OfferAction>;
 
+export const selectPowerUpRequestSchema = z.strictObject({
+  offerId: z.uuid(), selectedIndex: z.number().int().min(0).max(2),
+});
+export const resolvePowerUpRequestSchema = z.discriminatedUnion('action', [
+  z.strictObject({ offerId: z.uuid(), action: z.literal('CLAIM') }),
+  z.strictObject({ offerId: z.uuid(), action: z.literal('DECLINE') }),
+  z.strictObject({ offerId: z.uuid(), action: z.literal('REPLACE'), replaceInstanceId: z.uuid() }),
+]);
+export const respondPowerUpRequestSchema = powerUpReactionRequestSchema;
+
 type ClientEventPayloadSchemas = {
   [EventName in keyof ClientToServerEvents]: z.ZodType;
 };
@@ -236,6 +253,12 @@ type ClientEventPayloadSchemas = {
 // with no business payload use `undefined`; their only argument is the typed
 // acknowledgement callback and is never parsed as user data.
 export const clientEventPayloadSchemas = {
+  'activate power up': activatePowerUpRequestSchema,
+  'respond power up': respondPowerUpRequestSchema,
+  'resolve power up trade': resolvePowerUpTradeRequestSchema,
+  'continue power up movement': continuePowerUpMovementRequestSchema,
+  'select power up': selectPowerUpRequestSchema,
+  'resolve power up': resolvePowerUpRequestSchema,
   'join room': joinRoomRequestSchema,
   'resume session': resumeSessionRequestSchema,
   'set ready': setReadyRequestSchema,

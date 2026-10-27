@@ -9,6 +9,7 @@ import type {
 } from '@monopoly/shared';
 
 export type PresentationEventType =
+  | 'POWER_UP_FEEDBACK'
   | 'ROLL_DICE'
   | 'MOVE_CHARACTER'
   | 'LAND_TILE'
@@ -161,7 +162,16 @@ export interface CardInteractionChangedPresentationEvent extends PresentationEve
   revealedCardId?: GameCardId;
 }
 
+export interface PowerUpFeedbackPresentationEvent extends PresentationEventBase {
+  type: 'POWER_UP_FEEDBACK';
+  kind: 'ATTACK' | 'SHIELD' | 'BLOCK' | 'REFLECT' | 'LEGENDARY' | 'STATUS' | 'EXPIRED' | 'CONSUMED';
+  definitionId: string;
+  name: string;
+  tileId?: number;
+}
+
 export type PresentationEvent =
+  | PowerUpFeedbackPresentationEvent
   | RollDicePresentationEvent
   | MoveCharacterPresentationEvent
   | LandTilePresentationEvent

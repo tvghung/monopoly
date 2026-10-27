@@ -17,6 +17,7 @@ import {
 
 interface TileBodyBatchProps {
   tiles: readonly BoardTileRenderModel[];
+  powerUpTargets?: import('../../../presentation/store/types').PresentationState['powerUpTargets'];
   /** The hovered tile lives in a store, not in props: a hover repaints instance colours here and never re-renders the board. */
   hoverStore?: TileHoverStore;
   selectedTileId?: number | null;
@@ -36,6 +37,7 @@ function useStableBodyEntries(next: BodyEntry[]): BodyEntry[] {
 
 function TileBodyBatch({
   tiles,
+  powerUpTargets,
   hoverStore,
   selectedTileId = null,
   onSelect,
@@ -53,11 +55,11 @@ function TileBodyBatch({
   // crossing a tile costs one colour write and one frame, not a React render.
   useLayoutEffect(() => {
     const apply = () => {
-      if (applyTileBodyColors(mesh, entries, hoverStore?.get() ?? null, selectedTileId)) invalidate();
+      if (applyTileBodyColors(mesh, entries, hoverStore?.get() ?? null, selectedTileId, powerUpTargets)) invalidate();
     };
     apply();
     return hoverStore?.subscribe(apply);
-  }, [entries, hoverStore, invalidate, mesh, selectedTileId]);
+  }, [entries, hoverStore, invalidate, mesh, selectedTileId, powerUpTargets]);
 
   useFrame(() => {
     syncTileBodyOffsets(mesh, entries, tileId => motionController?.getTileOffsetY(tileId) ?? 0, previousOffsetsRef.current);

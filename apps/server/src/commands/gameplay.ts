@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   areTeammates,
   BAIL_AMOUNT,
@@ -9,6 +10,10 @@ import {
   type PendingDevelopmentDecision,
   type PlayerId,
   type TradeBundle,
+  type PowerUpActivationRequest,
+  type PowerUpReactionRequest,
+  type ResolvePowerUpTradeRequest,
+  type ContinuePowerUpMovementRequest,
 } from '@monopoly/shared';
 import {
   acceptEmergencyRescue,
@@ -36,6 +41,24 @@ import {
   type RescueResolution,
 } from '../game';
 import { activityPlayerName, recordActivityEvent } from '../game/activity';
+import { hasMandatoryPowerUpReward } from '../game/powerUps/foundation';
+import { selectPowerUpReward, resolvePowerUpReward } from '../game/powerUps/rewards';
+import {
+  assertBuildPrice,
+  assertPurchasePrice,
+  completeBuildPowerUpStatuses,
+  completePurchasePowerUpStatuses,
+  playerBuildRestricted,
+} from '../game/powerUps/runtime';
+import {
+  activatePowerUp,
+  continuePowerUpMovement,
+  respondPowerUpReaction,
+  resolvePowerUpTrade,
+  shouldPauseBeforeMovement,
+  autoPassBotReaction,
+} from '../game/powerUps/runtime';
+import type { SelectPowerUpRequest, ResolvePowerUpRequest } from '@monopoly/shared';
 import { recordPublicGameplayEvent } from '../game/semanticEvents';
 import type { RoomRecord, TradeOfferRecord } from '../persistence/types';
 import type { RoomSnapshot } from '../rooms';
@@ -93,7 +116,29 @@ export async function runGameCommand<TPayload, TResult>(
   const input: GameCommandInput<TPayload> = { runtime, roomId, actorPlayerId, payload, now };
   const committed = await commitRoomCommand(runtime, roomId, async (context) => {
     await options.guard?.(context);
-    return command.apply(context, input);
+    const powerUps = context.state.privateState.powerUps;
+    if (powerUps?.pendingReaction && command.name !== 'respond power up') {
+      throw new CommandError('CONFLICT', 'Hãy hoàn tất cửa sổ phản ứng trước.');
+    }
+    if (powerUps?.pendingTrade && command.name !== 'resolve power up trade') {
+      throw new CommandError('CONFLICT', 'Hãy trả lời yêu cầu trao đổi trước.');
+    }
+    if (powerUps?.pendingMovement
+      && !['activate power up', 'continue power up movement'].includes(command.name)) {
+      throw new CommandError('CONFLICT', 'Hãy chọn cách xử lý kết quả đổ xúc xắc trước.');
+    }
+    const result = await command.apply(context, input);
+    // Bots never wait on a human-only prompt. Auto-pass inside the same room transaction so a bot-owned defense cannot stall
+    // rent, a payment queue, or an attack while preserving the normal deterministic event resolution.
+    for (let count = 0; count < 100; count += 1) {
+      const reaction = context.state.privateState.powerUps?.pendingReaction;
+      const responder = reaction
+        ? ('defenderPlayerId' in reaction ? reaction.defenderPlayerId : reaction.debtorPlayerId)
+        : null;
+      if (!responder || context.room.gameSnapshot.members[responder]?.kind !== 'BOT') break;
+      if (!autoPassBotReaction(context.state, now.getTime())) break;
+    }
+    return result;
   }, now, options.authority);
   if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
   command.publish(io, committed.room, committed.result, input);
@@ -143,7 +188,8 @@ export const rollDiceCommand: GameCommand<void, void> = {
       throw new CommandError('CONFLICT', 'Phải xử lý khoản thanh toán đang chờ trước khi đổ xúc xắc.');
     }
     if (
-      state.boardState.currentPlayer.hasMoved
+      hasMandatoryPowerUpReward(state, actorPlayerId)
+      || state.boardState.currentPlayer.hasMoved
       || state.turnInfo.pendingPropertyDecision
       || state.turnInfo.pendingDevelopmentDecision
       || state.turnInfo.pendingCardInteraction
@@ -173,6 +219,14 @@ export const rollDiceCommand: GameCommand<void, void> = {
     state.boardState.diceValue = dice;
     state.boardState.currentPlayer.hasMoved = true;
     sendToLog(state, `${player.name} đổ được ${total}${isDouble(dice) ? ' (đôi)' : ''}.`);
+    if (room.gameSnapshot.members[actorPlayerId]?.kind !== 'BOT'
+      && shouldPauseBeforeMovement(state, actorPlayerId)) {
+      state.privateState.powerUps!.pendingMovement = {
+        operationId: randomUUID(), playerId: actorPlayerId, turnNumber: state.boardState.turnNumber,
+        dice: structuredClone(dice), rollSequence: state.boardState.rollSequence,
+      };
+      return;
+    }
     movePlayer(state, actorPlayerId, total, {
       kind: 'DICE_WALK',
       rollSequence: state.boardState.rollSequence,
@@ -197,7 +251,7 @@ export const resolvePurchaseCommand: GameCommand<{ operationId: string; buy: boo
       throw new CommandError('CONFLICT', 'Không thể mua tài sản trong lúc thanh toán thiếu hụt.');
     }
     const tile = tileState[decision.tileID];
-    const price = tile?.price ?? 0;
+    const price = tile ? assertPurchasePrice(state, actorPlayerId, decision.tileID, tile.price ?? 0) : 0;
     if (buy) {
       if (!tile || price <= 0 || state.boardState.ownedProps[decision.tileID]) {
         throw new CommandError('CONFLICT', 'Tài sản này không còn khả dụng.');
@@ -224,6 +278,7 @@ export const resolvePurchaseCommand: GameCommand<{ operationId: string; buy: boo
       ).ok) {
         throw new CommandError('CONFLICT', 'Không thể chuyển quyền sở hữu tài sản.');
       }
+      completePurchasePowerUpStatuses(state, actorPlayerId, decision.tileID);
       sendToLog(state, `${player.name} đã mua ${tile.streetName}.`);
     }
     state.turnInfo = {};
@@ -256,6 +311,9 @@ export const resolveDevelopmentCommand: GameCommand<DevelopmentRequest, TradeOff
     if (state.boardState.paymentQueue) {
       throw new CommandError('CONFLICT', 'Không thể phát triển trong lúc thanh toán thiếu hụt.');
     }
+    if (request.action !== 'SKIP' && playerBuildRestricted(state, actorPlayerId)) {
+      throw new CommandError('CONFLICT', 'Bạn không thể xây dựng hoặc nâng cấp trong lượt này.');
+    }
     const property = state.boardState.ownedProps[decision.tileID];
     const tile = tileState[decision.tileID];
     // The owner develops their own street. In 2v2 the lander may fund a teammate's street (Team Investment): the actor
@@ -276,7 +334,7 @@ export const resolveDevelopmentCommand: GameCommand<DevelopmentRequest, TradeOff
       if (decision.kind !== 'HOUSES' || request.quantity > 4 - decision.levelAtLanding) {
         throw new CommandError('CONFLICT', 'Số lượng Nhà vượt quá giới hạn của lần đổ này.');
       }
-      const cost = request.quantity * tile.houseCost;
+      const cost = assertBuildPrice(state, actorPlayerId, request.quantity * tile.houseCost);
       if (player.accountBalance < cost) throw new CommandError('CONFLICT', 'Không đủ tiền xây Nhà.');
       player.accountBalance -= cost;
       recordPublicGameplayEvent(state, {
@@ -288,6 +346,7 @@ export const resolveDevelopmentCommand: GameCommand<DevelopmentRequest, TradeOff
         operationId: decision.operationId,
       });
       property.houses += request.quantity;
+      completeBuildPowerUpStatuses(state, actorPlayerId);
       recordActivityEvent(state, {
         type: 'PROPERTY_DEVELOPMENT',
         playerId: actorPlayerId,
@@ -303,17 +362,19 @@ export const resolveDevelopmentCommand: GameCommand<DevelopmentRequest, TradeOff
       if (decision.kind !== 'HOTEL' || decision.levelAtLanding !== 4 || property.houses !== 4) {
         throw new CommandError('CONFLICT', 'Tài sản chưa đủ điều kiện nâng cấp Khách sạn.');
       }
-      if (player.accountBalance < tile.houseCost) throw new CommandError('CONFLICT', 'Không đủ tiền nâng cấp.');
-      player.accountBalance -= tile.houseCost;
+      const cost = assertBuildPrice(state, actorPlayerId, tile.houseCost);
+      if (player.accountBalance < cost) throw new CommandError('CONFLICT', 'Không đủ tiền nâng cấp.');
+      player.accountBalance -= cost;
       recordPublicGameplayEvent(state, {
         type: 'MONEY_TRANSFER',
         source: { kind: 'PLAYER', playerId: actorPlayerId },
         destination: { kind: 'BANK' },
-        amount: tile.houseCost,
+        amount: cost,
         reason: 'DEVELOPMENT',
         operationId: decision.operationId,
       });
       property.houses = 5;
+      completeBuildPowerUpStatuses(state, actorPlayerId);
       recordActivityEvent(state, {
         type: 'PROPERTY_DEVELOPMENT',
         playerId: actorPlayerId,
@@ -322,7 +383,7 @@ export const resolveDevelopmentCommand: GameCommand<DevelopmentRequest, TradeOff
         fromHouses: 4,
         toHouses: 5,
         action: 'UPGRADE_HOTEL',
-        cost: tile.houseCost,
+        cost,
         ...investment,
       });
     }
@@ -799,6 +860,59 @@ export const reviveTeammateCommand: GameCommand<void, void> = {
     }
     const result = reviveTeammate(state, actorPlayerId);
     if (!result.ok) throw new CommandError('CONFLICT', result.reason);
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+
+// ---- START rewards (Phase 04–05; activation is intentionally absent) ----
+export const selectPowerUpCommand: GameCommand<SelectPowerUpRequest, void> = {
+  name: 'select power up',
+  apply({ room, state }, { actorPlayerId, payload }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi đã kết thúc.');
+    selectPowerUpReward(state, actorPlayerId, payload);
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+export const resolvePowerUpCommand: GameCommand<ResolvePowerUpRequest, void> = {
+  name: 'resolve power up',
+  apply({ room, state }, { actorPlayerId, payload }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi đã kết thúc.');
+    resolvePowerUpReward(state, actorPlayerId, payload);
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+export const activatePowerUpCommand: GameCommand<PowerUpActivationRequest, void> = {
+  name: 'activate power up',
+  apply({ room, state }, { actorPlayerId, payload, now }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi hiện không hoạt động.');
+    const targetIsBot = payload.targetPlayerId
+      ? room.gameSnapshot.members[payload.targetPlayerId]?.kind === 'BOT'
+      : false;
+    activatePowerUp(state, actorPlayerId, payload, now.getTime(), targetIsBot);
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+export const respondPowerUpCommand: GameCommand<PowerUpReactionRequest, void> = {
+  name: 'respond power up',
+  apply({ room, state }, { actorPlayerId, payload, now }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi hiện không hoạt động.');
+    respondPowerUpReaction(state, actorPlayerId, payload, now.getTime());
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+export const resolvePowerUpTradeCommand: GameCommand<ResolvePowerUpTradeRequest, void> = {
+  name: 'resolve power up trade',
+  apply({ room, state }, { actorPlayerId, payload, now }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi hiện không hoạt động.');
+    resolvePowerUpTrade(state, actorPlayerId, payload, now.getTime());
+  },
+  publish: (io, room, _result, input) => publishRoom(io, room, input),
+};
+export const continuePowerUpMovementCommand: GameCommand<ContinuePowerUpMovementRequest, void> = {
+  name: 'continue power up movement',
+  apply({ room, state }, { actorPlayerId, payload, now }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi hiện không hoạt động.');
+    continuePowerUpMovement(state, actorPlayerId, payload.operationId, now.getTime());
   },
   publish: (io, room, _result, input) => publishRoom(io, room, input),
 };

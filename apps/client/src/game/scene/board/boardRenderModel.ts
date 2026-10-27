@@ -70,6 +70,7 @@ export type DestinationPreviewRenderModel = NonNullable<PresentationState['desti
 };
 
 export interface BoardRenderModel {
+  powerUpTargets?: PresentationState['powerUpTargets'];
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
   dice: DiceRenderModel;
@@ -112,6 +113,7 @@ export const SCENE_PRESENTATION_KEYS = [
   'ownershipChanges',
   'developmentChanges',
   'goCrossings',
+  'powerUpTargets',
   'destinationPreview',
   'moneyTransfers',
   'animationSpeedMultiplier',
@@ -224,6 +226,7 @@ export function buildBoardRenderModel(
   });
 
   return {
+    powerUpTargets: presentationState.powerUpTargets,
     tiles,
     players,
     dice: {

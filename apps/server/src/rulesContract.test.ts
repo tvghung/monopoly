@@ -82,6 +82,9 @@ import { registerSocketHandlers } from './socket/index.js';
  */
 
 // A small deterministic game state to drive the real game functions with. Two players, so a turn can pass.
+const P1 = '00000000-0000-4000-8000-000000000001';
+const P2 = '00000000-0000-4000-8000-000000000002';
+
 const makeState = (playerIds: readonly PlayerId[] = ['p1', 'p2']): GameState => {
   const state = freshState();
   state.boardState.gameStarted = true;
@@ -205,28 +208,28 @@ describe('rules.ts agrees with the server', () => {
   it('pays the Xuất Phát reward when passing or landing on it, and not when sent to jail or moving back', () => {
     expect(START_REWARD).toBe(GO_REWARD);
 
-    const passing = makeState();
-    passing.players.p1.currentTile = 39;
-    moveBy(passing, 'p1', 3);
-    expect(passing.players.p1.currentTile).toBe(2);
-    expect(passing.players.p1.accountBalance).toBe(STARTING_CASH + GO_REWARD);
+    const passing = makeState([P1, P2]);
+    passing.players[P1].currentTile = 39;
+    moveBy(passing, P1, 3);
+    expect(passing.players[P1].currentTile).toBe(2);
+    expect(passing.players[P1].accountBalance).toBe(STARTING_CASH + GO_REWARD);
 
-    const landing = makeState();
-    landing.players.p1.currentTile = 36;
-    moveBy(landing, 'p1', 4);
-    expect(landing.players.p1.currentTile).toBe(0);
-    expect(landing.players.p1.accountBalance).toBe(STARTING_CASH + GO_REWARD);
+    const landing = makeState([P1, P2]);
+    landing.players[P1].currentTile = 36;
+    moveBy(landing, P1, 4);
+    expect(landing.players[P1].currentTile).toBe(0);
+    expect(landing.players[P1].accountBalance).toBe(STARTING_CASH + GO_REWARD);
 
-    const back = makeState();
-    back.players.p1.currentTile = 2;
-    moveBy(back, 'p1', -3);
-    expect(back.players.p1.currentTile).toBe(39);
-    expect(back.players.p1.accountBalance).toBe(STARTING_CASH);
+    const back = makeState([P1, P2]);
+    back.players[P1].currentTile = 2;
+    moveBy(back, P1, -3);
+    expect(back.players[P1].currentTile).toBe(39);
+    expect(back.players[P1].accountBalance).toBe(STARTING_CASH);
 
-    const jailed = makeState();
-    jailed.players.p1.currentTile = 30;
-    moveToJail(jailed, 'p1', 'BOARD_TILE');
-    expect(jailed.players.p1.accountBalance).toBe(STARTING_CASH);
+    const jailed = makeState([P1, P2]);
+    jailed.players[P1].currentTile = 30;
+    moveToJail(jailed, P1, 'BOARD_TILE');
+    expect(jailed.players[P1].accountBalance).toBe(STARTING_CASH);
   });
 
   it('charges the Ga rent the rules file computes, for one to four Ga', () => {

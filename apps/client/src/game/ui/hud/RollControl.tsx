@@ -46,7 +46,7 @@ const sameRollSlice = (previous: RollSlice, next: RollSlice) => previous.status 
 export default function RollControl() {
   const { language, t } = useTranslation();
   const {
-    state, socketFunctions, playerId, canMutate, connected,
+    state, socketFunctions, playerId, canMutate, connected, privatePlayerState,
   } = useContext(stateContext);
   const rollSlice = usePresentationSelector(selectRollSlice, sameRollSlice);
   const [pendingRoll, setPendingRoll] = useState<PendingRoll | null>(null);
@@ -58,7 +58,7 @@ export default function RollControl() {
     connected,
     canMutate,
     playerId,
-    pendingRequest: pendingRoll !== null,
+    pendingRequest: pendingRoll !== null || Boolean(privatePlayerState?.powerUps?.activeOfferId),
   });
   const showRollButton = shouldShowRollButton(
     state.boardState.currentPlayer.id,

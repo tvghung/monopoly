@@ -75,3 +75,5 @@ The former `[PG]` label and PostgreSQL restart cases are retired. Old checklist 
 [RAM storage](../Persistence/README.md) and [HTTP hosting](../Api/http-runtime.instruction.md) supersede those parts. Do not convert
 old SQL migration or same-database restart entries into a current PASS. Tests that restart a server object while reusing the same
 in-memory store are in-process harness restarts, not host process restarts.
+
+- [Power-up Phase 02 foundation](./power-ups.md) — domain scaffold and later activation checks.

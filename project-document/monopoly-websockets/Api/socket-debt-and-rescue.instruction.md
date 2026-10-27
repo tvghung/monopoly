@@ -117,3 +117,7 @@ Manual: [payment-shortfall-and-forced-sale](../testcase/payment-shortfall-and-fo
 - Shortfall trade exception: [socket-trading](./socket-trading.instruction.md).
 - Contracts and version history: [socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md).
 - Index: [Api README](./README.md).
+
+## CURRENT DEVELOPMENT — Phase 08B realized rent allocation
+
+A07 keeps a single payer rent obligation. Private `DebtClaim.rentRevenueShare` carries beneficiary, cumulative received/forwarded amounts and the approved cap through partial settlement, D07/D08 and Emergency Rescue. Each realized receipt is allocated once by `apps/server/src/game/payment.ts`; rescue funding uses the net required cash when the payer receives its own share. This internal metadata is absent from public payment DTOs. Socket protocol remains 16; RAM envelope schema is 14. See [Power-up rules](../GameCore/power-ups.instruction.md) and `apps/server/src/game/powerUps/stabilization.test.ts`.

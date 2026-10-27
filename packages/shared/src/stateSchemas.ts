@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { powerUpStateSchema, powerUpOwnerStateSchema } from './powerUps';
 import {
   ACTIVITY_FEED_MAX_EVENTS,
   BOT_DIFFICULTIES,
@@ -466,6 +467,7 @@ export const gameDecksSchema = z.strictObject({
 }) satisfies z.ZodType<GameDecks>;
 
 export const gamePrivateStateSchema = z.strictObject({
+  powerUps: powerUpStateSchema.optional(),
   decks: gameDecksSchema,
   forcedSaleProposal: z.strictObject({
     proposalId: operationIdSchema,
@@ -491,6 +493,7 @@ export const gamePrivateStateSchema = z.strictObject({
 }) satisfies z.ZodType<GamePrivateState>;
 
 export const privatePlayerStateSchema = z.strictObject({
+  powerUps: powerUpOwnerStateSchema.optional(),
   playerId: playerIdSchema,
   heldJailFreeCardIds: z
     .array(gameCardIdSchema)
@@ -525,8 +528,20 @@ export const debtClaimSchema = z.strictObject({
   amount: moneyAmountSchema,
   remainingAmount: nonNegativeMoneyAmountSchema,
   source: debtSourceSchema,
+  rentRevenueShare: z.strictObject({
+    beneficiaryPlayerId: playerIdSchema,
+    percent: z.number().int().min(1).max(100),
+    capUnits: nonNegativeMoneyAmountSchema,
+    grossCollected: nonNegativeMoneyAmountSchema,
+    forwardedUnits: nonNegativeMoneyAmountSchema,
+  }).optional(),
   status: z.enum(['PENDING', 'SETTLED', 'BANKRUPT']).optional(),
 }).superRefine((claim, context) => {
+  if (claim.rentRevenueShare && (claim.source.kind !== 'RENT' || claim.creditor !== 'PLAYER'
+    || claim.rentRevenueShare.forwardedUnits > claim.rentRevenueShare.capUnits
+    || claim.rentRevenueShare.forwardedUnits > claim.rentRevenueShare.grossCollected)) {
+    context.addIssue({ code: 'custom', path: ['rentRevenueShare'], message: 'Invalid realized rent revenue allocation' });
+  }
   if (claim.remainingAmount > claim.amount) {
     context.addIssue({
       code: 'custom',

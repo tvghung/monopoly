@@ -12,8 +12,9 @@ import {
 } from './payment';
 import { openEmergencyRescue } from './rescue';
 import { checkWinner, removePlayerFromGame } from './turn';
+import { beginPowerUpShortfallReaction } from './powerUps/runtime';
 
-export type PaymentProgressStatus = 'COMPLETED' | 'WAITING_FOR_LIQUIDATION' | 'WAITING_FOR_RESCUE';
+export type PaymentProgressStatus = 'COMPLETED' | 'WAITING_FOR_LIQUIDATION' | 'WAITING_FOR_RESCUE' | 'WAITING_FOR_REACTION';
 
 export interface PaymentProgressResult {
   status: PaymentProgressStatus;
@@ -123,6 +124,15 @@ export const progressPaymentQueue = (
       state.boardState.paymentQueue.activeClaimIndex += 1;
       changed = true;
       continue;
+    }
+
+    if (beginPowerUpShortfallReaction(state, options.now ?? Date.now())) {
+      return {
+        status: 'WAITING_FOR_REACTION',
+        continuation: null,
+        changed: true,
+        debtorPlayerId: active.debtorPlayerId,
+      };
     }
 
     if (ownedTileIds(state, active.debtorPlayerId).length > 0) {

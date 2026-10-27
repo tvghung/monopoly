@@ -207,3 +207,7 @@ The Journal uses a mounted panel and a native CSS transform transition in both d
 Peek releases modal semantics, focus trapping and pointer interception immediately, while the mounted content fades. Restore animates the same content back and returns focus to its eye. The existing stack, one restore key, decision-hidden registry, new-decision and close cleanup remain authoritative for UI ownership. Conditional decision callers render their existing Modal slot with `open={false}` rather than deleting it before exit; no gameplay state is retained as authority.
 
 `onVisibleChange` reports true after entrance/restore completes and false on peek/close. The card reader credits only readable visible time; peek/tab hiding pause it without resetting elapsed credit. An unread observer card is retained before a later card replaces it. Server/bot pacing and dismiss validation are unchanged.
+
+### CURRENT DEVELOPMENT — Phase 08B rapid modal re-entry
+
+The shared Modal re-registers its existing stack entry when reopened during its exit animation. Focus ownership, Escape handling and the opener restore target remain with that same modal. Regression: `apps/client/src/design-system/components/Modal/Modal.test.tsx`; production Chromium and packaged Electron exercise repeated inventory opening at 1440×900, 1280×720 and 900×500.

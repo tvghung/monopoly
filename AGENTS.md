@@ -70,7 +70,7 @@ Không cần đọc toàn bộ lịch sử dự án cho mỗi task.
 | Room registry (tùy chọn) | `services/room-registry/` | `services/room-registry/README.md`, `Api/http-runtime.instruction.md` |
 | Tests | `apps/**/*.test.ts(x)`, `e2e/`, packaged proofs | `testcase/README.md`, `testcase/RELEASE_ACCEPTANCE_MATRIX.md` |
 
-Feature → tài liệu → code → test: `FEATURE_TRACEABILITY.md` (52 feature, trạng thái COMPLETE/PARTIAL/MISSING).
+Feature → tài liệu → code → test: `FEATURE_TRACEABILITY.md` (53 feature, trạng thái COMPLETE/PARTIAL/MISSING).
 
 ## 6. Phân tích tác động và cập nhật tài liệu
 

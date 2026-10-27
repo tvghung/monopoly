@@ -38,3 +38,15 @@ snapshotted, and die with the helper like every room, so a restarted host has no
 The current snapshot schema version (`ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`) and protocol version (`SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`) still validate the aggregate shape and network contract; values and history: [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history). Historical snapshot transforms in `apps/server/src/testSupport/historicalRoomSnapshotUpgrades.ts` are exercised only by fixture tests; `assertSupportedRoomSnapshot` requires the current version and does not migrate older snapshots. The old SQL migrations under `apps/server/migrations/` are retained only as historical source; they are not runtime inputs. The former `postgres-and-recovery.instruction.md` has been removed because its cross-restart guarantees contradict the current product lifecycle.
 
 Evidence: `apps/server/src/persistence/inMemory.test.ts` (rollback, serialization, closed store), `apps/server/src/hostAdmission.integration.test.ts` (pending-admission lifecycle, closed runtime), Socket.IO integration tests, `apps/desktop/tests/hostRuntime.test.ts`, and the packaged host proof. Physical device and independent-network verification are tracked in [testcases](../testcase/README.md).
+
+## CURRENT DEVELOPMENT — Power-up scaffold
+
+Optional GamePrivateState.powerUps uses the existing room snapshot and transaction clone. Completed identities remain in match RAM to deduplicate beyond the bounded event tail. The field is absent from fresh matches and wire projections. Store/hydrate and rollback tests: `apps/server/src/game/powerUps/foundation.test.ts`. No table/store/deadline is introduced. See [foundation](../GameCore/power-ups.instruction.md).
+
+## Power-up runtime (CURRENT DEVELOPMENT — snapshot 13)
+
+Private reward candidates, owner FIFO queue, retained completed occurrence identities, inventories, saved turn continuation, status effects, pending movement, Reaction/trade deadlines and resolved-event identities are part of the same transaction draft. Recovery uses the existing scheduler and reconnectGraceMs setting. Reconnect preserves pending interactions; process exit loses the match. Terminal owners and completed matches clear active runtime state while retaining completed reward identities. Older snapshot envelopes are rejected at host restart; no cross-process migration exists. See [domain contract](../GameCore/power-ups.instruction.md) and `apps/server/src/services/powerUpCheckpoint.ts`.
+
+## CURRENT DEVELOPMENT — Phase 08B
+
+The RAM envelope schema is 14 for private realized-rent allocation metadata. Current loads reject older envelope versions; there is no durable migration or recovery across host process exit. `apps/server/src/socket.powerUps.allCards.integration.test.ts` covers whole-room rollback, reconnect, exact-deadline recovery and pending interaction cleanup through the existing room executor/scheduler. See [Shared version history](../Shared/socket-and-state-contracts.instruction.md).

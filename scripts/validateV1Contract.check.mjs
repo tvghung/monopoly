@@ -22,9 +22,9 @@ function fixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), 'otb-v1-contract-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const file of packagePaths) write(root, file, packageJson('1.0.0'));
-  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 14 as const;\n');
-  write(root, updatePolicyPath, policy('1.0.0', 14));
-  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 14\n');
+  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 16 as const;\n');
+  write(root, updatePolicyPath, policy('1.0.0', 16));
+  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 16\n');
   write(root, historicalPath, '# Phase 7.2\nHISTORICAL ENGINEERING RECORD\n[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8; version 3.0.0\n');
   write(root, 'README.md', 'Own the Block');
   write(root, 'apps/desktop/forge.config.cjs', 'module.exports = {};');
@@ -37,9 +37,9 @@ test('current repository contract passes', () => validateV1Contract(repositoryRo
 test('prerelease contract accepts an older stable update floor and rejects a newer stable floor', t => {
   const root = fixture(t);
   for (const file of packagePaths) write(root, file, packageJson('1.0.1-rc.1'));
-  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.1-rc.1\nSocket protocol: 14\n');
+  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.1-rc.1\nSocket protocol: 16\n');
   assert.equal(validateV1Contract(root), '1.0.1-rc.1');
-  write(root, updatePolicyPath, policy('1.0.1', 14));
+  write(root, updatePolicyPath, policy('1.0.1', 16));
   assert.throws(() => validateV1Contract(root), /newer than the release 1\.0\.1-rc\.1/);
 });
 
@@ -75,7 +75,7 @@ const cases = [
   ...packagePaths.map(file => [`${file} version drift`, file, packageJson('2.0.0'), /expected V1 version/]),
   ['protocol drift', protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 11 as const;', /SOCKET_PROTOCOL_VERSION/],
   ['missing contract', contractPath, null, /V1_RELEASE_CONTRACT/],
-  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 14', /expected V1 version 2\.0\.0/],
+  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 16', /expected V1 version 2\.0\.0/],
   ['incorrect contract protocol', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 8', /Socket protocol/],
   ['missing historical notice', historicalPath, '[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8', /historical notice/],
   ['missing historical link', historicalPath, 'HISTORICAL ENGINEERING RECORD\nprotocol V8', /historical notice/],
@@ -88,13 +88,13 @@ const cases = [
   ['product name drift', 'apps/desktop/package.json', JSON.stringify({ version: '1.0.0', productName: 'Other' }), /productName/],
   ['missing update policy', updatePolicyPath, null, /update policy is missing/],
   ['update policy that is not JSON', updatePolicyPath, 'minimumSupportedVersion: 1.0.0', /update policy is missing or is not JSON/],
-  ['update policy below the release', updatePolicyPath, policy('0.9.0', 14), null],
-  ['update policy equal to the release', updatePolicyPath, policy('1.0.0', 14), null],
-  ['update policy newer than the release', updatePolicyPath, policy('1.0.1', 14), /newer than the release 1\.0\.0/],
-  ['update policy with a major version above the release', updatePolicyPath, policy('2.0.0', 14), /newer than the release/],
-  ['update policy that is not a plain version', updatePolicyPath, policy('1.0.0-rc.1', 14), /plain x\.y\.z/],
-  ['update policy without a version', updatePolicyPath, JSON.stringify({ reviewedForSocketProtocol: 14 }), /plain x\.y\.z/],
-  ['update policy reviewed for another protocol', updatePolicyPath, policy('1.0.0', 8), /reviewedForSocketProtocol 8 differs from SOCKET_PROTOCOL_VERSION 14/],
+  ['update policy below the release', updatePolicyPath, policy('0.9.0', 16), null],
+  ['update policy equal to the release', updatePolicyPath, policy('1.0.0', 16), null],
+  ['update policy newer than the release', updatePolicyPath, policy('1.0.1', 16), /newer than the release 1\.0\.0/],
+  ['update policy with a major version above the release', updatePolicyPath, policy('2.0.0', 16), /newer than the release/],
+  ['update policy that is not a plain version', updatePolicyPath, policy('1.0.0-rc.1', 16), /plain x\.y\.z/],
+  ['update policy without a version', updatePolicyPath, JSON.stringify({ reviewedForSocketProtocol: 16 }), /plain x\.y\.z/],
+  ['update policy reviewed for another protocol', updatePolicyPath, policy('1.0.0', 8), /reviewedForSocketProtocol 8 differs from SOCKET_PROTOCOL_VERSION 16/],
   ['update policy that was never reviewed for a protocol', updatePolicyPath, JSON.stringify({ minimumSupportedVersion: '1.0.0' }), /reviewedForSocketProtocol undefined/],
 ];
 

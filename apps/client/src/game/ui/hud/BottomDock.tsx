@@ -3,6 +3,7 @@ import DebtPanel from '../../../components/dashboard/DebtPanel';
 import RevivePanel from '../../../components/dashboard/RevivePanel';
 import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
 import CameraControls from './CameraControls';
+import PowerUpPanel from '../powerUps/PowerUpPanel';
 import { useTranslation } from '../../../i18n/I18n';
 
 /**
@@ -22,6 +23,7 @@ export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (ti
       </div>
       <nav className="action-dock" data-hud-region="action-dock" aria-label={t('hud.actions')}>
         <OwnedPropertiesControl onSelect={onSelectTile} />
+        <PowerUpPanel />
         <CameraControls />
       </nav>
     </div>
