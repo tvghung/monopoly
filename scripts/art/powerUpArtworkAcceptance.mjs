@@ -63,3 +63,19 @@ export async function runArtworkAcceptance({owner,other,seed,load,ownerId,roomId
  // Keep the original harness scenarios independent of this inventory matrix.
  await seed([],[]);await owner.setViewportSize(sizes[0]);await other.setViewportSize(sizes[0]);
 }
+
+/** Put the acting renderer in both recipient roles, including native Electron. */
+export async function runOwnerDecisionArtwork({owner,other,seed,open,ownerId,otherId,load,shot,pass,reconnectOwner}) {
+ await seed(['D03'],['A05'],otherId);
+ let dialog=await open(other,'Phong Tỏa Xây Dựng');await dialog.getByLabel('Chọn người chơi').selectOption(ownerId);await dialog.getByRole('button',{name:'Dùng thẻ',exact:true}).click();
+ const reaction=owner.locator('.power-up-reaction');await expect(reaction).toBeVisible();await captureSurface(owner,reaction,'17-acting-player-reaction',shot);await reaction.getByRole('button',{name:'Dùng thẻ',exact:true}).click();
+ await expect.poll(async()=>Boolean((await load()).gameSnapshot.gameState.privateState.powerUps.pendingReaction)).toBe(false);
+ assert.ok(!(await load()).gameSnapshot.gameState.privateState.powerUps.statuses.some(status=>status.definitionId==='A05'));
+ await seed(['D01','D02','D09'],['U06','A01'],otherId);
+ dialog=await open(other,'Trao Đổi Vận May');await dialog.getByLabel('Chọn người chơi').selectOption(ownerId);await dialog.getByRole('button',{name:'Dùng thẻ',exact:true}).click();
+ const consent=owner.getByRole('dialog').filter({has:owner.getByRole('button',{name:'Chấp nhận trao đổi',exact:true})});await expect(consent).toBeVisible();await reconnectOwner();await expect(consent).toBeVisible();
+ await captureSurface(owner,consent,'18-acting-player-consent-reconnect',shot);await consent.getByRole('button',{name:'Chấp nhận trao đổi',exact:true}).click();
+ await expect.poll(async()=>Boolean((await load()).gameSnapshot.gameState.privateState.powerUps.pendingTrade)).toBe(false);
+ assert.equal((await load()).gameSnapshot.gameState.privateState.powerUps.inventories[ownerId].cards.length,3);
+ await pass('Acting renderer receives and resolves illustrated Reaction and reconnect-restored full-hand consent at all three sizes');
+}
