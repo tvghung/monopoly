@@ -194,3 +194,7 @@ All 30 official cards have server-side handlers and functional client commands; 
 ## Power-up Phase 09C.1 detail refinement (CURRENT DEVELOPMENT)
 
 [Artwork refinement audit](./powerups/09C1_ARTWORK_REFINEMENT_REPORT.md) records the full 30-card hand/coin/contour review, focused SVG/PNG corrections, before/after evidence and regression results. The approved compositions, card backs, rarity frames, UI behavior and gameplay definitions remain unchanged.
+
+## Power-up Phase 09D final integration (CURRENT DEVELOPMENT)
+
+The completed candidate is awaiting Product Owner manual UAT. The checklist is prepared with every manual case initially marked NOT TESTED; this documentation is not evidence that manual UAT was performed: [Phase 09D manual UAT checklist](./powerups/09D_MANUAL_UAT_CHECKLIST.md).
