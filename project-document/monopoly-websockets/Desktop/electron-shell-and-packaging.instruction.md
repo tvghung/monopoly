@@ -387,3 +387,7 @@ configuration and retains the `0.0.0.0` Host default.
 Activation is documented in the F8 audit report and must use a fresh path under a new F8 evidence run. Do not reuse a profile,
 open firewall ports or run the original F3 package as a substitute for the F8 candidate. Native acceptance requires independent
 Windows process and listener inspection; an announced endpoint or a mocked helper is not proof of the bound address.
+
+## Power-up artwork resources — CURRENT DEVELOPMENT (09B)
+
+The client production build also validates 30 original Power-up fronts and three category backs, in SVG and PNG. Resources stay under `art/powerups` inside the existing renderer distribution; no runtime protocol/CSP/bridge change is needed. `apps/desktop/scripts/validatePackagedPowerUpArt.mjs` compares packaged bytes with authored/exported sources through the dedicated client validator. Run `pnpm --filter @monopoly/desktop proof:packaged:powerups` after packaging. Native visual acceptance uses the existing stabilization harness with `--artwork --native`; evidence and physical-device limits: [09C visual QA](../../powerups/09C_VISUAL_QA_REPORT.md).

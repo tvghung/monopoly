@@ -184,3 +184,8 @@ All 30 official cards have server-side handlers and functional client commands; 
 ## Power-up Phase 09A local baseline
 
 [Consolidation report](./powerups/09A_GIT_CONSOLIDATION_REPORT.md), [verified recovery checkpoint](./powerups/09A_PRE_CONSOLIDATION_CHECKPOINT.md), and [artwork integration readiness](./powerups/09A_ARTWORK_INTEGRATION_READINESS.md) record local-only Git consolidation. Artwork is unchanged; its next iteration is separate.
+
+
+## Power-up Phase 09B–09C artwork (CURRENT DEVELOPMENT)
+
+[Artwork implementation](./powerups/09B_ARTWORK_IMPLEMENTATION_REPORT.md), [30-card asset inventory](./powerups/09B_CARD_ART_ASSET_INVENTORY.md) and [visual QA](./powerups/09C_VISUAL_QA_REPORT.md) record the original vector/PNG family, category backs, rarity frames, integrated client surfaces and browser/packaged Electron evidence. Gameplay definitions and protocol remain unchanged. Local commits only; physical-device/product acceptance and publication remain separate.

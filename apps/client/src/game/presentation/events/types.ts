@@ -164,7 +164,7 @@ export interface CardInteractionChangedPresentationEvent extends PresentationEve
 
 export interface PowerUpFeedbackPresentationEvent extends PresentationEventBase {
   type: 'POWER_UP_FEEDBACK';
-  kind: 'ATTACK' | 'SHIELD' | 'BLOCK' | 'REFLECT' | 'LEGENDARY' | 'STATUS' | 'EXPIRED' | 'CONSUMED';
+  kind: 'ATTACK' | 'SHIELD' | 'BLOCK' | 'REFLECT' | 'LEGENDARY' | 'STATUS' | 'EXPIRED' | 'CONSUMED' | 'ACQUIRED';
   definitionId: string;
   name: string;
   tileId?: number;

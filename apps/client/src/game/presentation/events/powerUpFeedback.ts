@@ -11,6 +11,10 @@ export function derivePowerUpFeedback(previous: PowerUpOwnerState | undefined, n
     // An instance can leave through theft or a U04 recipe, so removal alone never proves activation/block.
     add(card.instanceId, 'CONSUMED', card.definitionId, card.definition.name);
   }
+  for (const card of next.inventory?.cards ?? []) {
+    if (previous.inventory?.cards.some(item => item.instanceId === card.instanceId)) continue;
+    add(card.instanceId + ':acquired', card.definition.rarity === 'LEGENDARY' ? 'LEGENDARY' : 'ACQUIRED', card.definitionId, card.definition.name);
+  }
   for (const status of next.statuses ?? []) {
     const before = previous.statuses?.find(item => item.statusId === status.statusId);
     if (!before) add(status.statusId, status.definitionId === 'D04' ? 'SHIELD' : 'STATUS', status.definitionId, status.name ?? status.definitionId, status.targetTileID);

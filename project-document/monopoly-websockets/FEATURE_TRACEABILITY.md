@@ -589,7 +589,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 [t-shared]: ./testcase/shared-contracts-and-board-data.md
 [t-rel]: ./testcase/RELEASE_ACCEPTANCE_MATRIX.md
 
-### F53 Power-up system (CURRENT DEVELOPMENT; Phases 04–08B)
+### F53 Power-up system (CURRENT DEVELOPMENT; Phases 04–09C)
 
 - **Entry:** START reward from the existing dice movement path; owner inventory at the game HUD; Active use, Reaction, U06 consent and movement continuation through authenticated socket commands.
 - **Docs:** [gameplay](./GameCore/power-ups.instruction.md), [API](./Api/socket-powerups.instruction.md), [client](./Client/power-ups.instruction.md), [checklist](./testcase/power-ups.md), [03C approved](../powerups/03C_POWERUP_GAMEPLAY_RULES_SPEC_APPROVED.md).
@@ -599,3 +599,5 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Tests:** `apps/server/src/game/powerUps/catalog.test.ts`, `apps/server/src/game/powerUps/config.test.ts`, `apps/server/src/game/powerUps/foundation.test.ts`, `apps/server/src/game/powerUps/rewards.test.ts`, `apps/server/src/game/powerUps/runtime.test.ts`, `apps/server/src/socket.powerUps.integration.test.ts`, `apps/client/src/game/ui/powerUps/PowerUpPanel.test.tsx`, `scripts/powerUpAcceptance.check.mjs`.
 - **Status:** COMPLETE for development traceability. All 30 card-specific socket outcomes, financial boundaries, 80 attack/reaction compatibility cases, required interaction groups, seeded full games and themed presentation have evidence in [Phase 08B](../powerups/08B_STABILIZATION_REPORT.md). Production remains NO-GO; physical device/GPU, installer and macOS UAT are separate release gates. **Affects:** F22–F31, F49–F50, plus reconnect, payment and private-state contracts.
 - **Additional tests:** `apps/server/src/game/powerUps/stabilization.test.ts`, `apps/server/src/socket.powerUps.allCards.integration.test.ts`, `apps/server/src/game/powerUps/endurance.test.ts`, `apps/client/src/game/presentation/events/powerUpFeedback.test.ts`, `scripts/powerUpStabilizationAcceptance.check.mjs`.
+
+- **09B–09C artwork:** `apps/client/src/game/ui/powerUps/powerUpArtManifest.ts`, `apps/client/src/game/ui/powerUps/PowerUpArtwork.tsx`, `scripts/art/powerUpIllustrations.mjs`; source/export validator `apps/client/scripts/validatePowerUpArtwork.mjs`, boundary tests `apps/client/src/game/ui/powerUps/PowerUpArtwork.test.tsx`, integrated visual checks `scripts/art/powerUpArtworkAcceptance.mjs`. Results and actual limitations: [09C visual QA](../powerups/09C_VISUAL_QA_REPORT.md).

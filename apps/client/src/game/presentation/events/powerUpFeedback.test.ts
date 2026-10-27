@@ -31,3 +31,10 @@ describe('08B shared-queue Power-up feedback',()=>{
 
 
 it('ACK-proven reflection uses the same queue and ignores a stale reconnect epoch',async()=>{const room=makeRoom();const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');const epoch=controller.getState().presentationResetEpoch;controller.showPowerUpFeedback('REFLECT','D05','Reflect','card',epoch);await Promise.resolve();expect(controller.getState().powerUpFeedback?.kind).toBe('REFLECT');controller.acceptRoomSnapshot(room,'SESSION_SYNC');await controller.queue.whenIdle();controller.showPowerUpFeedback('REFLECT','D05','Reflect','card',epoch);expect(controller.getState().powerUpFeedback).toBeFalsy();expect(controller.queue.getStatus()).toBe('idle');controller.dispose()});
+
+it('newly authorized cards use the existing queue for acquisition and Legendary discovery; sync stays silent',async()=>{
+  const room=makeRoom();const before=owner();before.inventory!.cards=[];const after=owner();
+  expect(derivePowerUpFeedback(before,after,room).map(event=>event.kind)).toEqual(['ACQUIRED']);
+  const legendary=owner('A08','LEGENDARY');expect(derivePowerUpFeedback(before,legendary,room).map(event=>event.kind)).toEqual(['LEGENDARY']);
+  const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'SESSION_SYNC');expect(controller.getState().powerUpFeedback).toBeFalsy();controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');await Promise.resolve();expect(controller.getState().powerUpFeedback?.kind).toBe('ACQUIRED');controller.acceptRoomSnapshot(room,'SESSION_SYNC');await controller.queue.whenIdle();expect(controller.getState().powerUpFeedback).toBeFalsy();controller.dispose();
+});

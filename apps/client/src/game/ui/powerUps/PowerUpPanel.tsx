@@ -10,6 +10,7 @@ import { usePresentationSelector } from '../../presentation/usePresentationSelec
 import { selectCardPresentation, selectPresentationStatus } from '../../presentation/store/selectors';
 import PowerUpFeedback from './PowerUpFeedback';
 import PowerUpCard from './PowerUpCard';
+import PowerUpArtwork from './PowerUpArtwork';
 import PowerUpRuntimePanels, { PowerUpActivationDialog } from './PowerUpRuntimePanels';
 import './PowerUps.css';
 
@@ -40,6 +41,7 @@ function RewardDecision({ offer, inventory }: { offer: Offer; inventory: PowerUp
     </div> : undefined}>
     <div className="power-up-grid" aria-busy={busy}>
       {offer.candidates.map((candidate, index) => <PowerUpCard key={candidate.category} {...candidate}
+        animateReveal={revealed && tentative !== null}
         selected={(offer.selectedIndex ?? tentative) === index} discarded={revealed && offer.selectedIndex !== index}
         disabled={!enabled || locked} onChoose={revealed ? undefined : () => {
           if (locked) return;
@@ -62,10 +64,12 @@ export default function PowerUpPanel() {
   const status = usePresentationSelector(selectPresentationStatus);
   const cardPresentation = usePresentationSelector(selectCardPresentation);
   const [inspect, setInspect] = useState(false);
+  const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null);
   const [activationInstanceId, setActivationInstanceId] = useState<string | null>(null);
   const decisionAutoOpen = useRef<string | null>(null);
   const powerUps = privatePlayerState?.playerId === playerId ? privatePlayerState?.powerUps : undefined;
   const inventory = powerUps?.inventory;
+  const detailCard = inventory?.cards.find(card => card.instanceId === detailInstanceId);
   const active = powerUps?.offers.find(offer => offer.offerId === powerUps.activeOfferId && offer.stage !== 'COMPLETED');
   const completed = powerUps?.offers.find(offer => offer.stage === 'COMPLETED');
   const activeCards = (inventory?.cards ?? []).filter(card => card.definition.activation === 'ACTIVE');
@@ -122,11 +126,17 @@ export default function PowerUpPanel() {
       const card = inventory.cards.find(item => item.instanceId === activationInstanceId);
       return card ? <PowerUpActivationDialog key={activationInstanceId} card={card} onClose={() => setActivationInstanceId(null)} /> : null;
     })() : null}
+    <Modal open={Boolean(detailCard) && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
+      title={detailCard?.definition.name ?? ''} eyebrow={t('powerup.details')} size="md" className="power-up-detail"
+      onClose={() => { setDetailInstanceId(null); setInspect(true); }} peek="view">
+      {detailCard ? <PowerUpCard category={detailCard.definition.category} definition={detailCard.definition} /> : null}
+    </Modal>
     <Modal open={inspect && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
       title={t('powerup.inventory')} onClose={() => setInspect(false)} size="xl" peek="view">
       <p>{t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })}</p>
       {!inventory?.cards.length ? <p>{t('powerup.empty')}</p> : <div className="power-up-grid">{inventory.cards.map(card => <div key={card.instanceId}>
         <PowerUpCard category={card.definition.category} definition={card.definition} />
+        <Button variant="ghost" className="power-up-card-details" onClick={() => { setInspect(false); setDetailInstanceId(card.instanceId); }}>{t('powerup.details')} · {card.definition.name}</Button>
         {card.definition.activation === 'ACTIVE' ? (() => {
           const reason = activationUnavailableReason(card);
           return <>
@@ -143,7 +153,7 @@ export default function PowerUpPanel() {
         const key = `powerup.effect.${status.definitionId}`;
         const description = key in vi && key in en ? t(key as MessageKey) : status.description;
         return <li key={status.statusId}>
-          <div><strong>{status.name ?? status.definitionId}</strong><p>{description}</p></div><span>{status.kind}</span>
+          <div className="power-up-status-art"><PowerUpArtwork category={status.definitionId.startsWith('A') ? 'ATTACK' : status.definitionId.startsWith('D') ? 'DEFENSE' : 'UTILITY'} definitionId={status.definitionId} thumbnail /><div><strong>{status.name ?? status.definitionId}</strong><p>{description}</p></div></div><span>{status.kind}</span>
           {status.remainingOwnerTurns !== undefined ? <span>{t('powerup.turnsRemaining', { count: status.remainingOwnerTurns })}</span> : null}
           {status.remainingUses !== undefined ? <span>{t('powerup.usesRemaining', { count: status.remainingUses })}</span> : null}
         </li>;

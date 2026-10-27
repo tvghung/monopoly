@@ -32,3 +32,12 @@ Run commands, versions, durations and failures are recorded in [the Phase 08 rep
 - `scripts/powerUpStabilizationAcceptance.check.mjs`: real browser/packaged Electron UI, shields, blocking, Legendary upgrade, consent/reload, targets, contrast and three viewport/focus checks.
 
 Current results and remaining manual requirements supersede the earlier partial checklist only where supported by [08B evidence](../../powerups/08B_STABILIZATION_REPORT.md).
+
+## Phase 09B–09C artwork verification
+
+- Source/export checks: `apps/client/scripts/validatePowerUpArtwork.check.mjs` tests completeness, unique hashes, XML safety, PNG CRC/decode, missing/orphan/stale assets and build parity. `scripts/art/exportPowerUpArtwork.mjs --verify` rerenders all 33 pairs and compares pixels.
+- Component boundaries: `apps/client/src/game/ui/powerUps/PowerUpArtwork.test.tsx` tests 30 ID mappings, three backs/four frames, identity-free hidden DOM, authorized reveal/reconnect, SVG→PNG→motif fallback and unknown/path-like IDs. `PowerUpPanel.test.tsx` covers read-only full detail and existing inventory/activation/Reaction decisions.
+- Queued presentation: `apps/client/src/game/presentation/events/powerUpFeedback.test.ts` tests authorized acquisition/Legendary discovery and silent sync alongside existing reset/hidden/reduced-motion coverage.
+- Production integration: run `node --import ./apps/server/node_modules/tsx/dist/loader.mjs scripts/powerUpStabilizationAcceptance.check.mjs --artwork`; add `--native` after packaging. The extension `scripts/art/powerUpArtworkAcceptance.mjs` checks hidden image requests/DOM, real reward selection/reconnect, all 30 inventory fronts, four actual frames, full details, reduced motion, modal bounds and three viewport captures. Existing stabilization scenarios still check activation, reactions, full-hand consent/reload, shield charges and keyboard focus.
+- Packaged assets: `pnpm --filter @monopoly/desktop proof:packaged:powerups` compares all SVG/PNG source and packaged bytes. Build validation checks the same artwork set.
+- Actual visual results and evidence: [09C visual QA](../../powerups/09C_VISUAL_QA_REPORT.md). Physical GPU/display, human full-match and macOS remain separate checks.

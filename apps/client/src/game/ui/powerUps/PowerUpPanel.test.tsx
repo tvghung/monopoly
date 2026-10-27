@@ -119,3 +119,11 @@ describe('Power-up reward and inventory interface',()=>{
     expect(screen.getByRole('button',{name:'Tấn công'})).toBeTruthy();expect(screen.queryByText('Visible card 0')).toBeNull();
   });
 });
+
+it('opens full details without issuing gameplay commands and returns to inventory',()=>{
+  const value=context('COMPLETED',true);value.privatePlayerState!.powerUps!.inventory!.cards=value.privatePlayerState!.powerUps!.inventory!.cards.slice(0,1);
+  render(view(value));fireEvent.click(screen.getByRole('button',{name:/Kho Power-up/}));
+  fireEvent.click(screen.getByRole('button',{name:'Xem chi tiết · Visible card 0'}));
+  const detail=screen.getByRole('dialog',{name:'Visible card 0'});expect(detail.textContent).toContain('Registry effect 0');expect(detail.querySelector('.power-up-artwork img')).toBeTruthy();
+  fireEvent.click(detail.querySelector('button[aria-label="Đóng"]')!);expect(screen.getByRole('dialog',{name:'Kho Power-up'})).toBeTruthy();expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
+});

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/validateGameplayMusicAssets.mjs --build-output && node scripts/validateCardArtwork.mjs --build-output && node scripts/validateLandmarkArtwork.mjs --build-output",
+    "build": "tsc --noEmit && vite build && node scripts/validateGameplayMusicAssets.mjs --build-output && node scripts/validateCardArtwork.mjs --build-output && node scripts/validateLandmarkArtwork.mjs --build-output && node scripts/validatePowerUpArtwork.mjs --build-output",
     "validate:music-assets": "node scripts/validateGameplayMusicAssets.mjs",
     "test:music-validator": "node scripts/validateGameplayMusicAssets.check.mjs",
     "validate:card-art": "node scripts/validateCardArtwork.mjs",
@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --environment jsdom --pool=threads --maxWorkers=1 --no-file-parallelism",
     "test:music-transport": "vitest run src/audio/AudioEngine.test.ts src/audio/AudioProvider.test.tsx --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
-    "test:watch": "vitest --environment jsdom --pool=vmThreads"
+    "test:watch": "vitest --environment jsdom --pool=vmThreads",
+    "validate:powerup-art": "node scripts/validatePowerUpArtwork.mjs",
+    "test:powerup-art": "node --test scripts/validatePowerUpArtwork.check.mjs"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.3.0",

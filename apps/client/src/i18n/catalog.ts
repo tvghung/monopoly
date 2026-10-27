@@ -7,6 +7,7 @@ export const vi = {
   'powerup.feedback.STATUS': 'Hiệu ứng đang hoạt động',
   'powerup.feedback.EXPIRED': 'Hiệu ứng đã kết thúc',
   'powerup.feedback.CONSUMED': 'Thẻ đã rời kho',
+  'powerup.feedback.ACQUIRED': 'Đã nhận thẻ vào kho',
   'powerup.invalidTarget': 'Không hợp lệ',
   'powerup.validTarget': 'Mục tiêu hợp lệ',
 
@@ -30,6 +31,7 @@ export const vi = {
   "powerup.full": "Kho thẻ đã đầy. Thay một thẻ đang giữ hoặc bỏ thẻ mới.",
   "powerup.replace": "Thay thẻ này",
   "powerup.inventory": "Kho Power-up",
+  "powerup.details": "Xem chi tiết",
   "powerup.count": "{count} / {capacity} thẻ",
   "powerup.unavailable": "Chọn thẻ Active khi đến đúng thời điểm.",
   "powerup.activate": "Dùng thẻ",
@@ -977,6 +979,7 @@ export const en = {
   'powerup.feedback.STATUS': 'Status active',
   'powerup.feedback.EXPIRED': 'Status ended',
   'powerup.feedback.CONSUMED': 'Card left your hand',
+  'powerup.feedback.ACQUIRED': 'Card added to your hand',
   'powerup.invalidTarget': 'Unavailable target',
   'powerup.validTarget': 'Valid target',
 
@@ -1000,6 +1003,7 @@ export const en = {
   "powerup.full": "Inventory full. Replace a held card or decline the new card.",
   "powerup.replace": "Replace this card",
   "powerup.inventory": "Power-up Inventory",
+  "powerup.details": "View details",
   "powerup.count": "{count} / {capacity} cards",
   "powerup.unavailable": "Choose an Active card when its timing is available.",
   "powerup.activate": "Use card",
