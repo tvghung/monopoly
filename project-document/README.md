@@ -198,3 +198,5 @@ All 30 official cards have server-side handlers and functional client commands; 
 ## Power-up Phase 09D final integration (CURRENT DEVELOPMENT)
 
 The completed candidate is awaiting Product Owner manual UAT. The checklist is prepared with every manual case initially marked NOT TESTED; this documentation is not evidence that manual UAT was performed: [Phase 09D manual UAT checklist](./powerups/09D_MANUAL_UAT_CHECKLIST.md).
+
+Final branch, test, CI, and PR details: [Phase 09D final PR report](./powerups/09D_FINAL_PR_REPORT.md).
