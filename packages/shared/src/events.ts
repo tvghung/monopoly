@@ -39,6 +39,15 @@ import type {
   ForcedSaleProposal,
 } from './types';
 
+import type {
+  PowerUpActivationRequest,
+  ContinuePowerUpMovementRequest,
+  PowerUpReactionRequest,
+  ResolvePowerUpTradeRequest,
+  SelectPowerUpRequest,
+  ResolvePowerUpRequest,
+} from './powerUps';
+
 export type AckErrorCode =
   | 'INVALID_REQUEST'
   | 'UNAUTHENTICATED'
@@ -93,6 +102,12 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
+  'activate power up': (request: PowerUpActivationRequest, acknowledge: AckCallback) => void;
+  'respond power up': (request: PowerUpReactionRequest, acknowledge: AckCallback) => void;
+  'resolve power up trade': (request: ResolvePowerUpTradeRequest, acknowledge: AckCallback) => void;
+  'continue power up movement': (request: ContinuePowerUpMovementRequest, acknowledge: AckCallback) => void;
+  'select power up': (request: SelectPowerUpRequest, acknowledge: AckCallback) => void;
+  'resolve power up': (request: ResolvePowerUpRequest, acknowledge: AckCallback) => void;
   'join room': (
     request: JoinRoomRequest,
     acknowledge: AckCallback<JoinRoomResult>,

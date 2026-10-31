@@ -40,3 +40,9 @@ Protocol/snapshot versions: [Version history](../Shared/socket-and-state-contrac
   (trừ bonus ×1,5 khi đủ khu màu).
 - Disconnect chỉ đổi presence; forfeit là command explicit và phải xử lý active
   debt/creditor trước khi cleanup.
+
+## CURRENT DEVELOPMENT — Power-up Phases 02–08
+
+[Power-up contract](./power-ups.instruction.md), [checklist](../testcase/power-ups.md), [design](../../powerups/02_TECHNICAL_DESIGN.md). START rewards/inventory (Phases 04–05) and the authoritative 30-card runtime (Phase 06) are integrated; client activation, reactions and status inspection are in Phase 07. Phase reports are retained under `project-document/powerups/`.
+
+[Approved rules](../../powerups/03C_POWERUP_GAMEPLAY_RULES_SPEC_APPROVED.md), [card definitions](../../powerups/03D_CARD_DEFINITIONS_REPORT.md), [engine report](../../powerups/06_GAMEPLAY_ENGINE_REPORT.md), and [validation report](../../powerups/08_FINAL_VALIDATION_REPORT.md) document the implementation and evidence.

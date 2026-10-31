@@ -50,7 +50,8 @@ export const presentationContext = createContext<PresentationContextValue | null
  * (`usePresentationSelector`) is not re-rendered by every presentation tick.
  */
 export interface PresentationStoreContextValue {
-  store: Pick<PresentationStoreLike, 'getSnapshot' | 'subscribe'>;
+  showPowerUpFeedback?: PresentationController['showPowerUpFeedback'];
+  store: Pick<PresentationStoreLike, 'getSnapshot' | 'subscribe'> & { setPowerUpTargets?: (targets: PresentationState['powerUpTargets']) => void };
   queue: AnimationQueue;
 }
 export const presentationStoreContext = createContext<PresentationStoreContextValue | null>(null);
@@ -97,7 +98,7 @@ export function PresentationProvider({ controller, children }: { controller: Pre
   }, [controller]);
 
   const storeValue = useMemo<PresentationStoreContextValue>(
-    () => ({ store: controller.store, queue: controller.queue }),
+    () => ({ store: controller.store, queue: controller.queue, showPowerUpFeedback: controller.showPowerUpFeedback.bind(controller) }),
     [controller],
   );
 

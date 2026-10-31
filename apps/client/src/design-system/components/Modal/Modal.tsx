@@ -228,8 +228,16 @@ function ModalSurface({
 
   // A dialog that is animating out no longer owns focus, Escape or the modal semantics.
   useEffect(() => {
-    if (!isPresent && entryRef.current) releaseModal(entryRef.current);
-  }, [isPresent]);
+    const entry = entryRef.current;
+    if (!entry) return;
+    if (!isPresent) releaseModal(entry);
+    else if (!modalStack.includes(entry)) {
+      // AnimatePresence can revive the same surface before its exit finishes.
+      entry.peeking = peeking;
+      modalStack.push(entry);
+      focusInto(dialogRef.current);
+    }
+  }, [isPresent, peeking]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

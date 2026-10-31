@@ -1,1 +1,5 @@
 *.sql text eol=lf
+
+# Keep Power-up SVG source bytes stable for reproducible export hashes on Windows.
+apps/client/public/art/powerups/**/*.svg text eol=lf
+apps/client/public/art/powerups/**/*.png binary

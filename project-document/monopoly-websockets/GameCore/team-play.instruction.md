@@ -127,3 +127,7 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
 - Cờ 3D trên bàn chưa vẽ mascot chủ ô; thông tin chủ ô/đội nằm ở hover card, deed, modal và accessible label.
 - HISTORICAL (v1.3.0): `minimumSupportedVersion` của updater từng giữ `1.0.0`. Hiện `apps/desktop/update-policy.json` đặt
   `1.7.0` (từ bản v1.7.0); nâng tiếp là quyết định phát hành của chủ sản phẩm.
+
+## CURRENT DEVELOPMENT — 08B rent-share rescue
+
+When an A07 rent beneficiary is the rescuer, `planEmergencyRescue` subtracts the guaranteed returned share from the rescuer's net payable amount. Acceptance settles the full gross obligation through the common receipt helper; Bank/landlord/beneficiary cash remains conserved. Other team rules and rescue eligibility are unchanged. Evidence: the named team-rescue case in `apps/server/src/game/powerUps/stabilization.test.ts`.

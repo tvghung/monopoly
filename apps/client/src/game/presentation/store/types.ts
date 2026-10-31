@@ -126,7 +126,11 @@ export interface DiceRollPresentation {
   durationMs: number;
 }
 
+export interface PowerUpTargets { validTileIds: readonly number[]; selectedTileId: number | null }
+
 export interface PresentationState {
+  powerUpFeedback?: import('../events/types').PowerUpFeedbackPresentationEvent | null;
+  powerUpTargets?: PowerUpTargets | null;
   displayLogs: readonly string[];
   displayActivity: readonly ActivityEvent[];
   displayPositions: Record<string, number>;

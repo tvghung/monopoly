@@ -13,6 +13,7 @@ import {
   type RoomSnapshot,
 } from '../rooms';
 import { isSeatPresent } from '../services/presence';
+import { settlePowerUpCheckpoint } from '../services/powerUpCheckpoint';
 
 export interface DomainCommandContext extends RoomCommandContext<RoomSnapshot> {
   state: GameState;
@@ -105,6 +106,7 @@ export async function commitRoomCommand<TResult>(
         pendingOperationId,
       };
     }
+    settlePowerUpCheckpoint(state, context.room.gameSnapshot, runtime, now);
     storeGameState(context.room.gameSnapshot, state, context.room.status);
     syncMembershipWithGameState(context.room.gameSnapshot);
     normalizeLobbyBots(context.room.gameSnapshot, context.room.status);

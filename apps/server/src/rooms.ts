@@ -38,7 +38,9 @@ import { createEmptyActivityFeed } from './game/activity';
 import { createEmptyGameplayEventStream } from './game/semanticEvents';
 import { createDefaultTeamSettings, createEmptyTeamPlayState } from './game/teamState';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 11;
+import { powerUpInteractionsClear } from './game/powerUps/foundation';
+
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 14;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -377,6 +379,10 @@ export const syncMembershipWithGameState = (snapshot: RoomSnapshot): void => {
 export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
   const deadlines = [
     snapshot.gameState.boardState.turnRecovery?.deadlineAt,
+    ...(powerUpInteractionsClear(snapshot.gameState)
+      ? Object.values(snapshot.gameState.privateState.powerUps?.offlineDeadlines ?? {}) : []),
+    snapshot.gameState.privateState.powerUps?.pendingReaction?.deadlineAt,
+    snapshot.gameState.privateState.powerUps?.pendingTrade?.deadlineAt,
     snapshot.gameState.boardState.paymentQueue?.actionDeadlineAt,
     snapshot.gameState.privateState.forcedSaleProposal?.expiresAt,
     snapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
@@ -592,6 +598,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     state.privateState.forcedSaleProposal?.buyerPlayerId,
     ...(state.boardState.paymentQueue?.orderedClaims.flatMap((claim) => [
       claim.debtorPlayerId,
+      claim.rentRevenueShare?.beneficiaryPlayerId,
       claim.creditorPlayerId,
     ]) ?? []),
     state.boardState.paymentQueue?.continuation.playerId,

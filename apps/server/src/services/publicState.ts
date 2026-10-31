@@ -12,7 +12,9 @@ import {
   type RoomPlayerMeta,
 } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
+import { projectLivePowerUpOwnerState, projectPowerUpSummary } from '../game/powerUps/rewards';
 import { forcedSaleGrossPrice } from '../game';
+import { powerUpPurchasePrice } from '../game/powerUps/economy';
 import type { RoomRecord } from '../persistence/types';
 import {
   MAX_PLAYERS,
@@ -150,6 +152,7 @@ export function projectPublicRoomState(
         isJail: player.isJail,
         jailOpponentRoundsElapsed: player.jailOpponentRoundsElapsed,
         getOutOfJailCardCount: player.heldJailFreeCardIds.length,
+        powerUps: projectPowerUpSummary(gameState, playerId),
       },
     ])),
     turnInfo: (() => {
@@ -160,13 +163,14 @@ export function projectPublicRoomState(
         return { pendingCardInteraction: structuredClone(card) };
       }
       if (purchase) {
+        const basePrice = tileState[purchase.tileID]?.price ?? 0;
         return {
           pendingLandingDecision: {
             kind: 'PURCHASE' as const,
             operationId: purchase.operationId,
             playerId: purchase.playerId,
             tileID: purchase.tileID,
-            price: tileState[purchase.tileID]?.price ?? 0,
+            price: powerUpPurchasePrice(gameState, purchase.playerId, purchase.tileID, basePrice),
           },
         };
       }
@@ -218,6 +222,7 @@ export function projectPrivatePlayerState(
       ?? { sequence: 0, events: [] },
   );
   if (player) return {
+    powerUps: projectLivePowerUpOwnerState(hydrateGameState(room.gameSnapshot, room.status), playerId),
     playerId,
     heldJailFreeCardIds: [...player.heldJailFreeCardIds],
     forcedSaleProposal: room.gameSnapshot.gameState.privateState.forcedSaleProposal

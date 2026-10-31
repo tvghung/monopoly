@@ -7,6 +7,7 @@ import { formatMoney, getTileName } from '../../presentation';
 import { getPlayerDisplayColor, getPlayerDisplayForeground } from '../../game/ui/playerVisualColors';
 import { getPropertyGroupDisplayColor } from '../../game/ui/propertyVisualColors';
 import { getTileAccessibilityLabel } from './tileAccessibility';
+import { usePresentationSelector } from '../../game/presentation/usePresentationSelector';
 import { useTranslation } from '../../i18n/I18n';
 
 interface LegacyTileProps {
@@ -52,6 +53,7 @@ export default function LegacyTile({
 }: LegacyTileProps) {
   const { state } = useContext(stateContext);
   const { language, t } = useTranslation();
+  const targets = usePresentationSelector(state => state.powerUpTargets);
   const owned = state.boardState.ownedProps[id];
   const ownerColor = owned
     ? state.players[owned.id]?.color
@@ -71,6 +73,7 @@ export default function LegacyTile({
       className={`Tile tile${id} ${position}`}
       id={String(id)}
       data-tile-index={id}
+      data-powerup-target={targets ? targets.selectedTileId === id ? 'selected' : targets.validTileIds.includes(id) ? 'valid' : 'invalid' : undefined}
       aria-label={getTileAccessibilityLabel(id, state, language)}
       aria-expanded={selected}
     >

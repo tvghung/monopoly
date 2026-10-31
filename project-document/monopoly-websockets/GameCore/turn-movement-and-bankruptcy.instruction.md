@@ -75,3 +75,7 @@ Removal non-current không tiến lượt. Winner/Game Finished được kiểm 
 mới. Bankruptcy theo batch cũng chọn successor một lần sau khi bỏ toàn bộ debtor đã phá sản. Tất cả sửa đổi vẫn nằm trong
 draft room transaction, nên rollback không công bố turn/jail state. Held jail-free cards vẫn được trả một lần theo
 `removePlayerRecord` của AUDIT-010; snapshot schema và socket protocol không đổi. Chưa có thay đổi này trong v1.10.0 đã phát hành.
+
+## CURRENT DEVELOPMENT — Power-up rent allocation (08B)
+
+`apps/server/src/game/payment.ts` credits A07 through `creditPaymentReceipt` on every actual receipt. The private claim holds cumulative collected/forwarded units so partial cash, forced sales, D07/D08 and rescue obey one rounding/cap calculation; no extra payer obligation is created. This private metadata is RAM snapshot 14 and is not public. Current-player removal also invokes the normal Power-up start-of-turn expiry for its successor. See [Power-up runtime](./power-ups.instruction.md) and `apps/server/src/game/powerUps/stabilization.test.ts`.

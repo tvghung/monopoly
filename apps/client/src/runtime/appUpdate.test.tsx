@@ -54,8 +54,10 @@ describe('AppUpdateProvider', () => {
     const { push } = installUpdateBridge(updateState({ phase: 'up-to-date' }));
     renderProvider();
 
-    await waitFor(() => expect(screen.getByTestId('phase').textContent).toBe('up-to-date'));
-    expect(latest.available).toBe(true);
+    await waitFor(() => {
+      expect(screen.getByTestId('phase').textContent).toBe('up-to-date');
+      expect(latest.available).toBe(true);
+    });
 
     await push(available());
     expect(screen.getByTestId('phase').textContent).toBe('available');

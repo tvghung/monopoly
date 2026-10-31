@@ -788,6 +788,42 @@ export default function App({
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('resolve development', request, callback));
       },
+      selectPowerUp: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('select power up', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để đồng bộ lựa chọn.', retryable: true } } as Ack : response);
+        }));
+      },
+      resolvePowerUp: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('resolve power up', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để đồng bộ phần thưởng.', retryable: true } } as Ack : response);
+        }));
+      },
+      activatePowerUp: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('activate power up', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để đồng bộ thao tác.', retryable: true } } as Ack : response);
+        }));
+      },
+      respondPowerUp: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('respond power up', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để đồng bộ phản ứng.', retryable: true } } as Ack : response);
+        }));
+      },
+      resolvePowerUpTrade: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('resolve power up trade', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để đồng bộ trao đổi.', retryable: true } } as Ack : response);
+        }));
+      },
+      continuePowerUpMovement: (request) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return new Promise<Ack>(resolve => socket.timeout(8_000).emit('continue power up movement', request, (error, response) => {
+          resolve(error ? { ...unavailableAck(), error: { code: 'CONFLICT', message: 'Kết nối bị gián đoạn. Hãy thử lại để tiếp tục di chuyển.', retryable: true } } as Ack : response);
+        }));
+      },
       dismissCard: (operationId) => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('dismiss card', { operationId }, callback));

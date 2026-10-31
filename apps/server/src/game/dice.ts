@@ -7,6 +7,7 @@ import type {
   SentToJailCause,
 } from '@monopoly/shared';
 import { GO_REWARD } from '@monopoly/shared';
+import { issueStartReward } from './powerUps/rewards';
 import { sendToLog } from './text';
 import { recordPublicGameplayEvent } from './semanticEvents';
 
@@ -81,7 +82,7 @@ const awardStartReward = (
   const player = state.players[playerId];
   if (!player) return;
   player.accountBalance += START_REWARD;
-  recordPublicGameplayEvent(state, {
+  const occurrence = recordPublicGameplayEvent(state, {
     type: 'PASS_GO',
     playerId,
     reward: START_REWARD,
@@ -90,6 +91,8 @@ const awardStartReward = (
     movement,
     ...(operationId ? { operationId } : {}),
   });
+  if (occurrence.type !== 'PASS_GO') throw new Error('Invalid START occurrence');
+  issueStartReward(state, occurrence);
   recordPublicGameplayEvent(state, {
     type: 'MONEY_TRANSFER',
     source: { kind: 'BANK' },

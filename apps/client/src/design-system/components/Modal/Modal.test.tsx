@@ -244,3 +244,8 @@ describe('Modal v2 accessibility details', () => {
     await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });
+
+
+describe('08B rapid inventory modal re-entry',()=>{
+  it('restores focus trapping when reopened before its exit animation completes',()=>{const onClose=vi.fn();const view=(open:boolean)=><Modal open={open} title="Re-entry" onClose={onClose} footer={<button type="button">Last</button>}><button type="button">First</button></Modal>;const rendered=render(view(true));rendered.rerender(view(false));rendered.rerender(view(true));const card=screen.getByRole('dialog',{name:'Re-entry'});screen.getByRole('button',{name:'Last'}).focus();fireEvent.keyDown(document,{key:'Tab'});expect(card.contains(document.activeElement)).toBe(true);expect(document.activeElement?.textContent).not.toBe('Last');fireEvent.keyDown(document,{key:'Escape'});expect(onClose).toHaveBeenCalledTimes(1)});
+});

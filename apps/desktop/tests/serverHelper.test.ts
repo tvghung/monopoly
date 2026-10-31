@@ -66,6 +66,7 @@ describe('server helper controller', () => {
 
   it('hands the helper only the Host controls its controller chose, never ones inherited from the user environment', async () => {
     const inherited = {
+      OTB_DEVELOPMENT_RENDERER: '1',
       OTB_HOST_ROOM_CODE: 'FROM-USER-ENV',
       OTB_HOST_CREATE_SECRET: 'e'.repeat(64),
       OTB_ONLINE_ROOM_CODE: 'FROM-USER-ENV',
@@ -100,7 +101,7 @@ describe('server helper controller', () => {
       await startWith();
       await startWith({ OTB_HOST_ROOM_CODE: 'HOST-ROOM', OTB_HOST_CREATE_SECRET: 'a'.repeat(64) });
 
-      for (const name of ['OTB_HOST_ROOM_CODE', 'OTB_HOST_CREATE_SECRET', 'OTB_ONLINE_ROOM_CODE', 'OTB_REGISTRY_ROOM_CODE', 'OTB_REGISTRY_PROOF']) {
+      for (const name of ['OTB_DEVELOPMENT_RENDERER', 'OTB_HOST_ROOM_CODE', 'OTB_HOST_CREATE_SECRET', 'OTB_ONLINE_ROOM_CODE', 'OTB_REGISTRY_ROOM_CODE', 'OTB_REGISTRY_PROOF']) {
         expect(forked[0]?.[name]).toBeUndefined();
       }
       expect(forked[0]?.UNRELATED_SETTING).toBe('kept');

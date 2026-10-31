@@ -3,7 +3,6 @@ import { TEAM_IDS } from '@monopoly/shared';
 import { createEmptyActivityFeed } from '../game/activity.js';
 import { createEmptyGameplayEventStream } from '../game/semanticEvents.js';
 import { createDefaultTeamSettings, createEmptyTeamPlayState } from '../game/teamState.js';
-import { ROOM_SNAPSHOT_SCHEMA_VERSION } from '../rooms.js';
 import type { PersistedRoomSnapshotEnvelope, RoomSnapshot } from '../rooms.js';
 
 export const LEGACY_PLAYER_COLOR_MAP: Record<string, PlayerColorId> = {
@@ -304,5 +303,5 @@ export const upgradeRoomSnapshotV10ToV11 = (
   if (envelope.snapshotSchemaVersion !== 10) {
     throw new Error('Only V10 room snapshots can be upgraded to V11');
   }
-  return { ...envelope, snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION };
+  return { ...envelope, snapshotSchemaVersion: 11 };
 };

@@ -207,3 +207,29 @@ Historical note: this section records the v1.8.0 pre-release assessment. v1.8.0 
 - **Snapshot.** Keep room snapshot schema 11. The accepted tax and revealed-card visibility changes add no persisted snapshot field, so no migration is required.
 - **Authority.** The host remains authoritative for tax calculation and minimum card-dismissal timing; client and observer presentation follows the authoritative deadline.
 - **Evidence.** Contract validation, server incompatibility tests, desktop LAN protocol contract tests, and the v1.9.0 Release Candidate gates. Owner acceptance is OWNER-REPORTED MANUAL ACCEPTANCE: PASS; independent physical-device and cross-network testing is reported separately.
+
+## CURRENT DEVELOPMENT — Power-up Phase 02 boundary
+
+The optional server-private foundation follows ADR-03/05/07: RAM aggregate, cloned drafts and explicit owner projection. No production START producer, transport or turn/recovery wiring exists in Phase 02. Live activation must connect completion guards together with an approved disconnect/bot policy; classic-card auto-dismiss cannot silently choose among rewards. See [foundation](./GameCore/power-ups.instruction.md) and [design](../powerups/02_TECHNICAL_DESIGN.md).
+
+Phase 03D adds data-only official definitions/config/contracts and pure validation. [03C approved](../powerups/03C_POWERUP_GAMEPLAY_RULES_SPEC_APPROVED.md) locks server random choice from stored candidates at the existing disconnected-owner recovery deadline; full-hand, FIFO, bot and removal policies remain live gates. [03D report](../powerups/03D_CARD_DEFINITIONS_REPORT.md) records them. This phase changes no wire or RAM snapshot shape: socket protocol 14 and snapshot schema 11 remain unchanged; no runtime effect or scheduler is installed.
+
+## HISTORICAL — Power-up Phase 04–05 START rewards and inventory
+
+The owner authorized live START integration, full-hand replace/decline, public category counts, uniform bot choice and offline discard-new policy in the Phase 04–05 task. Those instructions supersede earlier 03C/03D live-integration OPEN gates for that phase. The former Phase 06-deferred state is historical; the current gameplay implementation is recorded below.
+
+The existing awardStartReward occurrence is the only producer, in the same room transaction as cash. FIFO is per owner to prevent global head-of-line blocking. Turn continuation waits for mandatory rewards; automatic resolution uses existing recovery grace and the identical grant path. A room checkpoint resolves bots without a random-selection socket capability. Elimination (including revivable bankruptcy) clears cards; revival starts empty. Match end cancels pending rewards and clears inventory while retaining completed offer identities until rematch/process exit. See [canonical contract](./GameCore/power-ups.instruction.md).
+
+This phase required protocol 15 / RAM snapshot 12. The current unreleased gameplay work advances the working-branch contract to protocol 16 / snapshot 13. Published v1.10.0 remains protocol 14 / snapshot 11. No release identity, installer, production deployment or published release evidence is changed here.
+
+## CURRENT DEVELOPMENT — Power-up Phases 06–08 gameplay, UI and validation
+
+All 30 official cards have server-side handlers: 22 Active and 8 Reaction. Runtime effects reuse the existing room command transaction, payment, property transfer, purchase/build and dice/movement paths. Reaction prompts use target-private projection and an absolute server deadline; owner-turn and start-bound effects expire in authoritative lifecycle hooks. See [Power-up runtime](./GameCore/power-ups.instruction.md), [socket contract](./Api/socket-powerups.instruction.md) and [Phase 06 report](../powerups/06_GAMEPLAY_ENGINE_REPORT.md).
+
+The client now displays functional activation forms, reactions, trade consent, movement continuation and status inspection. Card reveal/entry motion honors reduced-motion preferences. Distinct Attack/shield/reflection animations, target highlighting and native Electron visual acceptance remain open; they are listed in the [Phase 07 report](../powerups/07_UI_UX_IMPLEMENTATION_REPORT.md).
+
+Protocol 16 / snapshot 13 are unreleased development contracts. Phase 08's report records actual command results, per-card test evidence, platform limits and release-readiness status. The RAM host still has no process-restart recovery, and this change does not publish, merge or deploy.
+
+## CURRENT DEVELOPMENT — Phase 08B stabilization
+
+Phase 08B retains the approved catalog and all gameplay values. Private settlement counters on a rent claim allocate A07 from realized receipts, including partial liquidation and Bank/rescue contributions; snapshot schema is 14, while wire protocol remains 16 because these fields are excluded from projections. Card feedback uses the existing PresentationController/AnimationQueue/PresentationStore: inventory deltas report only removal; activation, block and reflection cues require committed command ACKs, guarded by the reconnect reset epoch. Board targeting is presentation-only render-model data. Bots may choose eligible owned pre-roll Active cards through the shared executor and wait while a human Power-up prompt owns the lane. Actual evidence, current limits and separate release verdicts: [08B stabilization](../powerups/08B_STABILIZATION_REPORT.md). The earlier phase paragraphs above remain historical implementation records.

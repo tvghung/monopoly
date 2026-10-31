@@ -68,8 +68,9 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 | F50 | Shared contracts, schemas and versioning | [socket-and-state-contracts][s-con] | COMPLETE |
 | F51 | Packaging and release | [V1_RELEASE_CONTRACT](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md) | PARTIAL |
 | F52 | Dev-only tools (Design Lab, UAT harness, FPS) | [design-system][c-ds] | COMPLETE |
+| F53 | Power-up system (CURRENT DEVELOPMENT) | [power-ups](./GameCore/power-ups.instruction.md) | COMPLETE |
 
-**Totals: 52 features — 48 COMPLETE, 4 PARTIAL, 0 MISSING.** No current instruction file was found whose code no longer exists.
+**Totals: 53 features — 49 COMPLETE, 4 PARTIAL, 0 MISSING.** No current instruction file was found whose code no longer exists.
 
 ## Session and entry
 
@@ -587,3 +588,18 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 [t-client]: ./testcase/client-state-sync-motion-and-accessibility.md
 [t-shared]: ./testcase/shared-contracts-and-board-data.md
 [t-rel]: ./testcase/RELEASE_ACCEPTANCE_MATRIX.md
+
+### F53 Power-up system (CURRENT DEVELOPMENT; Phases 04–09C)
+
+- **Entry:** START reward from the existing dice movement path; owner inventory at the game HUD; Active use, Reaction, U06 consent and movement continuation through authenticated socket commands.
+- **Docs:** [gameplay](./GameCore/power-ups.instruction.md), [API](./Api/socket-powerups.instruction.md), [client](./Client/power-ups.instruction.md), [checklist](./testcase/power-ups.md), [03C approved](../powerups/03C_POWERUP_GAMEPLAY_RULES_SPEC_APPROVED.md).
+- **Shared:** `packages/shared/src/powerUps.ts`, `packages/shared/src/types.ts`, `packages/shared/src/stateSchemas.ts`, `packages/shared/src/socketSchemas.ts`, `packages/shared/src/powerUpConfig.ts`, `packages/shared/src/powerUpEffects.ts`.
+- **Server:** `apps/server/src/game/powerUps/catalog.ts`, `apps/server/src/game/powerUps/runtime.ts`, `apps/server/src/game/powerUps/economy.ts`, `apps/server/src/game/powerUps/lifecycle.ts`, `apps/server/src/game/powerUps/rewards.ts`, `apps/server/src/socket/powerUps.ts`, `apps/server/src/services/powerUpCheckpoint.ts`.
+- **Client:** `apps/client/src/game/ui/powerUps/PowerUpPanel.tsx`, `PowerUpRuntimePanels.tsx`, `PowerUpCard.tsx`, `PowerUps.css`, integrated by `BottomDock.tsx`.
+- **Tests:** `apps/server/src/game/powerUps/catalog.test.ts`, `apps/server/src/game/powerUps/config.test.ts`, `apps/server/src/game/powerUps/foundation.test.ts`, `apps/server/src/game/powerUps/rewards.test.ts`, `apps/server/src/game/powerUps/runtime.test.ts`, `apps/server/src/socket.powerUps.integration.test.ts`, `apps/client/src/game/ui/powerUps/PowerUpPanel.test.tsx`, `scripts/powerUpAcceptance.check.mjs`.
+- **Status:** COMPLETE for development traceability. All 30 card-specific socket outcomes, financial boundaries, 80 attack/reaction compatibility cases, required interaction groups, seeded full games and themed presentation have evidence in [Phase 08B](../powerups/08B_STABILIZATION_REPORT.md). Production remains NO-GO; physical device/GPU, installer and macOS UAT are separate release gates. **Affects:** F22–F31, F49–F50, plus reconnect, payment and private-state contracts.
+- **Additional tests:** `apps/server/src/game/powerUps/stabilization.test.ts`, `apps/server/src/socket.powerUps.allCards.integration.test.ts`, `apps/server/src/game/powerUps/endurance.test.ts`, `apps/client/src/game/presentation/events/powerUpFeedback.test.ts`, `scripts/powerUpStabilizationAcceptance.check.mjs`.
+
+- **09B–09C artwork:** `apps/client/src/game/ui/powerUps/powerUpArtManifest.ts`, `apps/client/src/game/ui/powerUps/PowerUpArtwork.tsx`, `scripts/art/powerUpIllustrations.mjs`; source/export validator `apps/client/scripts/validatePowerUpArtwork.mjs`, boundary tests `apps/client/src/game/ui/powerUps/PowerUpArtwork.test.tsx`, integrated visual checks `scripts/art/powerUpArtworkAcceptance.mjs`. Results and actual limitations: [09C visual QA](../powerups/09C_VISUAL_QA_REPORT.md).
+
+- **OB-4 picker presentation:** `apps/client/src/game/ui/powerUps/PowerUpPickerCard.tsx` scopes collectible depth/motion to reward candidates; authority/retry regression stays in `apps/client/src/game/ui/powerUps/PowerUpPanel.test.tsx`; production-browser verification is `scripts/powerUpPickerAcceptance.check.mjs`. See [OB-4 picker validation](../powerups/OB4_PICKER_VALIDATION.md).

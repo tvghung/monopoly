@@ -129,6 +129,10 @@ khác vẫn còn để vào lại từ launcher. Chỉ `leave room` tường min
 | `LOBBY` (host và khách), ván đang chơi, khán giả, `WinnerBanner` | không đổi: "Rời phòng" / "Bỏ cuộc" / "Về trang chủ" qua `leaveRoom` → `exitToStart` |
 | `RECONNECTING`, `RESTORING` (loading) | tạm thời và có giới hạn: lần kết nối lại thất bại đầu tiên (`connect_error`) hoặc `ACK_TIMEOUT_MS` chuyển sang `ERROR` ở trên |
 
+**CURRENT DEVELOPMENT — OB-3:** desktop main menus expose Host and Join without the configured-server
+("Máy chủ riêng") button, including after returning from a room or failure. Configured-server plumbing and explicit
+design-lab `initialMode="configured"` remain available internally. Web entry and LAN/Online flows are unchanged.
+
 ## First join
 
 1. Form trim/validate name và room code.

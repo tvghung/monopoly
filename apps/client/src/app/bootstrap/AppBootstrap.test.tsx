@@ -324,15 +324,19 @@ describe('AppBootstrap failure handling', () => {
     });
 
     renderAppBootstrap();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
-    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng hoặc liên kết mời'), {
+      target: { value: 'http://192.168.1.15:8080/?room=LAN-1234' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await waitFor(() => expect(bootstrapMock.bootstrap).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.getByRole('button', { name: 'ready' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'ready' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
   });
 });

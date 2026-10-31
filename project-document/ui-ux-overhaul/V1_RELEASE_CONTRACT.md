@@ -9,8 +9,10 @@ versions, protocol values, proof SHAs, and acceptance limits.
 Product: Own the Block
 Release: V1
 Semantic version: 1.10.0
-Socket protocol: 14
+Socket protocol: 16
 ```
+
+CURRENT DEVELOPMENT: Phase 04–05 introduced protocol 15 / RAM snapshot 12; Phases 06–08 add gameplay commands and runtime state at protocol 16 / RAM snapshot 13. Phase 08B retains protocol 16 and advances private RAM settlement metadata to snapshot 14. The published v1.10.0 installer remains protocol 14 / snapshot 11. Product version is unchanged for this working branch; no release or installer publication is authorized by this change. The update floor stays 1.9.0 and the policy review records protocol 16; mismatched protocol handshakes are refused. A future published Power-up build needs its own release identity and installer review.
 
 Application semantic version and network protocol version are independent.
 Root `package.json` supplies the product version to desktop release metadata and

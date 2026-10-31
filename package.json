@@ -48,9 +48,14 @@
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm test:v1-contract && pnpm test:perf-tools && pnpm test:registry && pnpm test:music-validator && pnpm test:card-art && pnpm test:landmark-art && pnpm -r test",
+    "test": "pnpm test:v1-contract && pnpm test:perf-tools && pnpm test:registry && pnpm test:music-validator && pnpm test:card-art && pnpm test:landmark-art && pnpm test:powerup-art && pnpm -r test",
     "test:e2e:mobile": "pnpm --filter @monopoly/client build && playwright test",
-    "visual:capture": "playwright test -c playwright.visual.config.ts"
+    "visual:capture": "playwright test -c playwright.visual.config.ts",
+    "validate:powerup-art": "pnpm --filter @monopoly/client validate:powerup-art",
+    "test:powerup-art": "pnpm --filter @monopoly/client test:powerup-art",
+    "art:powerups": "node scripts/art/exportPowerUpArtwork.mjs",
+    "art:powerups:verify": "node scripts/art/exportPowerUpArtwork.mjs --verify",
+    "art:powerups:contacts": "node scripts/art/powerUpContactSheets.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

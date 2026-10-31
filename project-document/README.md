@@ -31,7 +31,7 @@ log is recorded as `OWNER-REPORTED`, never as an automated or independent `PASS`
 | Item | Value | Evidence |
 | --- | --- | --- |
 | Latest published release | **v1.10.0** (socket protocol 14, room snapshot schema 11) | [GitHub Release v1.10.0](https://github.com/tvghung/monopoly/releases/tag/v1.10.0); annotated tag points to `5a93a29c29ee91ad941ecf07eb958fc78e83bf9b`; tag workflow 39434544013 succeeded |
-| Current working tree | Branch `codex/v1.10.0-refactor`, HEAD `5a93a29c29ee91ad941ecf07eb958fc78e83bf9b`, with uncommitted E1 reliability patches | E1 changes are CURRENT DEVELOPMENT and are not included in the published v1.10.0 installer; see audit reports 12–16 and the current module contracts |
+| Current working tree | Branch `codex/v1.10.0-refactor`; local Power-up consolidation follows baseline `4c878d67072de6fdfb82457203bfa1d3054fed56` | See [Phase 09A consolidation](./powerups/09A_GIT_CONSOLIDATION_REPORT.md) for exact commits, preserved user changes and verification. Published v1.10.0 remains unchanged |
 | v1.10.0 acceptance limits | Owner full-match UAT is OWNER-REPORTED on a local B8 executable, not hash-matched to the public installer; native renderer suspend/recovery is BLOCKED; physical high-refresh, other GPU, macOS device use, cross-network guests and the real v1.9.1 → v1.10.0 update remain NOT RUN | [v1.10.0 release notes](../.github/release-notes/v1.10.0.md), [acceptance matrix](./monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) |
 | v1.9.1 hosting reliability (retained in v1.10.0) | Online public probes use Electron's network stack, bounded DNS/readiness retries, resolver-cache refresh and safe failure diagnostics; protocol 14 and snapshot schema 11 remain unchanged | [HTTP and hosting](./monopoly-websockets/Api/http-runtime.instruction.md#online), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
 | Historical hosting observations | The affected Windows PC failed on v1.9.1-rc.1 (`PUBLIC_READINESS` / `DNS`, 39 attempts in 39.6 s). Owner-reported rc.2 room creation took about 40–90 s; the cause and timing breakdown remain unknown. These observations do not establish v1.10.0 installer or device acceptance | [release matrix](./monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md), [hosting checklist](./monopoly-websockets/testcase/http-runtime-and-deployment.md) |
@@ -162,3 +162,41 @@ pnpm validate:v1-contract
 
 CI: `.github/workflows/docs.yml` runs both docs commands on every push to `main` and every pull request (no install, no path
 filter), so documentation, agent-instruction and code changes that break a documented path are all caught.
+
+## Power-up development
+
+The current working tree contains the verified Phase 04–08B Power-up development. The Phase 02 design remains historical background; current runtime rules are in [Power-up gameplay](./monopoly-websockets/GameCore/power-ups.instruction.md), with exact per-phase evidence below.
+
+Phase 03D adds the official 30-card registry, config and pure validation based on [03C APPROVED](./powerups/03C_POWERUP_GAMEPLAY_RULES_SPEC_APPROVED.md). [03D report](./powerups/03D_CARD_DEFINITIONS_REPORT.md) records contracts, tests and unresolved live-integration gates; Phase 04 is not activated.
+
+## Power-up Phase 04–05 (HISTORICAL phase report)
+
+This report records the reward/inventory foundation and remains unchanged as phase evidence: [implementation report](./powerups/04_05_IMPLEMENTATION_REPORT.md). It is superseded by the current gameplay/client/API instructions and Phase 06–08 reports. Protocol 15 / snapshot 12 are the predecessor contract; published v1.10.0 remains protocol 14 / snapshot 11.
+
+## Power-up Phases 06–08 (CURRENT DEVELOPMENT)
+
+All 30 official cards have server-side handlers and functional client commands; the current working-branch contract is protocol 16 / snapshot 14. Validation evidence and card-by-card limitations are in [Phase 06](./powerups/06_GAMEPLAY_ENGINE_REPORT.md), [Phase 07](./powerups/07_UI_UX_IMPLEMENTATION_REPORT.md), and [Phase 08](./powerups/08_FINAL_VALIDATION_REPORT.md). The work remains unreleased; Phase 09A records the local consolidation and any preserved uncommitted paths. Do not treat handler coverage as full native/product acceptance.
+
+## Power-up Phase 08B stabilization (CURRENT DEVELOPMENT)
+
+[Stabilization report](./powerups/08B_STABILIZATION_REPORT.md), [30-card coverage](./powerups/08B_CARD_TEST_COVERAGE_MATRIX.md), [interaction matrix](./powerups/08B_INTERACTION_MATRIX.md), and [balance/stress evidence](./powerups/08B_BALANCE_AND_STRESS_REPORT.md) record completed development validation and separate production blockers. Historical Phase 07/08 conclusions remain preserved with dated follow-up evidence. Physical device/GPU and platform release UAT remain required.
+
+## Power-up Phase 09A local baseline
+
+[Consolidation report](./powerups/09A_GIT_CONSOLIDATION_REPORT.md), [verified recovery checkpoint](./powerups/09A_PRE_CONSOLIDATION_CHECKPOINT.md), and [artwork integration readiness](./powerups/09A_ARTWORK_INTEGRATION_READINESS.md) record local-only Git consolidation. Artwork is unchanged; its next iteration is separate.
+
+
+## Power-up Phase 09B–09C artwork (CURRENT DEVELOPMENT)
+
+[Artwork implementation](./powerups/09B_ARTWORK_IMPLEMENTATION_REPORT.md), [30-card asset inventory](./powerups/09B_CARD_ART_ASSET_INVENTORY.md) and [visual QA](./powerups/09C_VISUAL_QA_REPORT.md) record the original vector/PNG family, category backs, rarity frames, integrated client surfaces and browser/packaged Electron evidence. Gameplay definitions and protocol remain unchanged. Local commits only; physical-device/product acceptance and publication remain separate.
+
+
+## Power-up Phase 09C.1 detail refinement (CURRENT DEVELOPMENT)
+
+[Artwork refinement audit](./powerups/09C1_ARTWORK_REFINEMENT_REPORT.md) records the full 30-card hand/coin/contour review, focused SVG/PNG corrections, before/after evidence and regression results. The approved compositions, card backs, rarity frames, UI behavior and gameplay definitions remain unchanged.
+
+## Power-up Phase 09D final integration (CURRENT DEVELOPMENT)
+
+The completed candidate is awaiting Product Owner manual UAT. The checklist is prepared with every manual case initially marked NOT TESTED; this documentation is not evidence that manual UAT was performed: [Phase 09D manual UAT checklist](./powerups/09D_MANUAL_UAT_CHECKLIST.md).
+
+Final branch, test, CI, and PR details: [Phase 09D final PR report](./powerups/09D_FINAL_PR_REPORT.md).

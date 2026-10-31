@@ -95,7 +95,7 @@ describe('start screen with an optional update', () => {
 
     const offer = await screen.findByRole('dialog', { name: 'Có bản cập nhật mới' });
     expect(within(offer).getByText('Own the Block v1.2.0 đã sẵn sàng. Bạn đang sử dụng v1.1.1.')).toBeTruthy();
-    for (const name of ['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng']) expect(menuButton(name).disabled).toBe(false);
+    for (const name of ['Tạo phòng', 'Tham gia phòng']) expect(menuButton(name).disabled).toBe(false);
 
     fireEvent.click(within(offer).getByRole('button', { name: 'Để sau' }));
     await gone();
@@ -174,7 +174,7 @@ describe('start screen with a mandatory update', () => {
 
     const notice = await screen.findByRole('dialog', { name: 'Cần cập nhật Own the Block' });
     expect(within(notice).getByText(/không còn tương thích với phiên bản mới nhất/u)).toBeTruthy();
-    for (const name of ['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng']) expect(menuButton(name).disabled).toBe(true);
+    for (const name of ['Tạo phòng', 'Tham gia phòng']) expect(menuButton(name).disabled).toBe(true);
     // The way to quit stays, and the settings dialog is reachable once the notice is answered.
     expect(within(notice).getByRole('button', { name: 'Thoát game' })).toBeTruthy();
 
@@ -218,7 +218,7 @@ describe('start screen with a mandatory update', () => {
     await push(updateState({ phase: 'up-to-date', currentVersion: '1.2.0' }));
 
     await gone();
-    for (const name of ['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng']) expect(menuButton(name).disabled).toBe(false);
+    for (const name of ['Tạo phòng', 'Tham gia phòng']) expect(menuButton(name).disabled).toBe(false);
   });
 
   it('with a room of this machine open, explains in one line and keeps "Vào lại phòng đang mở" and "Đóng phòng" reachable', async () => {

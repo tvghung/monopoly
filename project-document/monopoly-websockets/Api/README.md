@@ -88,3 +88,12 @@ order, card draw pile and credentials không thuộc public projection.
 - [FEATURE_TRACEABILITY](../FEATURE_TRACEABILITY.md) and [ARCHITECTURE_DECISIONS](../ARCHITECTURE_DECISIONS.md).
 - Desktop shell and helper process: [Desktop README](../Desktop/README.md).
 - Checklists: [testcase README](../testcase/README.md).
+
+## Power-up rewards (CURRENT DEVELOPMENT)
+
+| Event | Handler | Contract |
+| --- | --- | --- |
+| `select power up`, `resolve power up` | `apps/server/src/socket/powerUps.ts` | [Power-up commands](./socket-powerups.instruction.md) |
+| `activate power up`, `respond power up`, `resolve power up trade`, `continue power up movement` | `apps/server/src/socket/powerUps.ts` | [Power-up commands](./socket-powerups.instruction.md) |
+
+Protocol 16 adds server-authoritative activation/reaction/trade/movement commands and private deadlines/prompts. Existing private player state carries owner-only cards/statuses; public players expose held count/category summaries only. The published v1.10.0 contract remains protocol 14 / snapshot 11.

@@ -1,5 +1,6 @@
 import { CARD_MINIMUM_VISIBLE_MS, type PlayerId } from '@monopoly/shared';
 import {
+  activatePowerUpCommand,
   acceptForcedSaleCommand,
   acceptOfferCommand,
   acceptRescueCommand,
@@ -74,6 +75,7 @@ interface Invocation {
 function invocationOf(action: BotAction): Invocation {
   const payload = action.payload;
   switch (action.command) {
+    case 'activate power up': return { command: activatePowerUpCommand, payload };
     case 'roll dice': return { command: rollDiceCommand, payload: undefined };
     case 'buy property': return { command: resolvePurchaseCommand, payload: { ...(payload as object), buy: true } };
     case 'do not buy': return { command: resolvePurchaseCommand, payload: { ...(payload as object), buy: false } };
@@ -208,6 +210,9 @@ export class BotDriver {
       this.cancel(roomId);
       return;
     }
+    // A pending human Power-up prompt owns the command lane until response or expiry.
+    const powerUps = room.gameSnapshot.gameState.privateState.powerUps;
+    if (powerUps?.pendingReaction || powerUps?.pendingTrade) { this.cancel(roomId); return; }
     const views = await this.loadViews(room);
     const task = findBotTask(views);
     if (!task || this.dead.has(task.key)) {

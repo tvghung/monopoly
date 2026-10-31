@@ -4,6 +4,7 @@ import path from 'node:path';
 const DIAGNOSTIC_LIMIT = 2_048;
 /** Set by the Host controller (hostRuntime.ts) and read by the helper to authorize room creation and tunnel trust. */
 export const HOST_CONTROL_VARIABLES = [
+  'OTB_DEVELOPMENT_RENDERER',
   'OTB_HOST_ROOM_CODE',
   'OTB_HOST_CREATE_SECRET',
   'OTB_ONLINE_ROOM_CODE',

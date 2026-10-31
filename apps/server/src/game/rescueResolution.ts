@@ -6,13 +6,12 @@ import {
   type PlayerId,
 } from '@monopoly/shared';
 import { activityPlayerName, recordActivityEvent } from './activity';
-import { activeDebtClaim, type QueuePaymentOptions } from './payment';
+import { activeDebtClaim, creditPaymentReceipt, type QueuePaymentOptions } from './payment';
 import {
   bankruptActiveDebtor,
   progressPaymentQueue,
   type PaymentProgressResult,
 } from './paymentResolution';
-import { recordPublicGameplayEvent } from './semanticEvents';
 import { sendToLog } from './text';
 
 export type RescueResolution =
@@ -78,22 +77,9 @@ export const acceptEmergencyRescue = (
     if (!plan.claimIds.includes(open.claimId)) continue;
     const amount = open.remainingAmount;
     const ownedByRescuer = open.creditor === 'PLAYER' && open.creditorPlayerId === actorId;
-    if (!ownedByRescuer) {
-      const creditor = open.creditor === 'PLAYER' && open.creditorPlayerId
-        ? state.players[open.creditorPlayerId]
-        : undefined;
+    if (!ownedByRescuer || open.rentRevenueShare) {
       rescuer.accountBalance -= amount;
-      if (creditor) creditor.accountBalance += amount;
-      recordPublicGameplayEvent(state, {
-        type: 'MONEY_TRANSFER',
-        source: { kind: 'PLAYER', playerId: actorId },
-        destination: creditor && open.creditorPlayerId
-          ? { kind: 'PLAYER', playerId: open.creditorPlayerId }
-          : { kind: 'BANK' },
-        amount,
-        reason: 'RESCUE',
-        operationId: queue.operationId,
-      });
+      creditPaymentReceipt(state, open, amount, { kind: 'PLAYER', playerId: actorId }, queue.operationId, 'RESCUE');
     }
     open.remainingAmount = 0;
     open.status = 'SETTLED';

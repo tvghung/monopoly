@@ -47,6 +47,16 @@ and its history is in [socket and state contracts](../Shared/socket-and-state-co
 
 ### Startup
 
+**CURRENT DEVELOPMENT — OB-1/OB-2:** `apps/desktop/scripts/dev.mjs` and `apps/desktop/scripts/shell.mjs` prepare the
+manifest-verified cloudflared asset before launching Electron, using the same preparation as packaging. Preparation failure
+warns but leaves LAN usable; Online retains its missing/corrupt-binary refusal. Installed apps do not download binaries.
+The unpackaged shell on the fixed Vite origin explicitly enables `OTB_DEVELOPMENT_RENDERER=1` on its helper through
+`HostRuntimeController`. `ServerHelperController` strips inherited values before applying the controller value; packaged
+startup disables it. The helper accepts `http://127.0.0.1:5173` only on a TCP loopback connection addressed to its IPv4
+loopback authority. Without that opt-in, existing same-origin/packaged/tunnel rules remain. Host capabilities, protocol,
+snapshot schema, tunnel trust headers and pinned binary digests are unchanged.
+
+
 `apps/desktop/src/main.ts` first routes Windows Squirrel lifecycle arguments (`--squirrel-*`) through
 `apps/desktop/src/squirrelEvents.ts` (shortcut create/remove via `Update.exe`, then quit). Only a normal start imports
 `desktopBootstrap` and calls `startDesktopRuntime()`, which registers the privileged `app` scheme, then on `whenReady`
@@ -387,3 +397,7 @@ configuration and retains the `0.0.0.0` Host default.
 Activation is documented in the F8 audit report and must use a fresh path under a new F8 evidence run. Do not reuse a profile,
 open firewall ports or run the original F3 package as a substitute for the F8 candidate. Native acceptance requires independent
 Windows process and listener inspection; an announced endpoint or a mocked helper is not proof of the bound address.
+
+## Power-up artwork resources — CURRENT DEVELOPMENT (09B)
+
+The client production build also validates 30 original Power-up fronts and three category backs, in SVG and PNG. Resources stay under `art/powerups` inside the existing renderer distribution; no runtime protocol/CSP/bridge change is needed. `apps/desktop/scripts/validatePackagedPowerUpArt.mjs` compares packaged bytes with authored/exported sources through the dedicated client validator. Run `pnpm --filter @monopoly/desktop proof:packaged:powerups` after packaging. Native visual acceptance uses the existing stabilization harness with `--artwork --native`; evidence and physical-device limits: [09C visual QA](../../powerups/09C_VISUAL_QA_REPORT.md).

@@ -77,3 +77,7 @@ thẻ đã lật được áp dụng như khi bấm "Đóng" thay vì treo ván.
 Difficulty coverage: `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`,
 `apps/client/src/components/Lobby.test.tsx` (các describe/it có "difficulty"). Manual full-game theo từng mức NOT RUN.
 Checklist: [testcase/bot-players.md](../testcase/bot-players.md).
+
+## CURRENT DEVELOPMENT — 08B Power-up decisions
+
+Before rolling, the bot policy may activate an eligible owned A01/A02/A03/A05/A07/A08/A09/A10 or D04 using its own private projection and public targets. The driver invokes the same `activatePowerUpCommand` as a human and retains the roll fallback. It does not arm ordinary task retries while a human Reaction/consent is pending. Bot reactions retain the existing authoritative automatic-pass policy. This is a bounded legal-use heuristic, not a complete strategic policy for all 30 cards. Tests: `apps/server/src/bots/driver.test.ts`, `apps/server/src/game/powerUps/endurance.test.ts`.

@@ -189,7 +189,7 @@ describe('a downloaded update', () => {
 
     const question = await dialog('Bản cập nhật đã sẵn sàng');
     expect(within(question).getByText(/Game sẽ đóng và mở lại để hoàn tất cập nhật/u)).toBeTruthy();
-    expect(document.activeElement).toBe(within(question).getByRole('button', { name: 'Để sau' }));
+    await waitFor(() => expect(document.activeElement).toBe(within(question).getByRole('button', { name: 'Để sau' })));
 
     fireEvent.click(within(question).getByRole('button', { name: 'Khởi động lại và cập nhật' }));
     expect(update.install).toHaveBeenCalledOnce();

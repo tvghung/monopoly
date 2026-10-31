@@ -70,7 +70,7 @@ describe('C2 terminal offer retention characterization', () => {
       id: roomId,
       code: 'C2-RETENTION',
       status: 'IN_PROGRESS',
-      snapshotSchemaVersion: 11,
+      snapshotSchemaVersion: 12,
       gameSnapshot: { marker: 'retention fixture' },
     });
 

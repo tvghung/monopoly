@@ -96,3 +96,7 @@ pnpm build
 pnpm desktop:package
 pnpm validate:docs
 ```
+
+## Power-up rewards and gameplay (CURRENT DEVELOPMENT)
+
+[Power-up UI](./power-ups.instruction.md) documents START rewards, the inventory, Active activation forms, Reaction prompts/countdown, trade consent, movement decisions and effect status display.

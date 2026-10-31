@@ -148,7 +148,7 @@ export interface EmergencyRescuePlan {
  * one on, because bankruptcy would void all of them: a rescue of only the first would still end in elimination.
  */
 export const planEmergencyRescue = (
-  claims: readonly Pick<DebtClaim, 'claimId' | 'debtorPlayerId' | 'creditor' | 'creditorPlayerId' | 'remainingAmount' | 'status'>[],
+  claims: readonly Pick<DebtClaim, 'claimId' | 'debtorPlayerId' | 'creditor' | 'creditorPlayerId' | 'remainingAmount' | 'status' | 'rentRevenueShare'>[],
   activeClaimIndex: number,
   debtorPlayerId: PlayerId,
   rescuerPlayerId: PlayerId,
@@ -159,8 +159,13 @@ export const planEmergencyRescue = (
     if (claim.status === 'SETTLED' || claim.status === 'BANKRUPT' || claim.remainingAmount <= 0) return;
     plan.shortfall += claim.remainingAmount;
     plan.claimIds.push(claim.claimId);
-    if (!(claim.creditor === 'PLAYER' && claim.creditorPlayerId === rescuerPlayerId)) {
-      plan.payable += claim.remainingAmount;
+    const share = claim.rentRevenueShare;
+    const diverted = share ? Math.max(0, Math.min(share.capUnits,
+      Math.floor((share.grossCollected + claim.remainingAmount) * share.percent / 100)) - share.forwardedUnits) : 0;
+    if (claim.creditor === 'PLAYER' && claim.creditorPlayerId === rescuerPlayerId) {
+      if (share?.beneficiaryPlayerId !== rescuerPlayerId) plan.payable += diverted;
+    } else {
+      plan.payable += claim.remainingAmount - (share?.beneficiaryPlayerId === rescuerPlayerId ? diverted : 0);
     }
   });
   return plan;

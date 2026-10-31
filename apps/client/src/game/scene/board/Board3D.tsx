@@ -86,6 +86,7 @@ export default function Board3D({
       <BoardFoundation />
       <TileBodyBatch
         tiles={tiles}
+        powerUpTargets={model?.powerUpTargets}
         hoverStore={hoverStore}
         selectedTileId={selectedTileId}
         onSelect={onTileSelect}
@@ -105,7 +106,7 @@ export default function Board3D({
             name={tile.name}
             ownerColor={tile.ownerColor}
             houses={tile.houses}
-            selected={selectedTileId === tile.tileId}
+            selected={model?.powerUpTargets ? model.powerUpTargets.validTileIds.includes(tile.tileId) : selectedTileId === tile.tileId}
             ownershipChange={latestOwnershipChanges.get(tile.tileId)}
             developmentChange={latestDevelopmentChanges.get(tile.tileId)}
             goCrossing={tile.tileId === 0 ? latestGoCrossing : undefined}

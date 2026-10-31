@@ -88,7 +88,7 @@ function viewOf(fixture: Fixture = {}): BotView {
   return {
     botId: BOT,
     room: {
-      protocolVersion: 14,
+      protocolVersion: 16,
       version: 7,
       roomId: '00000000-0000-4000-8000-00000000r00m'.replace('r00m', 'beef'),
       roomCode: 'OTB-TEST23',

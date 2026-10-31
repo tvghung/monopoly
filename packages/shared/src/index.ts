@@ -23,3 +23,7 @@ export * from './types';
 export * from './events';
 export * from './socketSchemas';
 export * from './stateSchemas';
+
+export * from './powerUps';
+export * from './powerUpConfig';
+export * from './powerUpEffects';

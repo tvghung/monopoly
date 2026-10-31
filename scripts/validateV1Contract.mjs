@@ -39,10 +39,10 @@ export function validateV1Contract(root = repositoryRoot) {
     rejectOldVersion(file, JSON.stringify(metadata.scripts ?? {}));
   }
   requireMatch('packages/shared/src/types.ts',
-    /^export const SOCKET_PROTOCOL_VERSION = 14 as const;\r?$/m,
-    'expected authoritative SOCKET_PROTOCOL_VERSION = 14 as const;');
+    /^export const SOCKET_PROTOCOL_VERSION = 16 as const;\r?$/m,
+    'expected authoritative SOCKET_PROTOCOL_VERSION = 16 as const;');
   validateUpdatePolicy(read, contractVersion);
-  for (const field of ['Product: Own the Block', 'Release: V1', `Semantic version: ${contractVersion}`, 'Socket protocol: 14']) {
+  for (const field of ['Product: Own the Block', 'Release: V1', `Semantic version: ${contractVersion}`, 'Socket protocol: 16']) {
     if (!read(contractPath).split(/\r?\n/).includes(field)) {
       throw new Error(`${contractPath}: required contract field "${field}" is missing or incorrect.`);
     }
@@ -121,7 +121,7 @@ export function isCliEntry(entryPath = process.argv[1]) {
 if (isCliEntry()) {
   try {
     const version = validateV1Contract();
-    process.stdout.write(`V1 release contract PASS: Own the Block ${version}; Socket protocol 14.\n`);
+    process.stdout.write(`V1 release contract PASS: Own the Block ${version}; Socket protocol 16.\n`);
   } catch (error) {
     process.stderr.write(`V1 release contract FAIL: ${error.message}\n`);
     process.exitCode = 1;

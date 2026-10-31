@@ -112,10 +112,11 @@ export function applyTileBodyColors(
   entries: readonly BodyEntry[],
   hoveredTileId: number | null,
   selectedTileId: number | null,
+  powerUpTargets?: { validTileIds: readonly number[]; selectedTileId: number | null } | null,
 ): boolean {
   let changed = false;
   entries.forEach((entry, index) => {
-    if (writeBodyColor(mesh, index, tileBodyColor(entry, hoveredTileId, selectedTileId))) changed = true;
+    if (writeBodyColor(mesh, index, powerUpTargets ? entry.tileId === powerUpTargets.selectedTileId ? boardVisualTokens.selection : powerUpTargets.validTileIds.includes(entry.tileId) ? boardVisualTokens.house : boardVisualTokens.tileChassisSpecial : tileBodyColor(entry, hoveredTileId, selectedTileId))) changed = true;
   });
   if (changed && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   return changed;
