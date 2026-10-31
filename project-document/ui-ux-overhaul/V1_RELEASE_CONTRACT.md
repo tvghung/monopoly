@@ -8,11 +8,11 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.10.0
+Semantic version: 1.11.0
 Socket protocol: 16
 ```
 
-CURRENT DEVELOPMENT: Phase 04–05 introduced protocol 15 / RAM snapshot 12; Phases 06–08 add gameplay commands and runtime state at protocol 16 / RAM snapshot 13. Phase 08B retains protocol 16 and advances private RAM settlement metadata to snapshot 14. The published v1.10.0 installer remains protocol 14 / snapshot 11. Product version is unchanged for this working branch; no release or installer publication is authorized by this change. The update floor stays 1.9.0 and the policy review records protocol 16; mismatched protocol handshakes are refused. A future published Power-up build needs its own release identity and installer review.
+RELEASE PREPARATION — v1.11.0: the integrated Power-up candidate uses Socket protocol 16 and RAM snapshot schema 14. The latest verified published release remains v1.10.0 (protocol 14 / snapshot 11) until publication is verified. This release sets the update floor to 1.11.0 and records protocol 16 in the update policy; older desktop builds cannot play with a protocol-16 Host. The Product Owner has explicitly authorized the merge, annotated tag and existing release pipeline, with unperformed manual UAT recorded as NOT RUN. Preparation and automated checks do not establish publication or manual UAT PASS. See the [v1.11.0 verification record](../releases/V1_11_0_RELEASE_VERIFICATION.md).
 
 Application semantic version and network protocol version are independent.
 Root `package.json` supplies the product version to desktop release metadata and
@@ -54,7 +54,7 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`,
 
 Forge uses the root package version for app metadata and the Windows Squirrel
 name: `OwnTheBlock-<version>-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.7.0-x64.dmg` and `Own the Block-1.7.0-arm64.dmg` from app name,
+`Own the Block-<version>-x64.dmg` and `Own the Block-<version>-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
@@ -609,3 +609,14 @@ in-place upgrades, cross-network gameplay and macOS device hosting remain **NOT 
 Release gồm các cải tiến hiệu năng và trình bày B4/B5/B7/B8; B6 Adaptive Graphics bị loại theo quyết định của chủ dự án. Release notes phân loại B4, B5 và B8 là PARTIAL — CLOSED, B7 là PASS — CLOSED. Chủ dự án báo cáo đã hoàn tất full-match UAT trên executable trong worktree `phase-b8`; không có hash file để đối chiếu, nên đây không phải nghiệm thu binary của installer v1.10.0 công khai. Thao tác minimize/restore không tái hiện renderer bị suspend; mục tiêu suspended-renderer recovery vẫn BLOCKED. Kiểm tra trên màn hình high-refresh vật lý, GPU khác, macOS khi sử dụng thực tế, gameplay qua mạng độc lập và update thật v1.9.1 → v1.10.0 vẫn NOT RUN. Workflow phát hành và CI build không làm các khoảng trống này thành acceptance PASS. Các gói chưa ký số và macOS chưa notarized. Xem [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) để biết ranh giới bằng chứng.
 
 Working tree `codex/v1.10.0-refactor` hiện có E1 reliability fixes chưa commit, được tạo sau release commit. Đây là CURRENT DEVELOPMENT; chúng không thuộc source tag hoặc installer v1.10.0, và được ghi trong Phase E1 (local-only historical evidence: `12_PHASE_E1_REGRESSION_HARDENING.md`; unavailable in a clean checkout) cùng reports 13–16.
+
+## V1.11.0 Power-up release preparation (Socket protocol 16, RAM snapshot schema 14)
+
+**Status: PREPARED, NOT YET VERIFIED PUBLISHED.** The Product Owner explicitly authorizes merging [PR #28](https://github.com/tvghung/monopoly/pull/28) into `main` and publishing v1.11.0 through the existing `release-candidate.yml` tag workflow. This authorization replaces the earlier Draft/Owner-UAT-before-merge hold for this release; it does not assert that manual UAT was executed or passed.
+
+- Scope: the complete 30-card Power-up gameplay system and original artwork, OB-1/OB-2/OB-3 desktop LAN/Online UAT repairs, and OB-4 collectible-card picker presentation with its server-authoritative selection, keyboard and reduced-motion behavior.
+- Compatibility: v1.10.0 was protocol 14 / snapshot 11. The release candidate is protocol 16 / snapshot 14; both Host and desktop guests must use compatible builds. The strict handshake rejects mismatches with `UPGRADE_REQUIRED`; LAN discovery advertises protocol 16. Browser guests load the renderer served by their Host.
+- Update policy: `minimumSupportedVersion` is 1.11.0 and `reviewedForSocketProtocol` is 16. After reading the stable feed, older updater-equipped desktops require the update before multiplayer. An unavailable feed does not lock an offline client; the server still refuses an incompatible protocol. RAM snapshots require the current schema; there is no cross-process restore or migration of an active match. Stop old Hosts before upgrading.
+- Distribution: the plain annotated `v1.11.0` tag must point to verified `main`. The existing pipeline publishes only after release quality and all Windows x64, macOS Intel and macOS Apple Silicon distribution gates succeed. Tag runs remain unsigned; macOS is not notarized. No signing or artifact-integrity gate is bypassed.
+- Manual acceptance: physical-device install/update, independent-network multiplayer, real macOS use, human-paced full-match/balance review and physical GPU/high-refresh coverage remain NOT RUN unless separately evidenced. Prior automated proofs and earlier owner reports do not convert these rows to manual PASS. The owner explicitly permits release with these recorded risks.
+- Publication, final tag/commit, workflow results, asset hashes and latest-feed status must be filled from actual results in the [release verification record](../releases/V1_11_0_RELEASE_VERIFICATION.md) and [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md). Release notes: [v1.11.0](../../.github/release-notes/v1.11.0.md).
