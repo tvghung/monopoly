@@ -20,7 +20,7 @@ Windows 10 (10.0.19044), Intel Core i5-1245U, 12 logical CPUs, 15 GiB RAM, Node 
 | --- | --- |
 | `pnpm typecheck` | PASS, all four packages |
 | `pnpm lint` and final touched-file lint | PASS |
-| `pnpm test` | 4,593 passed, 2 existing skips; 1 untouched UpdatePrompt focus assertion failed. Isolated rerun: 40/40 PASS |
+| `pnpm test` | 4,593 passed, 2 existing skips; 1 untouched UpdatePrompt focus assertion failed. Isolated rerun: 40/40 PASS; follow-up update/picker/artwork regression: 50/50 PASS |
 | `pnpm build` | PASS; all production asset validators passed |
 | `pnpm validate:docs` | PASS, 196 Markdown files |
 | `pnpm desktop:package` | PASS, rebuilt Windows x64 candidate |
@@ -29,7 +29,7 @@ Windows 10 (10.0.19044), Intel Core i5-1245U, 12 logical CPUs, 15 GiB RAM, Node 
 | Existing `--refinement --native` packaged Electron acceptance | PASS, 16 checks |
 | `git diff --check` | PASS |
 
-The local full command returned FAIL because the unchanged downloaded-update focus test observed `document.body` before modal autofocus. The same file plus both picker suites passed on an isolated rerun (40 tests) without changing update/Modal source. This is consistent with an asynchronous focus timing race; it is recorded rather than converting the full-command outcome into PASS. The CI run on the pushed PR head remains the authoritative fresh full-suite result and is linked from the PR/Jira.
+The local full command returned FAIL because the unchanged downloaded-update focus test observed `document.body` before modal autofocus. The same file plus both picker suites passed on an isolated rerun (40 tests) without changing update/Modal production source. The first CI run at b07122d then exposed another update-test race: the DOM phase was committed before the Probe effect copied available=true into the test variable. These observations identify asynchronous test synchronization gaps. UpdatePrompt.test.tsx now waits for initial focus, and runtime/appUpdate.test.tsx waits for both DOM phase and effect-observed availability; their original assertions are preserved. No production updater/Modal behavior was changed. The follow-up update-provider, update-prompt, picker and artwork regression run passed all 50 tests. The CI run on the final pushed head is the fresh full-suite result and is linked from the PR/Jira.
 
 Focused picker checks cover four viewports (1440×900, 900×500, 667×375, 760×280), hidden identity/artwork, real server choice/claim/replacement, ACK-gap lock and error retry (component tests), keyboard containment, reconnect without replay, OS and persisted game reduced motion, exactly 18 transient particles, and eight animated offer/peek/restore/choose/decline cycles without leftover picker/particle DOM.
 

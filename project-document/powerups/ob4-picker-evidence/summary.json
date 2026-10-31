@@ -383,5 +383,22 @@
         "PowerUpArtwork.test.tsx"
       ]
     }
+  },
+  "firstCi": {
+    "status": "FAIL",
+    "url": "https://github.com/tvghung/monopoly/actions/runs/41189169879",
+    "failure": "Unchanged runtime/appUpdate.test.tsx observed Probe.latest before its passive effect ran"
+  },
+  "testSynchronizationFix": {
+    "productionChanges": false,
+    "assertionsPreserved": true,
+    "files": [
+      "runtime/appUpdate.test.tsx",
+      "components/update/UpdatePrompt.test.tsx"
+    ],
+    "followUpRegression": {
+      "status": "PASS",
+      "tests": 50
+    }
   }
 }
