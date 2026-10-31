@@ -1,6 +1,8 @@
 # Own the Block — Cờ Tỷ Phú Việt Nam
 
-**Latest published version: 1.9.1.** This release includes the rc.2 Online hosting reliability fix. The host can add up to three bots; guests join by code or invitation link. An optional room registry (`services/room-registry`) supports Online code lookup. Socket protocol is 14, snapshot schema is 11, and the minimum supported version is 1.9.0. Download published Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest). The installers are unsigned.
+**Latest verified published version: 1.10.0.** This published performance and presentation release uses Socket protocol 14, snapshot schema 11 and minimum supported version 1.9.0. Download Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest). The installers are unsigned.
+
+**v1.11.0 release preparation:** the candidate adds the complete Power-up System, desktop LAN/Online repairs OB-1 through OB-3, and the OB-4 collectible-card picker. It uses protocol 16 / snapshot 14 and an update minimum of 1.11.0. The Product Owner has authorized the existing release workflow with manual UAT gaps recorded as NOT RUN; this is not a claim that v1.11.0 is already published. See the [release verification record](project-document/releases/V1_11_0_RELEASE_VERIFICATION.md) for the actual tag, workflow and public-asset results.
 
 Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 

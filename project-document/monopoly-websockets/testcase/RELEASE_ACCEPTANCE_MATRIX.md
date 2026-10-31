@@ -8,6 +8,22 @@ links them and records only what their evidence states. Feature-level checklists
 never upgraded to `PASS`. An automated `PASS` is never a manual `PASS`. Acceptance owner for every release: the project owner
 (the person who approves the tag).
 
+## v1.11.0 Power-up release preparation
+
+Status: PREPARED, publication not yet verified. The Product Owner explicitly authorizes merging PR #28 and publishing the stable release with manual gaps recorded below. This supersedes the previous PR Draft/UAT-first hold as a release decision; it is not manual UAT PASS.
+
+Protocol 16, RAM snapshot14 and LAN discovery16; minimum supported version1.11.0. v1.10.0 protocol14 clients cannot join these hosts. Finish matches before updating because a Host process shutdown permanently ends its RAM-only rooms/sessions.
+
+| Scope | Automated / release status | Manual / device status | Evidence / boundary |
+| --- | --- | --- | --- |
+| Power-up gameplay, artwork and OB-1 through OB-4 | PASS on pre-merge head7d296dd for CI/docs, picker browser9checks, packaged runtime/Host/art/audio/budget and nativeLAN/OnlineUI7checks | NOT RUN for human-paced full-match Power-up/balance review | Existing [OB-4 report](../../powerups/OB4_PICKER_VALIDATION.md) and [release verification](../../releases/V1_11_0_RELEASE_VERIFICATION.md) distinguish exact candidates. Native Online guest is samePC/network. |
+| Versioned1.11.0 quality, Windowsx64/macOSx64/macOSarm64 distributables and public checksums/feed | NOT RUN — pending final versioned main CI and tag-triggered Release Candidate | NOT APPLICABLE for publication mechanics | Every quality/platform/proof/integrity gate must pass before publish. |
+| Actual installed1.10.0→1.11.0 upgrade, physical second-deviceLAN, independent-network guests, realmacOSdevices, otherGPU/high-refresh and human listening | NOT RUN | NOT RUN | Pipeline success does not upgrade these statuses. |
+| Signing / notarization | NOT APPLICABLE — existing unsigned tag mode | NOT RUN | Windows/macOS installers unsigned; macOS not notarized. |
+| Native renderer suspend/recovery and full physical performance acceptance | BLOCKED / NOT RUN according to historical reproduction limits | NOT RUN | No new PASS is inferred from headless frame sampling or native launch. |
+
+The existing manual checklist remains unchanged. Publication URLs, tag/main commits, all-target CI results, asset digests and remaining risks will be recorded after actual verification in the release record.
+
 ## HISTORICAL — Owner manual full-match acceptance on the pre-release B8 worktree (2026-10-20)
 
 | Scope / binary | Manual result | Evidence / boundary |

@@ -271,6 +271,8 @@ jobs:
         run: pnpm --filter @monopoly/desktop proof:packaged:cards
       - name: Verify packaged landmark artwork
         run: pnpm --filter @monopoly/desktop proof:packaged:landmarks
+      - name: Verify packaged Power-up artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:powerups
       - name: Check packaged size budget
         run: pnpm --filter @monopoly/desktop proof:packaged:budget
       - name: Verify macOS disk image

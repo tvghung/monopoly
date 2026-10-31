@@ -1,0 +1,55 @@
+{
+  "source": "7d296dda44bed2219fa5eee920958764c822a291",
+  "merge": "8325faf39e0750756eecdc5219af787597a8c56e",
+  "localFullSuite": {
+    "status": "PASS",
+    "passed": 4594,
+    "skipped": 2
+  },
+  "native": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "LAN native creation reaches mascot lobby",
+        "status": "PASS"
+      },
+      {
+        "name": "LAN renderer reload resumes same room and Host identity",
+        "status": "PASS"
+      },
+      {
+        "name": "LAN Host helper/tunnel stop verified",
+        "status": "PASS"
+      },
+      {
+        "name": "ONLINE native creation reaches mascot lobby",
+        "status": "PASS"
+      },
+      {
+        "name": "Online public room readiness",
+        "status": "PASS"
+      },
+      {
+        "name": "Chrome guest joins native Online Host through actual public invitation",
+        "status": "PASS"
+      },
+      {
+        "name": "ONLINE Host helper/tunnel stop verified",
+        "status": "PASS"
+      }
+    ],
+    "scope": "Pre-version-bump packaged Windows runtime; isolated profiles; same PC/network; not Owner UAT"
+  },
+  "packagedProofs": {
+    "status": "PASS",
+    "commands": [
+      "proof:packaged",
+      "proof:packaged:host",
+      "proof:packaged:audio",
+      "proof:packaged:cards",
+      "proof:packaged:landmarks",
+      "proof:packaged:powerups",
+      "proof:packaged:budget"
+    ]
+  }
+}
