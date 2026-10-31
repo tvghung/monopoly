@@ -2,6 +2,12 @@
 
 ## Automated evidence
 
+- `[AUTO][OB-1]` `apps/server/src/createServer.test.ts`: Vite polling handshake requires desktop development opt-in;
+  wrong origin/port, non-loopback peer or target cannot use the exception.
+- `[AUTO][OB-3]` `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`: configured-server button stays hidden
+  with a configured endpoint or running Host; Host/Join and internal configured mode remain.
+- `[NATIVE][OB-1/OB-2]` [Desktop repair evidence and remaining manual checks](../../powerups/09E_DESKTOP_UAT_REPAIR.md).
+
 - `[AUTO]` Server configuration starts without `DATABASE_URL`; `/healthz` and `/readyz` represent a live/shutting-down server (`apps/server/src/config.test.ts`, `createServer.test.ts`).
 - `[AUTO]` In-memory transactions serialize direct writes and room commands. Failure discards the draft; room CAS rejects stale versions (`apps/server/src/persistence/inMemory.test.ts`, `apps/server/src/services/roomCommandExecutor.test.ts`).
 - `[AUTO][CURRENT DEVELOPMENT — AUDIT-002]` Current-player leave and bankruptcy handoffs progress the selected jailed successor

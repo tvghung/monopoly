@@ -481,17 +481,6 @@ export default function DesktopMultiplayerLauncher({
               disabled={updateRequired}
               onClick={() => openMode('join')}
             >{t(modeTitle.join)}</Button>
-            {configuredRuntimeConfig?.socketUrl ? (
-              <Button
-                size="lg"
-                variant="ghost"
-                className="desktop-launcher__action"
-                data-launcher-choice="configured"
-                icon={<ActionIcon name="configuredServer" className="action-icon--only" />}
-                disabled={updateRequired}
-                onClick={() => openMode('configured')}
-              >{t(modeTitle.configured)}</Button>
-            ) : null}
             {settingsAvailable || canQuit ? (
               <div className="desktop-launcher__utility">
                 {settingsAvailable ? (

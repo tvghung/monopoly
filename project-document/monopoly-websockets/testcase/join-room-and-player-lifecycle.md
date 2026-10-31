@@ -2,6 +2,12 @@
 
 ## Automated evidence
 
+- `[AUTO][OB-1]` `apps/server/src/createServer.test.ts`: Vite polling handshake requires desktop development opt-in;
+  wrong origin/port, non-loopback peer or target cannot use the exception.
+- `[AUTO][OB-3]` `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`: configured-server button stays hidden
+  with a configured endpoint or running Host; Host/Join and internal configured mode remain.
+- `[NATIVE][OB-1/OB-2]` [Desktop repair evidence and remaining manual checks](../../powerups/09E_DESKTOP_UAT_REPAIR.md).
+
 - `[AUTO]` Token storage parse/save/clear: `apps/client/src/playerSessionStorage.test.ts`.
 - `[AUTO]` Newest-wins/generation registry: `apps/server/src/services/connectionRegistry.test.ts`.
 - [x] `[AUTO][SOCKET][HISTORICAL E1-FIX-019 PASS]` Resume đang đợi session/FIFO mà mất transport không được

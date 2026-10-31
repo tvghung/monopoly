@@ -1,0 +1,56 @@
+{
+  "baseline": "5e46f728400e876cd30b2fa6edbf7479eb9a4105",
+  "runtime": "Windows x64, unpackaged Electron, Vite 127.0.0.1:5173",
+  "checks": [
+    {
+      "name": "Baseline LAN creation",
+      "status": "FAIL",
+      "observed": "Helper HOSTING; renderer request rejected with HTTP 403"
+    },
+    {
+      "name": "Fixed LAN creation",
+      "status": "PASS",
+      "observed": "Real helper and renderer reach host mascot lobby; no page errors"
+    },
+    {
+      "name": "Renderer reload and resume same live Host",
+      "status": "PASS"
+    },
+    {
+      "name": "New LAN room with stale stored session after helper stop",
+      "status": "PASS"
+    },
+    {
+      "name": "Configured server absent on returned desktop main menu",
+      "status": "PASS"
+    },
+    {
+      "name": "Online binary prepared from pinned manifest",
+      "status": "PASS",
+      "observed": "prepare:cloudflared verified cloudflared 2026.9.3 win32-x64"
+    },
+    {
+      "name": "Real Online host reaches lobby and public room probe",
+      "status": "PASS",
+      "observed": "onlineState READY, PUBLIC_ROOM PASSED; optional registry absent"
+    },
+    {
+      "name": "Chrome guest joins via actual public Quick Tunnel invitation",
+      "status": "PASS",
+      "observed": "Guest and native Host share the lobby on this PC/network; not cross-network UAT"
+    },
+    {
+      "name": "Online Host stop cleans up native helper and tunnel",
+      "status": "PASS"
+    },
+    {
+      "name": "Packaged Windows app:// LAN Host reaches mascot lobby",
+      "status": "PASS",
+      "observed": "Real packaged app, no page errors"
+    },
+    {
+      "name": "Packaged Windows Online Host reaches lobby and PUBLIC_ROOM readiness",
+      "status": "PASS"
+    }
+  ]
+}

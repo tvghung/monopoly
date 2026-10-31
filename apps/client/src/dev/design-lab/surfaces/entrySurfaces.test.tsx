@@ -26,7 +26,7 @@ describe('entry surfaces', () => {
     const view = renderSurface('launcher');
     expect(window.ownTheBlockDesktop?.host).toBeDefined();
     expect(screen.getByRole('button', { name: 'Tạo phòng' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
     // The lab supplies what the real screen has above it, so every button of the menu is in the capture.
     expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Thoát' })).toBeTruthy();

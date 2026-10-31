@@ -34,6 +34,7 @@ function createHostServices(localAcceptance?: LoopbackAcceptanceConfig): void {
   const resourcesRoot = app.isPackaged ? process.resourcesPath : generatedRoot;
   const helperRoot = path.join(resourcesRoot, 'server-helper');
   hostRuntime = new HostRuntimeController({
+    developmentRenderer: !app.isPackaged && DEV_RENDERER_URL === 'http://127.0.0.1:5173',
     helperPath: path.join(helperRoot, 'server-helper.cjs'),
     clientDist: rendererRoot(),
     appVersion: app.getVersion(),

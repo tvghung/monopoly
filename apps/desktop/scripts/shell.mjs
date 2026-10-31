@@ -8,6 +8,12 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const require = createRequire(import.meta.url);
 const electronBinary = require('electron');
 
+const cloudflared = spawnSync(process.execPath, [path.join(desktopRoot, 'scripts/prepareCloudflared.mjs')], {
+  cwd: desktopRoot,
+  stdio: 'inherit',
+});
+if (cloudflared.status !== 0) console.warn('Online binary preparation failed; LAN remains available.');
+
 const compile = spawnSync(pnpm, ['run', 'compile'], {
   cwd: desktopRoot,
   stdio: 'inherit',

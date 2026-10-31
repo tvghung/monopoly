@@ -44,8 +44,12 @@ export function isDesktopRequestOriginAllowed(
   origin: string | undefined,
   requestHost: string | undefined,
   remoteAddress?: string,
+  developmentRenderer = false,
 ): boolean {
   if (origin === undefined || origin === PACKAGED_RENDERER_ORIGIN) return true;
+  if (developmentRenderer && origin === DEVELOPMENT_RENDERER_ORIGIN
+    && /^127\.0\.0\.1:\d{1,5}$/.test(requestHost ?? '')
+    && (remoteAddress === '127.0.0.1' || remoteAddress === '::ffff:127.0.0.1')) return true;
   if (!requestHost || !(isDesktopBrowserOrigin(origin) || isTunnelOrigin(origin))) return false;
   if (new URL(origin).host === requestHost) return true;
   // cloudflared normally sends the local service URL as Host. Accept that
@@ -120,7 +124,8 @@ export function createServer(
       ? {
           allowRequest: (request, callback) => callback(
             null,
-            isDesktopRequestOriginAllowed(request.headers.origin, request.headers.host, request.socket.remoteAddress),
+            isDesktopRequestOriginAllowed(request.headers.origin, request.headers.host, request.socket.remoteAddress,
+              environment.OTB_DEVELOPMENT_RENDERER === '1'),
           ),
         }
       : {}),

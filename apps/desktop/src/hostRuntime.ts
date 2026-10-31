@@ -105,6 +105,8 @@ export interface ServerHelperLike {
 }
 
 export interface HostRuntimeOptions {
+  /** Only the unpackaged shell may connect from the fixed Vite loopback origin. */
+  developmentRenderer?: boolean;
   helperPath: string;
   clientDist: string;
   appVersion: string;
@@ -803,7 +805,8 @@ export class HostRuntimeController {
         clientDist: this.options.clientDist,
         host,
         port,
-        environment: { ...(localAcceptance ? this.options.helperEnvironment : {}), ...hostEnvironment },
+        environment: { ...(localAcceptance ? this.options.helperEnvironment : {}), ...hostEnvironment,
+          OTB_DEVELOPMENT_RENDERER: this.options.developmentRenderer ? '1' : '' },
         ...(localAcceptance ? { loopbackOnly: true, inheritEnvironment: false } : {}),
       });
   }

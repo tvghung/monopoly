@@ -96,6 +96,17 @@ describe('HTTP health endpoints', () => {
 });
 
 describe('resolveCorsOrigin', () => {
+  it('permits Vite only for an explicitly enabled loopback desktop helper', () => {
+    const origin = DEVELOPMENT_RENDERER_ORIGIN;
+    const host = '127.0.0.1:53120';
+    expect(isDesktopRequestOriginAllowed(origin, host, '127.0.0.1')).toBe(false);
+    expect(isDesktopRequestOriginAllowed(origin, host, '127.0.0.1', true)).toBe(true);
+    expect(isDesktopRequestOriginAllowed(origin, host, '::ffff:127.0.0.1', true)).toBe(true);
+    expect(isDesktopRequestOriginAllowed(origin, host, '192.168.1.20', true)).toBe(false);
+    expect(isDesktopRequestOriginAllowed(origin, '192.168.1.20:53120', '127.0.0.1', true)).toBe(false);
+    expect(isDesktopRequestOriginAllowed('http://127.0.0.1:5174', host, '127.0.0.1', true)).toBe(false);
+    expect(isDesktopRequestOriginAllowed('http://localhost:5173', host, '127.0.0.1', true)).toBe(false);
+  });
   it('uses the exact IPv4 renderer origin by default in development', () => {
     expect(resolveCorsOrigin({ NODE_ENV: 'development' })).toBe(
       DEVELOPMENT_RENDERER_ORIGIN,
@@ -188,6 +199,21 @@ describe('runtime profile HTTP policy', () => {
       headers: { Origin: `http://192.168.1.20:${String(port)}` },
     });
     expect(differentIpv4Origin.status).toBe(403);
+  });
+
+  it('accepts the Vite polling handshake only when the desktop helper opts in', async () => {
+    const { server } = createServer(createTestRuntime(), {
+      environment: { SERVER_RUNTIME_PROFILE: 'desktop', OTB_DEVELOPMENT_RENDERER: '1' },
+      clientDist: path.resolve('src'),
+    });
+    servers.push(server);
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const handshake = `http://127.0.0.1:${(server.address() as AddressInfo).port}/socket.io/?EIO=4&transport=polling`;
+    const allowed = await fetch(handshake, { headers: { Origin: DEVELOPMENT_RENDERER_ORIGIN } });
+    expect(allowed.status).toBe(200);
+    expect(allowed.headers.get('access-control-allow-origin')).toBe(DEVELOPMENT_RENDERER_ORIGIN);
+    expect((await fetch(handshake, { headers: { Origin: 'http://127.0.0.1:5174' } })).status).toBe(403);
+    expect((await fetch(handshake, { headers: { Origin: 'https://unrelated.example' } })).status).toBe(403);
   });
 
   it('does not serve static files or trust proxy headers in standalone development mode', async () => {

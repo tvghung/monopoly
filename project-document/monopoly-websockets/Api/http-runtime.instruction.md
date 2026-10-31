@@ -13,6 +13,10 @@ The desktop app starts one Electron utility-process helper. The helper binds the
 
 ## LAN
 
+**CURRENT DEVELOPMENT — OB-1:** the unpackaged Electron/Vite renderer reaches its own helper through the explicit,
+loopback-only dev opt-in in [Electron shell startup](../Desktop/electron-shell-and-packaging.instruction.md#startup).
+This repairs the rejected Vite-to-helper handshake; admission credentials and packaged/remote request rules are unchanged.
+
 The desktop chooses and advertises usable IPv4 interfaces, not loopback. Automatic port selection retries bounded bind conflicts. A desktop Join can discover a room by code through UDP; a full LAN invitation connects directly. LAN play and discovery require no Internet or Cloudflare account.
 
 ## LAN room lookup (desktop Host profile only)

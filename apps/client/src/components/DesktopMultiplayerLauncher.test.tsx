@@ -56,10 +56,10 @@ describe('DesktopMultiplayerLauncher', () => {
           appVersion: '3.0.0',
         }}
         onReady={onReady}
+        initialMode="configured"
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     expect(screen.getByText('http://192.168.1.15:8080')).toBeTruthy();
     expect(screen.getByLabelText('Mã phòng')).toBeTruthy();
     expect(screen.queryByLabelText('Địa chỉ máy chủ LAN')).toBeNull();
@@ -211,7 +211,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
     );
 
     const buttons = [...container.querySelectorAll<HTMLButtonElement>('.desktop-launcher__menu button')];
-    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Tiếng Việt', 'Thoát']);
+    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Cài đặt', 'Tiếng Việt', 'Thoát']);
     for (const button of buttons) {
       expect(button.tabIndex).toBe(0);
       expect(button.disabled).toBe(false);
@@ -299,20 +299,22 @@ describe('DesktopMultiplayerLauncher choices', () => {
     expect(screen.queryByText(/Liên kết mời chỉ chứa/u)).toBeNull();
     expect(screen.queryByText(/phiên kết nối|cơ sở dữ liệu/u)).toBeNull();
     expect(menuLabels(container)).toEqual([
-      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Tiếng Việt', 'Thoát',
+      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Cài đặt', 'Tiếng Việt', 'Thoát',
     ]);
     for (const label of menuLabels(container)) expect(label).not.toMatch(TECHNICAL_TEXT);
     expect(container.querySelector('.desktop-launcher__subtitle, .desktop-launcher__security')).toBeNull();
   });
 
-  it('offers the configured server as another choice only when one is configured', () => {
+  it('hides the configured-server choice even when an endpoint is configured', () => {
     installHostBridge(status);
     const { unmount } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
     unmount();
 
     render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tạo phòng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy();
   });
 
   it('goes back into a room that is still open, or closes it', async () => {
@@ -865,8 +867,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
   it('keeps the configured server on its fixed address', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
+    render(<DesktopMultiplayerLauncher initialMode="configured" configuredRuntimeConfig={configuredRuntimeConfig} onReady={onReady} />);
     fillJoinForm('lan-42');
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     expect(onReady).toHaveBeenCalledWith(expect.objectContaining({

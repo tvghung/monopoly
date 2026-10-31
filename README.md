@@ -28,9 +28,15 @@ Requires Node.js 24 and pnpm. From the repository root:
 
 ```bash
 pnpm install
-pnpm dev:web
 pnpm dev:desktop
 ```
+
+`pnpm dev:desktop` prepares the pinned, verified cloudflared binary, compiles the desktop/helper, and starts the web
+processes and Electron. Do not also run `pnpm dev:web` in this mode. Alternatively, run `pnpm dev:web` in Terminal A and
+`pnpm dev:desktop:shell` in Terminal B. Renderer: `http://127.0.0.1:5173`; standalone server: port 8080; desktop Host: its own
+automatically selected port. Close the test app/Host before rebuilding its helper. Stop development terminals with Ctrl+C.
+If binary preparation fails offline, LAN still opens; Online requires a successful
+`pnpm --filter @monopoly/desktop prepare:cloudflared`. This is developer preparation; installed apps use their bundled binary.
 
 Checks:
 
