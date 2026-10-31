@@ -105,6 +105,10 @@ describe('Power-up reward and inventory interface',()=>{
     render(view(value));await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tấn công'})));
     expect(screen.getByRole('alert').textContent).toBe('Server rejected choice');expect(screen.queryByText('Visible card 0')).toBeNull();
     expect(screen.getByRole<HTMLButtonElement>('button',{name:'Tiện ích'}).disabled).toBe(false);
+    expect(document.querySelector('.power-up-card--selected')).toBeNull();
+    expect(document.querySelector('.power-up-picker-burst')).toBeNull();
+    await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tiện ích'})));
+    expect(value.socketFunctions.selectPowerUp).toHaveBeenLastCalledWith({offerId:id,selectedIndex:2});
   });
   it('keeps the reward behind mandatory gameplay interactions and removes actions while disconnected',()=>{
     const value=context();value.state.turnInfo.pendingLandingDecision={kind:'PURCHASE',operationId:'purchase',playerId:'player-a',tileID:1};
@@ -126,4 +130,52 @@ it('opens full details without issuing gameplay commands and returns to inventor
   fireEvent.click(screen.getByRole('button',{name:'Xem chi tiết · Visible card 0'}));
   const detail=screen.getByRole('dialog',{name:'Visible card 0'});expect(detail.textContent).toContain('Registry effect 0');expect(detail.querySelector('.power-up-artwork img')).toBeTruthy();
   fireEvent.click(detail.querySelector('button[aria-label="Đóng"]')!);expect(screen.getByRole('dialog',{name:'Kho Power-up'})).toBeTruthy();expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
+});
+
+
+describe('Picker selection authority and replay boundaries',()=>{
+  it('keeps every candidate locked after a successful ACK while the snapshot is still hidden',async()=>{
+    const value=context();const rendered=render(view(value));
+    await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tấn công'})));
+    for(const label of ['Tấn công','Phòng thủ','Tiện ích']){
+      const card=screen.getByRole<HTMLButtonElement>('button',{name:label});
+      expect(card.disabled).toBe(true);fireEvent.click(card);
+    }
+    expect(value.socketFunctions.selectPowerUp).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Visible card 0')).toBeNull();
+    rendered.rerender(view({...context('REVEALED'),socketFunctions:value.socketFunctions}));
+    expect(document.querySelectorAll('.power-up-card--selected')).toHaveLength(1);
+    expect(screen.getByRole('button',{name:'Nhận thẻ'})).toBeTruthy();
+  });
+  it('hydrates the authoritative selection after reconnect without replaying particles or a live flip',()=>{
+    const value=context('REVEALED');const rendered=render(view(value));
+    expect(document.querySelectorAll('.power-up-picker-card')).toHaveLength(3);
+    expect(document.querySelectorAll('.power-up-card--selected')).toHaveLength(1);
+    expect(document.querySelector('.power-up-picker-burst')).toBeNull();
+    expect(document.querySelector('.power-up-card--reveal-motion')).toBeNull();
+    rendered.rerender(view({...value,connected:false}));
+    rendered.rerender(view({...value,connected:true}));
+    expect(document.querySelector('.power-up-picker-burst')).toBeNull();
+    expect(document.querySelector('.power-up-card--reveal-motion')).toBeNull();
+    expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();
+    expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
+  });
+  it('does not apply picker presentation to replacement cards or inventory details',()=>{
+    const value=context('INVENTORY_RESOLUTION',true);render(view(value));
+    const replacement=document.querySelector('.power-up-replacement')!;
+    expect(replacement.querySelectorAll('.power-up-card')).toHaveLength(3);
+    expect(replacement.querySelector('.power-up-picker-card')).toBeNull();
+  });
+});
+
+
+it('clears the pending choice after a transport failure and retries only through the server command',async()=>{
+  const value=context();value.socketFunctions.selectPowerUp=vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(success);
+  render(view(value));await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tấn công'})));
+  expect(screen.getByRole('alert')).toBeTruthy();
+  expect(document.querySelector('.power-up-card--selected')).toBeNull();
+  expect(document.querySelector('.power-up-picker-burst')).toBeNull();
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tiện ích'})));
+  expect(value.socketFunctions.selectPowerUp).toHaveBeenLastCalledWith({offerId:id,selectedIndex:2});
+  expect(screen.queryByText('Visible card 2')).toBeNull();
 });

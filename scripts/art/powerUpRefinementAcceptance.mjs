@@ -22,7 +22,8 @@ export async function runRefinementAcceptance({owner,other,seed,open,ownerId,oth
   offer.candidates=[['ATTACK','A01'],['DEFENSE','D02'],['UTILITY','U03']].map(([category,definitionId])=>({category,definitionId}));
  });broadcastRoom(io,runtime,reward.room);
  const rewardDialog=owner.getByRole('dialog',{name:'Quà Xuất Phát'});await expect(rewardDialog).toBeVisible();
- await owner.getByRole('button',{name:'Tấn công',exact:true}).click();await expect(rewardDialog.locator('.power-up-card--revealed')).toHaveCount(3);
+ // Focus pauses the picker float; Enter exercises its native keyboard selection without a stability wait.
+ await owner.getByRole('button',{name:'Tấn công',exact:true}).focus();await owner.keyboard.press('Enter');await expect(rewardDialog.locator('.power-up-card--revealed')).toHaveCount(3);
  await captureSurface(owner,rewardDialog,'c1-refined-reward',shot);await owner.getByRole('button',{name:'Nhận thẻ',exact:true}).click();await expect(rewardDialog).toBeHidden();
  await pass('09C.1 corrected hand/coin artwork in authorized reward reveal at all required sizes');
  for(let offset=0;offset<REFINED_CARD_IDS.length;offset+=3){

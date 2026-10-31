@@ -10,6 +10,7 @@ import { usePresentationSelector } from '../../presentation/usePresentationSelec
 import { selectCardPresentation, selectPresentationStatus } from '../../presentation/store/selectors';
 import PowerUpFeedback from './PowerUpFeedback';
 import PowerUpCard from './PowerUpCard';
+import PowerUpPickerCard from './PowerUpPickerCard';
 import PowerUpArtwork from './PowerUpArtwork';
 import PowerUpRuntimePanels, { PowerUpActivationDialog } from './PowerUpRuntimePanels';
 import './PowerUps.css';
@@ -20,36 +21,50 @@ function RewardDecision({ offer, inventory }: { offer: Offer; inventory: PowerUp
   const { canMutate, connected, socketFunctions } = useContext(stateContext);
   const [busy, setBusy] = useState(false);
   const [tentative, setTentative] = useState<number | null>(null);
+  const [selectionSubmitted, setSelectionSubmitted] = useState(false);
+  const [burstIndex, setBurstIndex] = useState<number | null>(null);
+  const selectionPending = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const revealed = offer.candidates.every(candidate => candidate.definition !== undefined);
   const locked = offer.selectedIndex !== null;
   const full = (inventory?.cards.length ?? 0) >= (inventory?.capacity ?? 3);
   const enabled = canMutate && connected && !busy;
-  const send = async (invoke: (() => Promise<Ack>) | undefined) => {
+  useEffect(() => {
+    if (burstIndex === null) return undefined;
+    const timer = window.setTimeout(() => setBurstIndex(null), 720);
+    return () => window.clearTimeout(timer);
+  }, [burstIndex]);
+  const send = async (invoke: (() => Promise<Ack>) | undefined): Promise<Ack | undefined> => {
     if (!invoke || inFlight.current || !enabled) return;
     inFlight.current = true; setBusy(true); setError(null);
-    try { const ack = await invoke(); if (!ack.ok) setError(ack.error.message); }
+    try { const ack = await invoke(); if (!ack.ok) setError(ack.error.message); return ack; }
     catch { setError(t('powerup.retry')); }
     finally { inFlight.current = false; setBusy(false); }
   };
+  const select = async (index: number) => {
+    if (locked || selectionPending.current || inFlight.current || !enabled || !socketFunctions.selectPowerUp) return;
+    // A successful ACK can arrive before its snapshot; keep the choice latched across that gap.
+    selectionPending.current = true; setSelectionSubmitted(true); setTentative(index); setBurstIndex(index);
+    const ack = await send(() => socketFunctions.selectPowerUp!({ offerId: offer.offerId, selectedIndex: index }));
+    if (!ack?.ok) {
+      selectionPending.current = false; setSelectionSubmitted(false); setTentative(null); setBurstIndex(null);
+    }
+  };
+  const waitingForSelection = selectionSubmitted && !locked;
   const resolve = (request: ResolvePowerUpRequest) => void send(socketFunctions.resolvePowerUp ? () => socketFunctions.resolvePowerUp!(request) : undefined);
   return <Modal open title={t('powerup.title')} eyebrow={t('powerup.earned')} size="xl" tone="celebration" peek="decision" peekKey={offer.offerId}
     closeOnEscape={false} className="power-up-reward" footer={revealed ? <div className="power-up-actions">
       {!full ? <Button busy={busy} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'CLAIM' })}>{t('powerup.claim')}</Button> : null}
       <Button variant="secondary" disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'DECLINE' })}>{t('powerup.decline')}</Button>
     </div> : undefined}>
-    <div className="power-up-grid" aria-busy={busy}>
-      {offer.candidates.map((candidate, index) => <PowerUpCard key={candidate.category} {...candidate}
-        animateReveal={revealed && tentative !== null}
+    <div className="power-up-grid power-up-picker-grid" aria-busy={busy || waitingForSelection}>
+      {offer.candidates.map((candidate, index) => <PowerUpPickerCard key={candidate.category} {...candidate}
+        position={index} burst={burstIndex === index} animateReveal={revealed && tentative !== null}
         selected={(offer.selectedIndex ?? tentative) === index} discarded={revealed && offer.selectedIndex !== index}
-        disabled={!enabled || locked} onChoose={revealed ? undefined : () => {
-          if (locked) return;
-          setTentative(index);
-          void send(socketFunctions.selectPowerUp ? () => socketFunctions.selectPowerUp!({ offerId: offer.offerId, selectedIndex: index }) : undefined);
-        }} />)}
+        disabled={!enabled || locked || waitingForSelection} onChoose={revealed ? undefined : () => { void select(index); }} />)}
     </div>
-    <div role="status" aria-live="polite">{busy ? t('powerup.loading') : locked ? t('powerup.selected') : ''}</div>
+    <div role="status" aria-live="polite">{busy || waitingForSelection ? t('powerup.loading') : locked ? t('powerup.selected') : ''}</div>
     {error ? <p role="alert" className="power-up-error">{error}</p> : null}
     {revealed && full ? <section className="power-up-replacement"><p>{t('powerup.full')}</p><div className="power-up-grid">
       {inventory?.cards.map(card => <div key={card.instanceId}><PowerUpCard category={card.definition.category} definition={card.definition} />

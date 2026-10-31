@@ -39,7 +39,8 @@ export async function runArtworkAcceptance({owner,other,seed,load,ownerId,roomId
  for(const definition of OFFICIAL_POWER_UP_DEFINITIONS)assert.ok(!(await rewardDialog.innerHTML()).includes(definition.name));
  await captureSurface(owner,rewardDialog,'09-hidden-reward',shot);await reconnectOwner();await expect(rewardDialog).toBeVisible();await inspectArtwork(owner);assert.equal(frontRequests.length,0,'No identity-specific image request before authorized reveal');
  await pass('Artwork secrecy: three category backs, no rarity/identity in DOM or image requests; hidden reconnect and all viewports');
- await owner.getByRole('button',{name:'Tấn công',exact:true}).click();await expect(rewardDialog.locator('.power-up-card--revealed')).toHaveCount(3);
+ // Focus pauses the picker float; Enter exercises its native keyboard selection without a stability wait.
+ await owner.getByRole('button',{name:'Tấn công',exact:true}).focus();await owner.keyboard.press('Enter');await expect(rewardDialog.locator('.power-up-card--revealed')).toHaveCount(3);
  await inspectArtwork(owner);const sources=await rewardDialog.locator('img').evaluateAll(images=>images.map(image=>image.src));for(const candidate of candidates)assert.ok(sources.some(src=>src.endsWith('/'+candidate.definitionId+'.svg')));
  await captureSurface(owner,rewardDialog,'10-authorized-reveal',shot);await reconnectOwner();await expect(rewardDialog).toBeVisible();await inspectArtwork(owner);assert.equal(await rewardDialog.locator('.power-up-card--reveal-motion').count(),0,'Hydration must not replay a live flip');
  await owner.getByRole('button',{name:'Nhận thẻ',exact:true}).click();await expect(rewardDialog).toBeHidden();await pass('Authorized three-card artwork reveal, selected identity, reconnect without flip replay and claim');

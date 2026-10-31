@@ -45,3 +45,11 @@ Current results and remaining manual requirements supersede the earlier partial 
 ## Phase 09C.1 focused visual refinement
 
 Run the existing stabilization harness with `--refinement` (and `--native` for packaged Electron). This includes the existing artwork acceptance plus `scripts/art/powerUpRefinementAcceptance.mjs`: all fifteen corrected fronts in inventory at 1440×900, 1280×720 and 900×500; full-card details and priority hand/coin detail views; deterministic authorized reward reveal; A01 activation and recipient D02 Reaction. Output is separate under `test-results/powerup-09c1/`. Visual findings, inspected before/after comparisons and actual results are recorded in [the refinement report](../../powerups/09C1_ARTWORK_REFINEMENT_REPORT.md). These are art-only changes; original acceptance scenarios remain enabled.
+
+
+## OB-4 reward picker regression
+
+- Component tests in `apps/client/src/game/ui/powerUps/PowerUpPanel.test.tsx` cover category-only hidden backs, one selection through the ACK/snapshot gap, rejected-selection cleanup/retry, authoritative reconnect without replay, and isolation from full-inventory replacement. Existing claim/decline/replacement, unauthorized/disconnected, peek and inventory/Reaction tests remain required.
+- `scripts/powerUpPickerAcceptance.check.mjs` exercises the production renderer with two real browser clients and an authoritative local server. Capture hidden/revealed picker states at 1440×900, 900×500, 667×375 and 760×280; inspect scrolling, footer access, transformed card bounds, focus and pointer effects. Compare before/after frame intervals on the same machine and record rendering limitations.
+- Verify OS and game reduced motion, no hidden front artwork requests, rapid clicks, reconnect without burst replay, full-hand replacement/decline, non-picker isolation and repeated decision open/close cleanup.
+- Owner visual review/full-match UAT and physical GPU/macOS acceptance remain manual. Automated browser results do not mark these manual cases PASS. See [OB-4 evidence](../../powerups/OB4_PICKER_VALIDATION.md).

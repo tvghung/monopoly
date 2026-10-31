@@ -1,0 +1,387 @@
+{
+  "baseline": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "Three category-only backs; no identity, rarity or front requests; four viewport bounds and keyboard containment",
+        "status": "PASS"
+      },
+      {
+        "name": "Rapid clicks lock exactly defense on server and reveal all three without granting inventory",
+        "status": "PASS"
+      },
+      {
+        "name": "Reconnect hydrates committed selection without replaying flip or particles",
+        "status": "PASS"
+      },
+      {
+        "name": "Claim adds exactly the server-selected definition",
+        "status": "PASS"
+      },
+      {
+        "name": "Inventory retains shared card presentation without picker wrapper",
+        "status": "PASS"
+      },
+      {
+        "name": "Full inventory replacement preserves capacity and excludes old cards from picker effects",
+        "status": "PASS"
+      },
+      {
+        "name": "Eight offer/peek/restore/choose/decline cycles leave no picker or particle DOM",
+        "status": "PASS"
+      }
+    ]
+  },
+  "picker": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "Three category-only backs; no identity, rarity or front requests; four viewport bounds and keyboard containment",
+        "status": "PASS"
+      },
+      {
+        "name": "Rapid clicks lock exactly defense on server and reveal all three without granting inventory",
+        "status": "PASS"
+      },
+      {
+        "name": "Reconnect hydrates committed selection without replaying flip or particles",
+        "status": "PASS"
+      },
+      {
+        "name": "Claim adds exactly the server-selected definition",
+        "status": "PASS"
+      },
+      {
+        "name": "Inventory retains shared card presentation without picker wrapper",
+        "status": "PASS"
+      },
+      {
+        "name": "Full inventory replacement preserves capacity and excludes old cards from picker effects",
+        "status": "PASS"
+      },
+      {
+        "name": "OS reduced motion disables picker animation and particles while preserving selection",
+        "status": "PASS"
+      },
+      {
+        "name": "Game reduced-motion setting and Enter selection work independently of OS preference",
+        "status": "PASS"
+      },
+      {
+        "name": "Eight offer/peek/restore/choose/decline cycles leave no picker or particle DOM",
+        "status": "PASS"
+      }
+    ],
+    "burst": {
+      "max": 18,
+      "count": 3
+    },
+    "hoverStyle": {
+      "x": "4.052100548377404deg",
+      "y": "4.2838352309615deg"
+    }
+  },
+  "browserRegression": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "Artwork secrecy: three category backs, no rarity/identity in DOM or image requests; hidden reconnect and all viewports",
+        "status": "PASS"
+      },
+      {
+        "name": "Authorized three-card artwork reveal, selected identity, reconnect without flip replay and claim",
+        "status": "PASS"
+      },
+      {
+        "name": "All 30 official IDs render their own artwork in inventory; four production rarity frames and full-detail view",
+        "status": "PASS"
+      },
+      {
+        "name": "OS reduced-motion bypass verified on actual Legendary card",
+        "status": "PASS"
+      },
+      {
+        "name": "Two real clients started; acting renderer=production Chromium",
+        "status": "PASS"
+      },
+      {
+        "name": "D04 real activation; valid/invalid targets, board peek, keyboard focus and charge state",
+        "status": "PASS"
+      },
+      {
+        "name": "Two A04 attacks consume exactly two shield charges and create no negative status",
+        "status": "PASS"
+      },
+      {
+        "name": "Real A05 -> D03 block consumes both cards before status creation",
+        "status": "PASS"
+      },
+      {
+        "name": "U04 Epic + Common recipe consumes three instances and grants a Legendary through real UI",
+        "status": "PASS"
+      },
+      {
+        "name": "U06 full-hand consent survives target reload; voluntary swap is not blocked by D09",
+        "status": "PASS"
+      },
+      {
+        "name": "Legendary activation and themed feedback render at 900x500",
+        "status": "PASS"
+      },
+      {
+        "name": "Three required sizes: bounded dialog, no document overflow, Tab containment, Escape and focus restoration",
+        "status": "PASS"
+      },
+      {
+        "name": "Acting renderer receives and resolves illustrated Reaction and reconnect-restored full-hand consent at all three sizes",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 corrected hand/coin artwork in authorized reward reveal at all required sizes",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 all 15 refined illustrations: real inventory at three sizes, full details, enlarged priority hand/coin/marker cases",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 corrected hand silhouettes in real A01 activation and recipient D02 Reaction at all required sizes",
+        "status": "PASS"
+      }
+    ]
+  },
+  "packagedElectron": {
+    "status": "PASS",
+    "checks": [
+      {
+        "name": "Artwork secrecy: three category backs, no rarity/identity in DOM or image requests; hidden reconnect and all viewports",
+        "status": "PASS"
+      },
+      {
+        "name": "Authorized three-card artwork reveal, selected identity, reconnect without flip replay and claim",
+        "status": "PASS"
+      },
+      {
+        "name": "All 30 official IDs render their own artwork in inventory; four production rarity frames and full-detail view",
+        "status": "PASS"
+      },
+      {
+        "name": "OS reduced-motion bypass verified on actual Legendary card",
+        "status": "PASS"
+      },
+      {
+        "name": "Two real clients started; acting renderer=sandboxed app:// Electron",
+        "status": "PASS"
+      },
+      {
+        "name": "D04 real activation; valid/invalid targets, board peek, keyboard focus and charge state",
+        "status": "PASS"
+      },
+      {
+        "name": "Two A04 attacks consume exactly two shield charges and create no negative status",
+        "status": "PASS"
+      },
+      {
+        "name": "Real A05 -> D03 block consumes both cards before status creation",
+        "status": "PASS"
+      },
+      {
+        "name": "U04 Epic + Common recipe consumes three instances and grants a Legendary through real UI",
+        "status": "PASS"
+      },
+      {
+        "name": "U06 full-hand consent survives target reload; voluntary swap is not blocked by D09",
+        "status": "PASS"
+      },
+      {
+        "name": "Legendary activation and themed feedback render at 900x500",
+        "status": "PASS"
+      },
+      {
+        "name": "Three required sizes: bounded dialog, no document overflow, Tab containment, Escape and focus restoration",
+        "status": "PASS"
+      },
+      {
+        "name": "Acting renderer receives and resolves illustrated Reaction and reconnect-restored full-hand consent at all three sizes",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 corrected hand/coin artwork in authorized reward reveal at all required sizes",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 all 15 refined illustrations: real inventory at three sizes, full details, enlarged priority hand/coin/marker cases",
+        "status": "PASS"
+      },
+      {
+        "name": "09C.1 corrected hand silhouettes in real A01 activation and recipient D02 Reaction at all required sizes",
+        "status": "PASS"
+      }
+    ],
+    "runtime": {
+      "packaged": true,
+      "versions": {
+        "node": "24.18.1",
+        "acorn": "8.16.0",
+        "ada": "3.4.4",
+        "amaro": "1.1.9",
+        "ares": "1.34.6",
+        "brotli": "1.2.0",
+        "cldr": "48.0",
+        "icu": "78.2",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "148",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.69.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "openssl": "0.0.0",
+        "simdjson": "4.6.4",
+        "simdutf": "7.7.0",
+        "sqlite": "3.53.1",
+        "tz": "2025c",
+        "undici": "7.29.0",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "15.0.245.28-electron.0",
+        "zlib": "1.3.2.1-motley",
+        "zstd": "1.6.0",
+        "electron": "43.4.0",
+        "chrome": "150.0.7871.224"
+      },
+      "gpu": {
+        "2d_canvas": "enabled",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "enabled",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "enabled_on",
+        "rasterization": "enabled",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "disabled_off",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled",
+        "webgpu": "enabled",
+        "webnn": "disabled_off"
+      }
+    }
+  },
+  "frameComparison": {
+    "baseline": {
+      "status": "PASS",
+      "baseline": true,
+      "checks": [
+        {
+          "name": "Three category-only backs; no identity, rarity or front requests; four viewport bounds and keyboard containment",
+          "status": "PASS"
+        }
+      ],
+      "screenshots": [
+        "hidden-1440x900.png",
+        "hidden-900x500.png",
+        "hidden-667x375.png",
+        "hidden-760x280.png",
+        "hidden-760x280-scroll.png",
+        "hover.png"
+      ],
+      "pageErrors": [],
+      "frameSamples": [
+        {
+          "label": "hidden-idle",
+          "frames": 180,
+          "meanMs": 16.60888888888837,
+          "p95Ms": 16.800000000000182,
+          "over34Ms": 0
+        },
+        {
+          "label": "hidden-hover",
+          "frames": 180,
+          "meanMs": 16.646666666666928,
+          "p95Ms": 16.80000000000109,
+          "over34Ms": 0
+        }
+      ],
+      "hardware": {
+        "platform": "win32",
+        "release": "10.0.19044",
+        "cpu": "12th Gen Intel(R) Core(TM) i5-1245U",
+        "logicalCPUs": 12,
+        "totalMemoryGiB": 15
+      },
+      "limitations": "Headless Chromium, WebGL disabled and low graphics use the production fallback board. Frame intervals are scheduler samples, not physical GPU FPS. Human UAT, native Electron and macOS remain separate.",
+      "browser": "156.0.8078.74",
+      "backgroundLoad": "One repository jsdom client-test worker remained running during both serial samples; no build, packaging or native acceptance task remained. Not an idle-host measurement."
+    },
+    "after": {
+      "status": "PASS",
+      "baseline": false,
+      "checks": [
+        {
+          "name": "Three category-only backs; no identity, rarity or front requests; four viewport bounds and keyboard containment",
+          "status": "PASS"
+        }
+      ],
+      "screenshots": [
+        "hidden-1440x900.png",
+        "hidden-900x500.png",
+        "hidden-667x375.png",
+        "hidden-760x280.png",
+        "hidden-760x280-scroll.png",
+        "hover.png"
+      ],
+      "pageErrors": [],
+      "frameSamples": [
+        {
+          "label": "hidden-idle",
+          "frames": 180,
+          "meanMs": 16.483333333333075,
+          "p95Ms": 16.800000000000182,
+          "over34Ms": 0
+        },
+        {
+          "label": "hidden-hover",
+          "frames": 180,
+          "meanMs": 16.614999999999227,
+          "p95Ms": 16.799999999999272,
+          "over34Ms": 0
+        }
+      ],
+      "hardware": {
+        "platform": "win32",
+        "release": "10.0.19044",
+        "cpu": "12th Gen Intel(R) Core(TM) i5-1245U",
+        "logicalCPUs": 12,
+        "totalMemoryGiB": 15
+      },
+      "limitations": "Headless Chromium, WebGL disabled and low graphics use the production fallback board. Frame intervals are scheduler samples, not physical GPU FPS. Human UAT, native Electron and macOS remain separate.",
+      "browser": "156.0.8078.74",
+      "hoverStyle": {
+        "x": "4.016253704791303deg",
+        "y": "4.2830825366811665deg"
+      },
+      "backgroundLoad": "One repository jsdom client-test worker remained running during both serial samples; no build, packaging or native acceptance task remained. Not an idle-host measurement."
+    },
+    "note": "Same-machine serial headless Chromium/fallback-board rAF sampling. A single background jsdom test worker remained active during both runs; not an idle-host or physical GPU FPS benchmark."
+  },
+  "localSuite": {
+    "status": "FAIL",
+    "passed": 4593,
+    "skipped": 2,
+    "failed": 1,
+    "failure": "Unchanged UpdatePrompt.test.tsx downloaded update initial-focus assertion saw document.body",
+    "isolatedRerun": {
+      "status": "PASS",
+      "tests": 40,
+      "files": [
+        "UpdatePrompt.test.tsx",
+        "PowerUpPanel.test.tsx",
+        "PowerUpArtwork.test.tsx"
+      ]
+    }
+  }
+}
