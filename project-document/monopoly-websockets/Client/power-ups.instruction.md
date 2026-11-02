@@ -10,7 +10,7 @@
 - `PowerUps.css` contains rarity/category states, reveal/entry motion, mobile layout and reduced-motion behavior. The shared Modal supplies focus management and decision peek/restore.
 - `apps/client/src/App.tsx` and socket projection restore owner inventory/status and authorized pending interactions on reconnect. Another player's hidden card definitions are never displayed.
 
-All mutation controls use their typed Socket.IO handler, disable while busy/disconnected or unauthorized, and surface rejected/failed ACKs as recoverable feedback. The server ACK and state projection decide completion; local timer ticks do not execute the pending effect. Native select controls, buttons and the shared modal provide keyboard-operable target choice and focus containment.
+All mutation controls use their typed Socket.IO handler, disable while busy/disconnected or unauthorized, and surface rejected/failed ACKs as recoverable feedback. The server ACK and state projection decide completion; local timer ticks do not execute the pending effect. The shared player dropdown, native property/card selectors, buttons and Modal provide keyboard-operable choices and focus containment.
 
 ## Visual acceptance evidence
 
@@ -41,10 +41,20 @@ Validation: `pnpm validate:powerup-art`, `pnpm test:powerup-art`, `pnpm art:powe
 
 ## OB-4 collectible reward picker (CURRENT DEVELOPMENT)
 
-The three START reward candidates use `apps/client/src/game/ui/powerUps/PowerUpPickerCard.tsx` around the existing card. Only this picker gets ivory/pastel surfaces, category accents, bevel/edge depth, staggered floating, bounded pointer tilt, shimmer and a short decorative selection burst. Artwork, icons and text remain 2D and use the same authorized definitions/assets. Inventory, replacement, full detail, activation and Reaction cards retain their existing presentation.
+The three START reward candidates use `apps/client/src/game/ui/powerUps/PowerUpPickerCard.tsx` around the existing card. Only this picker gets ivory/pastel surfaces, category accents, bevel/edge depth, staggered floating, bounded pointer tilt, shimmer and a short decorative selection burst. Artwork, icons and text remain 2D and use the same authorized definitions/assets. OB-6 extends the same shell to owned inventory, replacement, full detail and activation with restrained motion; Reaction and consent retain their existing face.
 
 The approved interaction is Q1=A: clicking a category back immediately sends one selection; the server locks it and reveals all three. There is no confirmation step or post-lock switching. While the ACK/snapshot is pending every candidate stays disabled; rejection clears the tentative highlight/particles and permits a retry only if the offer is still unselected. A successful ACK keeps selection locked until the authoritative snapshot arrives. Claim, decline and full-inventory replacement retain the existing commands and server authority.
 
 Particles are finite local feedback for a fresh valid click. Restoring an already-selected offer after reconnect mounts the authoritative face without replaying particles or a live flip. OS preference or the game reduced-motion setting suppresses floating, pointer tilt, shimmer and burst; static selected text/outline stays visible. Native buttons and the shared Modal preserve keyboard focus and decision peek. The picker grid reserves transform/particle space inside the existing scrollable modal, including short landscape viewports.
 
 Verification: `apps/client/src/game/ui/powerUps/PowerUpPanel.test.tsx`, artwork privacy tests and `scripts/powerUpPickerAcceptance.check.mjs`. Actual results and remaining Owner UAT requirements are recorded in [OB-4 picker validation](../../powerups/OB4_PICKER_VALIDATION.md).
+
+## OB-6 inventory and activation
+
+The inventory gallery centers one card and balances two or three, with an empty state, count, status and opponent sections. Owned cards reuse `PowerUpPickerCard.tsx` with `surface="owned"`: no idle floating, shimmer or particles; tilt is bounded to 2 degrees and lift to 3 px. Artwork, text and registry data remain 2D. Reward lock/reveal/claim/decline/replace commands are unchanged.
+
+Actions use the central icon registry alongside text. Activation Cancel closes without a command or consumption and remains available while disconnected; it is disabled while a command is pending. Reward Decline keeps its original meaning. Only the outcome line under the inventory dock is removed; offer history remains.
+
+Player targeting uses `apps/client/src/components/DropdownSelector.tsx`, also used for language selection. The fixed portal is clamped to the viewport; arrows/Home/End navigate, Enter/Space select, Escape closes only the list and Tab returns to the modal ring. Eligibility is recomputed from the latest projection before submit, including membership, team and card-specific conditions. Property choices remain native selectors. Server ACKs remain the authority.
+
+Regression and browser/native evidence: [OB-6 validation](../../powerups/OB6_UI_VALIDATION.md), `scripts/powerUpInventoryAcceptance.check.mjs`, `PowerUpPanel.test.tsx` and the existing picker harness. Owner UAT remains separate.

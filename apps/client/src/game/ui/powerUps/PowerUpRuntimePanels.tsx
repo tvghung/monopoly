@@ -13,6 +13,9 @@ import Modal from '../../../design-system/components/Modal/Modal';
 import { useTranslation } from '../../../i18n/I18n';
 import { presentationStoreContext } from '../../presentation/PresentationProvider';
 import PowerUpCard from './PowerUpCard';
+import PowerUpPickerCard from './PowerUpPickerCard';
+import DropdownSelector from '../../../components/DropdownSelector';
+import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import './PowerUps.css';
 
 export type OwnedPowerUp = NonNullable<PowerUpOwnerState['inventory']>['cards'][number];
@@ -137,14 +140,18 @@ export function PowerUpActivationDialog({ card, onClose }: { card: OwnedPowerUp;
 
   return <Modal open title={card.definition.name} eyebrow={t('powerup.activateTitle')} size="lg" peek="decision"
     closeOnEscape={!busy} onClose={busy ? undefined : onClose} className="power-up-activation"
-    footer={<div className="power-up-actions"><Button variant="secondary" disabled={!enabled} onClick={onClose}>{t('powerup.decline')}</Button>
-      <Button busy={busy} disabled={!enabled || !formValid} onClick={() => void activate()}>{t('powerup.activate')}</Button></div>}>
-    <PowerUpCard category={card.definition.category} definition={card.definition} />
+    footer={<div className="power-up-actions"><Button variant="secondary" icon={<ActionIcon name="cancel" size={16} />} disabled={busy} onClick={onClose}>{t('ui.cancel')}</Button>
+      <Button icon={<ActionIcon name="confirm" size={16} />} busy={busy} disabled={!enabled || !formValid} onClick={() => void activate()}>{t('powerup.activate')}</Button></div>}>
+    <div className="power-up-activation-card"><PowerUpPickerCard surface="owned" category={card.definition.category} definition={card.definition} /></div>
     {requiresProperty ? <p className="power-up-target-legend"><span>✓ {t('powerup.validTarget')}</span><span>— {t('powerup.invalidTarget')}</span></p> : null}
     <div className="power-up-form">
-      {requiresTarget ? <label>{t('powerup.choosePlayer')}<select value={targetPlayerId} onChange={event => { setTargetPlayerId(event.target.value); setTargetTileID(null); }}>
-        <option value="">—</option>{eligibleTargets.map(([otherId, player]) => <option key={otherId} value={otherId}>{player.name}</option>)}
-      </select></label> : null}
+      {requiresTarget ? <div className="power-up-player-field"><span>{t('powerup.choosePlayer')}</span><DropdownSelector
+        value={eligibleTargets.some(([candidate]) => candidate === targetPlayerId) ? targetPlayerId : ''}
+        options={[{ value: '', label: '—' }, ...eligibleTargets.map(([otherId, player]) => ({ value: otherId, label: player.name }))]}
+        onChange={value => { setTargetPlayerId(value); setTargetTileID(null); }}
+        heading={t('powerup.choosePlayer')} triggerLabel={t('powerup.choosePlayer')}
+        icon={<ActionIcon name="players" />} disabled={!enabled || eligibleTargets.length === 0} />
+      </div> : null}
       {requiresProperty ? <label>{t('powerup.chooseProperty')}<select value={targetTileID ?? (id === 'U03' ? pendingProperty?.tileID ?? '' : '')} onChange={event => setTargetTileID(event.target.value === '' ? null : Number(event.target.value))}>
         <option value="">—</option>{propertyOptions.map(option => { const valid = propertyChoices.some(choice => choice.tileID === option.tileID); return <option key={option.tileID} value={option.tileID} disabled={!valid}>{valid ? '✓ ' : '— '}{option.label}{valid ? '' : ' · ' + t('powerup.invalidTarget')}</option>; })}
       </select></label> : null}
@@ -223,7 +230,7 @@ export default function PowerUpRuntimePanels() {
   return <>
     {reaction ? <Modal open title={t('powerup.reactionNeeded')} eyebrow={reactionTitle}
       size={reaction.eligibleInstanceIds.length > 2 ? 'lg' : 'md'} peek="decision"
-      closeOnEscape={false} className="power-up-reaction" footer={<Button variant="secondary" disabled={busy}
+      closeOnEscape={false} className="power-up-reaction" footer={<Button variant="secondary" icon={<ActionIcon name="skip" size={16} />} disabled={busy}
         onClick={() => void send(socketFunctions.respondPowerUp ? () => socketFunctions.respondPowerUp!({ eventId: reaction.eventId, action: 'PASS' }) : undefined)}>{t('powerup.pass')}</Button>}>
       <div className="power-up-grid">{reaction.eligibleInstanceIds.map(instanceId => {
         const item = inventory?.cards.find(card => card.instanceId === instanceId);
@@ -233,7 +240,7 @@ export default function PowerUpRuntimePanels() {
           {needsRedirect ? <label>{t('powerup.chooseProperty')}<select value={redirectTileID ?? ''} onChange={event => setRedirectTileID(event.target.value === '' ? null : Number(event.target.value))}>
             <option value="">—</option>{attackerProperties.map(option => <option key={option.tileID} value={option.tileID}>{option.label}</option>)}
           </select></label> : null}
-          <Button disabled={!enabled || reactionSeconds === 0 || (needsRedirect && redirectTileID === null)} onClick={() => void send(socketFunctions.respondPowerUp ? () => socketFunctions.respondPowerUp!({
+          <Button icon={<ActionIcon name="confirm" size={16} />} disabled={!enabled || reactionSeconds === 0 || (needsRedirect && redirectTileID === null)} onClick={() => void send(socketFunctions.respondPowerUp ? () => socketFunctions.respondPowerUp!({
             eventId: reaction.eventId, action: 'REACT', instanceId,
             ...(needsRedirect && redirectTileID !== null ? { redirectTileID } : {}),
           }) : undefined, item)}>{t('powerup.activate')}</Button>
@@ -254,14 +261,14 @@ export default function PowerUpRuntimePanels() {
     </Modal> : null}
     {tradeRequest ? <Modal open title={t('powerup.reactionNeeded')} eyebrow={t('powerup.tradeRequest', { name: tradeRequest.initiatorName })}
       size="md" peek="decision" closeOnEscape={false} footer={<div className="power-up-actions">
-        <Button variant="secondary" disabled={busy} onClick={() => void send(socketFunctions.resolvePowerUpTrade ? () => socketFunctions.resolvePowerUpTrade!({ requestId: tradeRequest.requestId, accept: false }) : undefined)}>{t('powerup.declineTrade')}</Button>
-        <Button disabled={busy} onClick={() => void send(socketFunctions.resolvePowerUpTrade ? () => socketFunctions.resolvePowerUpTrade!({ requestId: tradeRequest.requestId, accept: true }) : undefined)}>{t('powerup.acceptTrade')}</Button>
+        <Button variant="secondary" icon={<ActionIcon name="decline" size={16} />} disabled={busy} onClick={() => void send(socketFunctions.resolvePowerUpTrade ? () => socketFunctions.resolvePowerUpTrade!({ requestId: tradeRequest.requestId, accept: false }) : undefined)}>{t('powerup.declineTrade')}</Button>
+        <Button icon={<ActionIcon name="accept" size={16} />} disabled={busy} onClick={() => void send(socketFunctions.resolvePowerUpTrade ? () => socketFunctions.resolvePowerUpTrade!({ requestId: tradeRequest.requestId, accept: true }) : undefined)}>{t('powerup.acceptTrade')}</Button>
       </div>}>
       <div className="power-up-grid">{inventory?.cards.map(item => <PowerUpCard key={item.instanceId} category={item.definition.category} definition={item.definition} />)}</div>
       {error ? <p role="alert" className="power-up-error">{error}</p> : null}
     </Modal> : null}
     {movement ? <Modal open title={t('powerup.reactionNeeded')} eyebrow={t('powerup.movementWaiting')} size="md"
-      peek="decision" closeOnEscape={false} footer={<Button busy={busy} disabled={!canMutate || !connected || role !== 'PLAYER'}
+      peek="decision" closeOnEscape={false} footer={<Button icon={<ActionIcon name="next" size={16} />} busy={busy} disabled={!canMutate || !connected || role !== 'PLAYER'}
         onClick={() => void send(socketFunctions.continuePowerUpMovement ? () => socketFunctions.continuePowerUpMovement!({ operationId: movement.operationId }) : undefined)}>{t('powerup.keepMovement', { total: movement.total })}</Button>}>
       <p>{t('powerup.keepMovement', { total: movement.total })}</p>
       {error ? <p role="alert" className="power-up-error">{error}</p> : null}

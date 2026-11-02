@@ -14,10 +14,10 @@ const particles: PickerStyle[] = Array.from({ length: 18 }, (_, index) => {
   };
 });
 
-/** Presentation around the existing flat face; inventory and gameplay panels do not use this shell. */
-export default function PowerUpPickerCard({ category, definition, selected, discarded, disabled, animateReveal, position, burst, onChoose }: {
-  category: PowerUpCategory; definition?: PowerUpDefinition; selected: boolean; discarded: boolean;
-  disabled: boolean; animateReveal: boolean; position: number; burst: boolean; onChoose?: () => void;
+/** Shared physical shell; owned cards use restrained motion without reward selection effects. */
+export default function PowerUpPickerCard({ category, definition, selected, discarded, disabled, animateReveal, position = 0, burst = false, onChoose, surface = 'reward' }: {
+  category: PowerUpCategory; definition?: PowerUpDefinition; selected?: boolean; discarded?: boolean;
+  disabled?: boolean; animateReveal?: boolean; position?: number; burst?: boolean; onChoose?: () => void; surface?: 'reward' | 'owned';
 }) {
   const reducedMotion = useEffectiveReducedMotion();
   const interactive = !disabled && Boolean(onChoose);
@@ -28,14 +28,14 @@ export default function PowerUpPickerCard({ category, definition, selected, disc
     if (!bounds.width || !bounds.height) return;
     const x = Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1));
     const y = Math.max(-1, Math.min(1, (event.clientY - bounds.top) / bounds.height * 2 - 1));
-    event.currentTarget.style.setProperty('--picker-rotate-x', `${-y * 7}deg`);
-    event.currentTarget.style.setProperty('--picker-rotate-y', `${x * 7}deg`);
+    event.currentTarget.style.setProperty('--picker-rotate-x', `${-y * (surface === 'owned' ? 2 : 7)}deg`);
+    event.currentTarget.style.setProperty('--picker-rotate-y', `${x * (surface === 'owned' ? 2 : 7)}deg`);
   };
   const reset = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.style.removeProperty('--picker-rotate-x');
     event.currentTarget.style.removeProperty('--picker-rotate-y');
   };
-  return <div className="power-up-picker-card" data-category={category} data-selected={selected}
+  return <div className="power-up-picker-card" data-category={category} data-surface={surface} data-selected={selected}
     data-discarded={discarded} data-interactive={interactive} data-hoverable={hoverable} data-reduced-motion={reducedMotion}
     style={{ '--picker-duration': `${4.4 + position * .6}s`, '--picker-phase': `${position * -1.6}s` } as PickerStyle}
     onPointerMove={move} onPointerLeave={reset}>

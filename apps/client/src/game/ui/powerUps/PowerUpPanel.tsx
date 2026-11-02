@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import type { Ack, PowerUpOwnerState, ResolvePowerUpRequest } from '@monopoly/shared';
 import { Sparkles } from 'lucide-react';
+import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import stateContext from '../../../internal';
 import Button from '../../../design-system/components/Button/Button';
 import Modal from '../../../design-system/components/Modal/Modal';
@@ -9,7 +10,6 @@ import { en, vi, type MessageKey } from '../../../i18n/catalog';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import { selectCardPresentation, selectPresentationStatus } from '../../presentation/store/selectors';
 import PowerUpFeedback from './PowerUpFeedback';
-import PowerUpCard from './PowerUpCard';
 import PowerUpPickerCard from './PowerUpPickerCard';
 import PowerUpArtwork from './PowerUpArtwork';
 import PowerUpRuntimePanels, { PowerUpActivationDialog } from './PowerUpRuntimePanels';
@@ -55,8 +55,8 @@ function RewardDecision({ offer, inventory }: { offer: Offer; inventory: PowerUp
   const resolve = (request: ResolvePowerUpRequest) => void send(socketFunctions.resolvePowerUp ? () => socketFunctions.resolvePowerUp!(request) : undefined);
   return <Modal open title={t('powerup.title')} eyebrow={t('powerup.earned')} size="xl" tone="celebration" peek="decision" peekKey={offer.offerId}
     closeOnEscape={false} className="power-up-reward" footer={revealed ? <div className="power-up-actions">
-      {!full ? <Button busy={busy} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'CLAIM' })}>{t('powerup.claim')}</Button> : null}
-      <Button variant="secondary" disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'DECLINE' })}>{t('powerup.decline')}</Button>
+      {!full ? <Button icon={<ActionIcon name="accept" size={16} />} busy={busy} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'CLAIM' })}>{t('powerup.claim')}</Button> : null}
+      <Button variant="secondary" icon={<ActionIcon name="decline" size={16} />} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'DECLINE' })}>{t('powerup.decline')}</Button>
     </div> : undefined}>
     <div className="power-up-grid power-up-picker-grid" aria-busy={busy || waitingForSelection}>
       {offer.candidates.map((candidate, index) => <PowerUpPickerCard key={candidate.category} {...candidate}
@@ -67,8 +67,8 @@ function RewardDecision({ offer, inventory }: { offer: Offer; inventory: PowerUp
     <div role="status" aria-live="polite">{busy || waitingForSelection ? t('powerup.loading') : locked ? t('powerup.selected') : ''}</div>
     {error ? <p role="alert" className="power-up-error">{error}</p> : null}
     {revealed && full ? <section className="power-up-replacement"><p>{t('powerup.full')}</p><div className="power-up-grid">
-      {inventory?.cards.map(card => <div key={card.instanceId}><PowerUpCard category={card.definition.category} definition={card.definition} />
-        <Button variant="secondary" disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'REPLACE', replaceInstanceId: card.instanceId })}>{t('powerup.replace')} · {card.definition.name}</Button></div>)}
+      {inventory?.cards.map(card => <div key={card.instanceId}><PowerUpPickerCard surface="owned" category={card.definition.category} definition={card.definition} />
+        <Button variant="secondary" icon={<ActionIcon name="swap" size={16} />} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'REPLACE', replaceInstanceId: card.instanceId })}>{t('powerup.replace')} · {card.definition.name}</Button></div>)}
     </div></section> : null}
   </Modal>;
 }
@@ -86,7 +86,6 @@ export default function PowerUpPanel() {
   const inventory = powerUps?.inventory;
   const detailCard = inventory?.cards.find(card => card.instanceId === detailInstanceId);
   const active = powerUps?.offers.find(offer => offer.offerId === powerUps.activeOfferId && offer.stage !== 'COMPLETED');
-  const completed = powerUps?.offers.find(offer => offer.stage === 'COMPLETED');
   const activeCards = (inventory?.cards ?? []).filter(card => card.definition.activation === 'ACTIVE');
   const reactionEventId = powerUps?.reaction?.eventId;
   const tradeRequestId = powerUps?.tradeRequest?.requestId;
@@ -133,7 +132,6 @@ export default function PowerUpPanel() {
     <PowerUpFeedback />
     <div className="power-up-dock">
       <Button variant="secondary" className="game-board__property-button" aria-label={t('powerup.inventory') + ' · ' + t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })} icon={<Sparkles size={16} />} onClick={() => setInspect(true)}><span className="dock-label">{t('powerup.inventory')}</span><span className="dock-count">{inventory?.cards.length ?? 0} / {inventory?.capacity ?? 3}</span></Button>
-      {completed?.outcome && completed.outcome.kind !== 'CANCELLED' ? <span role="status" className="power-up-outcome">{t(('powerup.' + completed.outcome.kind) as 'powerup.GRANTED')}</span> : null}
     </div>
     {rewardOpen && active ? <RewardDecision key={active.offerId} offer={active} inventory={inventory ?? null} /> : null}
     <PowerUpRuntimePanels />
@@ -144,18 +142,18 @@ export default function PowerUpPanel() {
     <Modal open={Boolean(detailCard) && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
       title={detailCard?.definition.name ?? ''} eyebrow={t('powerup.details')} size="md" className="power-up-detail"
       onClose={() => { setDetailInstanceId(null); setInspect(true); }} peek="view">
-      {detailCard ? <PowerUpCard category={detailCard.definition.category} definition={detailCard.definition} /> : null}
+      {detailCard ? <PowerUpPickerCard surface="owned" category={detailCard.definition.category} definition={detailCard.definition} /> : null}
     </Modal>
     <Modal open={inspect && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
-      title={t('powerup.inventory')} onClose={() => setInspect(false)} size="xl" peek="view">
-      <p>{t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })}</p>
-      {!inventory?.cards.length ? <p>{t('powerup.empty')}</p> : <div className="power-up-grid">{inventory.cards.map(card => <div key={card.instanceId}>
-        <PowerUpCard category={card.definition.category} definition={card.definition} />
-        <Button variant="ghost" className="power-up-card-details" onClick={() => { setInspect(false); setDetailInstanceId(card.instanceId); }}>{t('powerup.details')} · {card.definition.name}</Button>
+      title={t('powerup.inventory')} onClose={() => setInspect(false)} size="xl" peek="view" className="power-up-inventory">
+      <p className="power-up-inventory-count">{t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })}</p>
+      {!inventory?.cards.length ? <div className="power-up-empty"><Sparkles aria-hidden="true" size={32} /><p>{t('powerup.empty')}</p></div> : <div className="power-up-grid power-up-inventory-gallery" data-count={inventory.cards.length}>{inventory.cards.map(card => <div key={card.instanceId}>
+        <PowerUpPickerCard surface="owned" category={card.definition.category} definition={card.definition} />
+        <Button variant="ghost" className="power-up-card-details" icon={<ActionIcon name="view" size={16} />} onClick={() => { setInspect(false); setDetailInstanceId(card.instanceId); }}>{t('powerup.details')} · {card.definition.name}</Button>
         {card.definition.activation === 'ACTIVE' ? (() => {
           const reason = activationUnavailableReason(card);
           return <>
-            <Button variant="secondary" disabled={Boolean(reason)} onClick={() => {
+            <Button variant="secondary" icon={<ActionIcon name="confirm" size={16} />} disabled={Boolean(reason)} onClick={() => {
               setInspect(false);
               setActivationInstanceId(card.instanceId);
             }}>{t('powerup.activate')}</Button>
@@ -163,7 +161,7 @@ export default function PowerUpPanel() {
           </>;
         })() : null}
       </div>)}</div>}
-      <h3>{t('powerup.statuses')}</h3>
+      <h3 className="power-up-section-title">{t('powerup.statuses')}</h3>
       {(powerUps?.statuses?.length ?? 0) === 0 ? <p>{t('powerup.noStatuses')}</p> : <ul className="power-up-summaries">{powerUps?.statuses?.map(status => {
         const key = `powerup.effect.${status.definitionId}`;
         const description = key in vi && key in en ? t(key as MessageKey) : status.description;
