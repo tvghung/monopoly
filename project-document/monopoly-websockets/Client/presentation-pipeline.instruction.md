@@ -151,3 +151,7 @@ An existing queue wait delivered at least one second late invokes the same reset
 Recovery may omit interrupted cosmetic feedback. Positions, balances, buildings, pending card and activity tail hydrate from the snapshot. No authoritative command is dropped or replayed. The existing three-second card-reading policy remains. Server authority, socket protocol and persistence do not change.
 
 Evidence: [B8 record](../../ui-ux-overhaul/08L_PHASE_B8_IMPLEMENTATION.md). Tests: `apps/client/src/game/presentation/movementCadence.test.ts`, `apps/client/src/game/presentation/interruptionRecovery.test.tsx`, `apps/client/src/game/presentation/interruptionMeasurements.test.tsx`.
+
+## OB-8 checkpoint movement (CURRENT DEVELOPMENT)
+
+The baseline 12-tile dice inference above remains for ordinary rolls. For checkpoint completion, `derivePresentationEvents.ts` first uses a matching committed public PLAYER_MOVED fact: player/from/to/rollSequence and exact steps. WALK can be 1–15 tiles (U02 14, U05 up to 15); U08 TELEPORT stays SNAP even if its destination matches a possible dice walk. No private inventory or position-only heuristic proves a walk. Existing hop executor runs every intermediate tile, gates landing/prompts until settled, and binds PASS_GO to the matching dice walk. The public path is identical for actor and observer. Sync/gaps/hidden/reduced-motion retain reset/snap policy.

@@ -55,6 +55,10 @@ The current protocol and snapshot numbers are defined only in code: `SOCKET_PROT
 and `ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`; the history is in
 [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history).
 
+## Current development after v1.11.1
+
+OB-8 introduces committed checkpoint movement, protocol 17 / snapshot 15 and development version 1.11.2 (not published). The Owner approved the contract change in Jira OB-8. See [shared movement contract](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development); published v1.11.1 verification above remains unchanged.
+
 ## Reading order for a code task
 
 1. Identify the affected feature(s) in [FEATURE_TRACEABILITY.md](./monopoly-websockets/FEATURE_TRACEABILITY.md).

@@ -195,6 +195,19 @@ const semanticEventBase = {
 export const gameplaySemanticEventSchema: z.ZodType<GameplaySemanticEvent> = z.discriminatedUnion('type', [
   z.strictObject({
     ...semanticEventBase,
+    type: z.literal('PLAYER_MOVED'),
+    operationId: operationIdSchema,
+    playerId: playerIdSchema,
+    rollSequence: z.number().int().nonnegative().safe(),
+    fromTile: tileIdSchema,
+    destinationTile: tileIdSchema,
+    steps: z.number().int().min(0).max(15),
+    presentation: z.enum(['WALK', 'TELEPORT']),
+  }).refine(event => event.presentation === 'TELEPORT' ? event.steps === 0
+    : event.steps > 0 && (event.fromTile + event.steps) % 40 === event.destinationTile,
+  { message: 'Checkpoint movement must describe its exact committed path' }),
+  z.strictObject({
+    ...semanticEventBase,
     type: z.literal('MONEY_TRANSFER'),
     source: moneyEndpointSchema,
     destination: moneyEndpointSchema,

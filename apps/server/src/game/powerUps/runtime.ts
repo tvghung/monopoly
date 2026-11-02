@@ -65,9 +65,9 @@ const activationFields: Readonly<Record<string, readonly (keyof PowerUpActivatio
   A04: ['targetPlayerId', 'targetTileID'], A05: ['targetPlayerId'], A06: ['targetPlayerId'],
   A07: ['targetPlayerId'], A08: [], A09: ['targetPlayerId'], A10: ['targetPlayerId'],
   D04: ['targetTileID'], D10: ['statusId'],
-  U01: [], U02: [], U03: ['targetTileID'], U04: ['ingredientInstanceIds'],
-  U05: ['movementDelta'], U06: ['targetPlayerId'], U07: ['targetTileID'],
-  U08: ['targetTileID'], U09: [], U10: ['transformedInstanceId', 'category'],
+  U01: ['operationId'], U02: ['operationId'], U03: ['targetTileID'], U04: ['ingredientInstanceIds'],
+  U05: ['movementDelta', 'operationId'], U06: ['targetPlayerId'], U07: ['targetTileID'],
+  U08: ['targetTileID', 'operationId'], U09: [], U10: ['transformedInstanceId', 'category'],
 };
 
 function assertActivationRequestMatchesEffect(
@@ -78,7 +78,7 @@ function assertActivationRequestMatchesEffect(
   if (!allowed) throw new CommandError('CONFLICT', 'Hiệu ứng thẻ này chưa có bộ xử lý.');
   const fields: (keyof PowerUpActivationRequest)[] = [
     'targetPlayerId', 'targetTileID', 'ingredientInstanceIds', 'transformedInstanceId',
-    'category', 'movementDelta', 'statusId',
+    'category', 'movementDelta', 'statusId', 'operationId',
   ];
   if (fields.some(field => request[field] !== undefined && !allowed.includes(field))) {
     throw new CommandError('INVALID_REQUEST', 'Dữ liệu mục tiêu không khớp với hiệu ứng thẻ.');
@@ -143,7 +143,8 @@ function activeTiming(state: GameState, actor: PlayerId, definitionId: string, r
   if (['U01', 'U02', 'U05', 'U08'].includes(definitionId)) {
     if (!pendingMovement || pendingMovement.playerId !== actor
       || pendingMovement.turnNumber !== state.boardState.turnNumber
-      || pendingMovement.rollSequence !== state.boardState.rollSequence) {
+      || pendingMovement.rollSequence !== state.boardState.rollSequence
+      || pendingMovement.operationId !== request.operationId) {
       throw new CommandError('CONFLICT', 'Thẻ này chỉ dùng sau khi đổ xúc xắc và trước khi di chuyển.');
     }
     return;
@@ -188,6 +189,7 @@ export function finishPowerUpMovement(
   state.privateState.powerUps!.pendingMovement = null;
   const continuation = continuationForRoll(state, actor);
   const operationId = pending.operationId;
+  const fromTile = state.players[actor].currentTile;
   if (destinationTile === undefined) {
     if (!moveBy(state, actor, movementSteps, { kind: 'DICE_WALK', rollSequence: pending.rollSequence }, operationId)) {
       throw new CommandError('CONFLICT', 'Không thể hoàn tất bước di chuyển.');
@@ -197,6 +199,12 @@ export function finishPowerUpMovement(
   )) {
     throw new CommandError('CONFLICT', 'Ô đích không hợp lệ.');
   }
+  recordPublicGameplayEvent(state, {
+    type: 'PLAYER_MOVED', operationId, playerId: actor, rollSequence: pending.rollSequence,
+    fromTile, destinationTile: state.players[actor].currentTile,
+    steps: destinationTile === undefined ? movementSteps : 0,
+    presentation: destinationTile === undefined ? 'WALK' : 'TELEPORT',
+  });
   resolveTile(state, actor, diceTotal, continuation, { now });
 }
 

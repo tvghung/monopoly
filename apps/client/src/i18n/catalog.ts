@@ -1,4 +1,7 @@
 export const vi = {
+  'powerup.movementDecision': 'Chọn cách di chuyển',
+  'powerup.movementChoice': 'Dùng thẻ phù hợp hoặc tiếp tục với {total} bước mà không dùng thẻ.',
+  'powerup.useNamed': 'Dùng {name}',
   'powerup.feedback.ATTACK': 'Thẻ tấn công đã dùng',
   'powerup.feedback.SHIELD': 'Lá chắn đã kích hoạt',
   'powerup.feedback.BLOCK': 'Đã chặn đòn',
@@ -971,6 +974,9 @@ export const vi = {
 export type MessageKey = keyof typeof vi;
 
 export const en = {
+  'powerup.movementDecision': 'Choose your movement',
+  'powerup.movementChoice': 'Use an eligible card or continue {total} steps without a card.',
+  'powerup.useNamed': 'Use {name}',
   'powerup.feedback.ATTACK': 'Attack card used',
   'powerup.feedback.SHIELD': 'Shield activated',
   'powerup.feedback.BLOCK': 'Attack blocked',

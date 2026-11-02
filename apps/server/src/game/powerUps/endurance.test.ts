@@ -79,7 +79,7 @@ describe('08B reproducible full-game command endurance', () => {
           } else if (pu?.pendingMovement) {
             const movement = pu.pendingMovement; const cards = pu.inventories[movement.playerId]?.cards ?? [];
             const card = cards.find(card => ['U01','U02','U05','U08'].includes(card.definitionId));
-            if (card) { const payload = { instanceId: card.instanceId, ...(card.definitionId === 'U05' ? { movementDelta: 3 } : card.definitionId === 'U08' ? { targetTileID: 39 } : {}) }; await execute(commands.activatePowerUpCommand, movement.playerId, payload); activations[card.definitionId] = (activations[card.definitionId] ?? 0) + 1; }
+            if (card) { const payload = { instanceId: card.instanceId, operationId: movement.operationId, ...(card.definitionId === 'U05' ? { movementDelta: 3 } : card.definitionId === 'U08' ? { targetTileID: 39 } : {}) }; await execute(commands.activatePowerUpCommand, movement.playerId, payload); activations[card.definitionId] = (activations[card.definitionId] ?? 0) + 1; }
             else await execute(commands.continuePowerUpMovementCommand, movement.playerId, { operationId: movement.operationId });
           } else {
             const publicRoom = projectPublicRoomState(room, server.runtime.connections);

@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 16 as const;
+export const SOCKET_PROTOCOL_VERSION = 17 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -257,6 +257,18 @@ export interface SentToJailSemanticEvent extends GameplaySemanticEventBase {
   cause: SentToJailCause;
 }
 
+/** Committed checkpoint movement; public position facts only, never hidden card identity. */
+export interface PlayerMovedSemanticEvent extends GameplaySemanticEventBase {
+  type: 'PLAYER_MOVED';
+  operationId: string;
+  playerId: PlayerId;
+  rollSequence: number;
+  fromTile: number;
+  destinationTile: number;
+  steps: number;
+  presentation: 'WALK' | 'TELEPORT';
+}
+
 export interface JailRollFailedSemanticEvent extends GameplaySemanticEventBase {
   type: 'JAIL_ROLL_FAILED';
   playerId: PlayerId;
@@ -274,7 +286,8 @@ export type GameplaySemanticEvent =
   | PassGoSemanticEvent
   | SentToJailSemanticEvent
   | JailRollFailedSemanticEvent
-  | JailReleasedSemanticEvent;
+  | JailReleasedSemanticEvent
+  | PlayerMovedSemanticEvent;
 
 export interface GameplayEventStream {
   sequence: number;

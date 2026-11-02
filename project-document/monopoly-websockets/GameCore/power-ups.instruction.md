@@ -1,6 +1,6 @@
 # Power-up gameplay runtime
 
-> **CURRENT DEVELOPMENT — Phases 04–08, protocol 16 / RAM snapshot 14.** The Phase 04–05 START reward and inventory flow remains active. All 30 official definitions now have server-side Active or Reaction handlers. The published v1.10.0 release remains protocol 14 / snapshot 11. This work is unreleased; [Phase 09A](../../powerups/09A_GIT_CONSOLIDATION_REPORT.md) records local Git consolidation and preserved uncommitted work.
+> **CURRENT DEVELOPMENT — Phases 04–08 plus OB-8, protocol 17 / RAM snapshot 15.** The Phase 04–05 START reward and inventory flow remains active. All 30 official definitions now have server-side Active or Reaction handlers. The published v1.11.1 release remains protocol 16 / snapshot 14. This work is unreleased; [Phase 09A](../../powerups/09A_GIT_CONSOLIDATION_REPORT.md) records local Git consolidation and preserved uncommitted work.
 
 ## Authority and source of truth
 
@@ -50,3 +50,7 @@ Rent modifiers apply the strongest applicable increase and strongest reduction a
 ## OB-9 default rarity amendment (CURRENT DEVELOPMENT)
 
 New START offers use the approved Common/Rare/Epic/Legendary 40/30/20/10 default pool from `packages/shared/src/powerUpConfig.ts`. Each category draws a tier then uniformly draws an eligible definition. U04/U10 sampling, existing offers/cards and all other parameters are unchanged. Historical P0 weights in the 03C spec are superseded by its OB-9 amendment. Deterministic boundary and seeded distribution checks are in `apps/server/src/game/powerUps/rewards.test.ts`; full-match balance remains unverified.
+
+## OB-8 checkpoint movement (CURRENT DEVELOPMENT)
+
+Protocol 17/snapshot 15 adds a public committed checkpoint path (see [shared contract](../Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development)). U02 still adds two movement steps without changing recorded dice, U05 applies the approved delta, U01 uses rerolled dice, and U08 records TELEPORT. Every path retains one server landing resolution and START reward policy. Activation checks the exact checkpoint operation before consumption; no card/used allowance follows the existing unpaused roll path. No other card effect or money rule changes.

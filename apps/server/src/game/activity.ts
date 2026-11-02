@@ -98,6 +98,7 @@ export function recordActivityForGameplayEvent(
         cause: event.cause,
       });
       return;
+    case 'PLAYER_MOVED': // Position is already represented by the existing roll/landing log.
     case 'PASS_GO':
     case 'PROPERTY_TRANSFER':
       return;

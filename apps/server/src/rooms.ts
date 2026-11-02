@@ -40,7 +40,7 @@ import { createDefaultTeamSettings, createEmptyTeamPlayState } from './game/team
 
 import { powerUpInteractionsClear } from './game/powerUps/foundation';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 14;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 15;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 

@@ -5,6 +5,7 @@ import stateContext from '../../../internal';
 import type { StateContextValue } from '../../../types';
 import { makeRoom } from '../../presentation/testFixtures';
 import PowerUpPanel from './PowerUpPanel';
+import PowerUpRuntimePanels from './PowerUpRuntimePanels';
 import { SettingsProvider } from '../../../settings/SettingsProvider';
 import { DEFAULT_GAME_SETTINGS } from '../../../settings/defaults';
 import { I18nProvider } from '../../../i18n/I18n';
@@ -249,4 +250,33 @@ it('localizes inventory actions and Cancel in English with reduced motion',()=>{
   expect(document.querySelector('[data-surface=owned][data-reduced-motion=true]')).toBeTruthy();
   expect(screen.getByRole('button',{name:'Choose a player'})).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Discard new card'})).toBeNull();
+});
+
+
+function movementContext() {
+  const value=context('COMPLETED');const powerUps=value.privatePlayerState!.powerUps!;
+  powerUps.inventory={capacity:3,cards:[{instanceId:'movement-card',definitionId:'U02',ownerPlayerId:'player-a',obtainedFromOfferId:'offer',definition:{...definitions[2],definitionId:'U02',name:'Tăng Tốc',description:'+2 bước',activation:'ACTIVE'}}]};
+  powerUps.movement={operationId:'movement-operation',dice:{dice1:6,dice2:6},total:12};powerUps.activeUsedThisTurn=false;
+  value.state.boardState.currentPlayer={id:'player-a',hasMoved:true};
+  value.socketFunctions.activatePowerUp=vi.fn(()=>Promise.resolve(success));value.socketFunctions.continuePowerUpMovement=vi.fn(()=>Promise.resolve(success));return value;
+}
+const movementView=(value:StateContextValue)=><stateContext.Provider value={value}><PowerUpRuntimePanels /></stateContext.Provider>;
+it('OB-8 exposes use/continue in one checkpoint modal, with exact operation and no automatic activation',async()=>{
+  const value=movementContext();render(movementView(value));expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);
+  expect(screen.getByText('Chọn cách di chuyển')).toBeTruthy();expect(value.socketFunctions.activatePowerUp).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:/Dùng Tăng Tốc/}));expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'})));
+  expect(value.socketFunctions.activatePowerUp).toHaveBeenCalledWith({instanceId:'movement-card',operationId:'movement-operation'});
+  expect(value.socketFunctions.continuePowerUpMovement).not.toHaveBeenCalled();
+});
+it('OB-8 continue submits once without consuming a card, and pending activation disables the competing choice',async()=>{
+  const value=movementContext();let resolve!:(ack:Ack)=>void;value.socketFunctions.activatePowerUp=vi.fn(()=>new Promise<Ack>(done=>{resolve=done}));
+  const rendered=render(movementView(value));fireEvent.click(screen.getByRole('button',{name:/Dùng Tăng Tốc/}));
+  fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'}));fireEvent.click(screen.getByRole('button',{name:/Tiếp tục với 12/}));
+  expect(value.socketFunctions.continuePowerUpMovement).not.toHaveBeenCalled();
+  await act(async()=>{resolve({ok:false,protocolVersion:SOCKET_PROTOCOL_VERSION,error:{code:'CONFLICT',message:'Stale checkpoint',retryable:true}});await Promise.resolve()});
+  expect(screen.getByRole('alert').textContent).toBe('Stale checkpoint');
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:/Tiếp tục với 12/})));
+  expect(value.socketFunctions.continuePowerUpMovement).toHaveBeenCalledWith({operationId:'movement-operation'});expect(value.privatePlayerState!.powerUps!.inventory!.cards).toHaveLength(1);
+  rendered.unmount();
 });
