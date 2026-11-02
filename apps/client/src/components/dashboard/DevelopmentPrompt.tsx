@@ -9,6 +9,7 @@ import { usePresentationSelector } from '../../game/presentation/usePresentation
 import { selectPresentationResetEpoch } from '../../game/presentation/store/selectors';
 import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import ContextualPowerUpPanel from '../../game/ui/powerUps/ContextualPowerUpPanel';
 import './DecisionSheet.css';
 import { useTranslation } from '../../i18n/I18n';
 import { useLocalizedError } from '../../i18n/useLocalizedError';
@@ -25,6 +26,9 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
     && decision?.playerId === playerId;
   const operationId = show && decision ? decision.operationId : null;
   const tileId = show && decision ? decision.tileID : null;
+  const decisionBody = useRef<HTMLDivElement>(null);
+  const focusDecision = () => { requestAnimationFrame(() => { const body=decisionBody.current; const target=body?.querySelector<HTMLButtonElement>('.decision-sheet__actions button:not(:disabled)'); (target??body)?.focus(); }); };
+  const [contextBusy, setContextBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
   const requestGeneration = useRef(0);
@@ -45,20 +49,21 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   const balance = player?.accountBalance ?? 0;
   const unitCost = decision.unitCost ?? 0;
   const max = decision.maxQuantity ?? 1;
-  const total = unitCost * max;
+  const priceFor = (quantity: number) => decision.quantityPrices?.[quantity] ?? unitCost * quantity;
+  const total = priceFor(max);
   const tileName = getTileName(decision.tileID, language);
-  const affordableHouses = unitCost > 0 ? Math.min(max, Math.floor(balance / unitCost)) : max;
+  const affordableHouses = Array.from({length:max},(_,index)=>index+1).filter(quantity=>balance>=priceFor(quantity)).at(-1) ?? 0;
   const isHouses = decision.kind === 'DEVELOP_HOUSES';
   // 2v2 Team Investment: the lander pays from their own cash for a street a teammate owns; the owner never changes.
   const investmentOwner = deed?.owner && deed.owner.playerId !== playerId ? deed.owner : null;
   // Why an option is disabled, in words: the shortfall for the cheapest step, or how many the balance covers.
   const reason = isHouses
     ? affordableHouses === 0
-      ? t('development.shortHouses', { amount: formatMoney(unitCost - balance) })
+      ? t('development.shortHouses', { amount: formatMoney(priceFor(1) - balance) })
       : affordableHouses < max ? t('development.maxHouses', { count: affordableHouses }) : null
     : balance < total ? t('development.shortHotel', { amount: formatMoney(total - balance) }) : null;
   const submit = (action: 'BUILD_HOUSES' | 'UPGRADE_HOTEL' | 'SKIP', quantity?: number) => {
-    if (!operationId || pendingAction || (action === 'BUILD_HOUSES' && quantity === undefined)) return;
+    if (!operationId || pendingAction || contextBusy || !connected || (action === 'BUILD_HOUSES' && quantity === undefined)) return;
     const requestGenerationAtStart = requestGeneration.current + 1;
     requestGeneration.current = requestGenerationAtStart;
     setPendingAction(quantity ? `${action}:${quantity}` : action);
@@ -97,7 +102,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
       peekKey={operationId ?? undefined}
       className="decision-sheet development-prompt-modal"
     >
-      <div className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
+      <div ref={decisionBody} tabIndex={-1} className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
         {deed ? (
           <PropertyDeedCard
             model={deed}
@@ -110,7 +115,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
         <div className="decision-sheet__decision">
           <p className="decision-sheet__price">
             <span>{isHouses ? t('development.houseCost') : t('development.upgradeCost')}</span>
-            <strong>{formatMoney(unitCost)}</strong>
+            <strong>{formatMoney(priceFor(1))}</strong>
           </p>
           <dl className="decision-sheet__math">
             <div><dt>{t('development.balance')}</dt><dd>{formatMoney(balance)}</dd></div>
@@ -122,7 +127,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
               </p>
             )
             : null}
-          {isHouses ? <p className="decision-sheet__note">{t('development.chooseHouses', { max, amount: formatMoney(unitCost) })}</p> : null}
+          {isHouses ? <p className="decision-sheet__note">{t('development.chooseHouses', { max, amount: formatMoney(priceFor(1)) })}</p> : null}
           {reason ? <p className="decision-sheet__reason" role="note">{reason}</p> : null}
           {error ? <p className="decision-sheet__error" role="alert">{error}</p> : null}
           <div className="decision-sheet__actions development-prompt__options">
@@ -137,16 +142,16 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
                     key={quantity}
                     type="button"
                     busy={pendingAction === `BUILD_HOUSES:${quantity}`}
-                    disabled={pendingAction !== null || balance < unitCost * quantity}
+                    disabled={pendingAction !== null || contextBusy || !connected || balance < priceFor(quantity)}
                     aria-label={quantity === 1
-                      ? t('development.buildOne', { amount: formatMoney(unitCost) })
-                      : t('development.buildQuantity', { count: quantity, amount: formatMoney(unitCost * quantity) })}
+                      ? t('development.buildOne', { amount: formatMoney(priceFor(1)) })
+                      : t('development.buildQuantity', { count: quantity, amount: formatMoney(priceFor(quantity)) })}
                     onClick={() => submit('BUILD_HOUSES', quantity)}
                   >
                     {/* Two short lines (what, then the cost), so the label fits a narrow button in any language. */}
                     <span className="decision-sheet__option" aria-hidden="true">
                       <span>{quantity === 1 ? t('development.buildShortOne') : t('development.buildShort', { count: quantity })}</span>
-                      <strong>{formatMoney(unitCost * quantity)}</strong>
+                      <strong>{formatMoney(priceFor(quantity))}</strong>
                     </span>
                   </Button>
                 );
@@ -157,13 +162,13 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
                   type="button"
                   icon={<Building2 />}
                   busy={pendingAction === 'UPGRADE_HOTEL'}
-                  disabled={pendingAction !== null || balance < total}
-                  aria-label={t('development.upgradeHotelButton', { amount: formatMoney(unitCost) })}
+                  disabled={pendingAction !== null || contextBusy || !connected || balance < total}
+                  aria-label={t('development.upgradeHotelButton', { amount: formatMoney(priceFor(1)) })}
                   onClick={() => submit('UPGRADE_HOTEL')}
                 >
                   <span className="decision-sheet__option" aria-hidden="true">
                     <span>{t('development.upgradeHotelShort')}</span>
-                    <strong>{formatMoney(unitCost)}</strong>
+                    <strong>{formatMoney(priceFor(1))}</strong>
                   </span>
                 </Button>
               )}
@@ -174,11 +179,12 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
               icon={<SkipForward />}
               type="button"
               busy={pendingAction === 'SKIP'}
-              disabled={pendingAction !== null}
+              disabled={pendingAction !== null || contextBusy || !connected}
               onClick={() => submit('SKIP')}
             >{t('dashboard.pass')}</Button>
           </div>
         </div>
+        {operationId ? <ContextualPowerUpPanel key={operationId} kind="DEVELOPMENT" operationId={operationId} disabled={pendingAction !== null} onBusyChange={setContextBusy} onReturnToDecision={focusDecision} /> : null}
       </div>
     </Modal>
   );

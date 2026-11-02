@@ -65,9 +65,9 @@ const activationFields: Readonly<Record<string, readonly (keyof PowerUpActivatio
   A04: ['targetPlayerId', 'targetTileID'], A05: ['targetPlayerId'], A06: ['targetPlayerId'],
   A07: ['targetPlayerId'], A08: [], A09: ['targetPlayerId'], A10: ['targetPlayerId'],
   D04: ['targetTileID'], D10: ['statusId'],
-  U01: ['operationId'], U02: ['operationId'], U03: ['targetTileID'], U04: ['ingredientInstanceIds'],
+  U01: ['operationId'], U02: ['operationId'], U03: ['targetTileID', 'operationId'], U04: ['ingredientInstanceIds'],
   U05: ['movementDelta', 'operationId'], U06: ['targetPlayerId'], U07: ['targetTileID'],
-  U08: ['targetTileID', 'operationId'], U09: [], U10: ['transformedInstanceId', 'category'],
+  U08: ['targetTileID', 'operationId'], U09: ['operationId'], U10: ['transformedInstanceId', 'category'],
 };
 
 function assertActivationRequestMatchesEffect(
@@ -151,13 +151,15 @@ function activeTiming(state: GameState, actor: PlayerId, definitionId: string, r
   }
   if (definitionId === 'U03') {
     if (!state.turnInfo.pendingPropertyDecision || state.turnInfo.pendingPropertyDecision.playerId !== actor
-      || state.turnInfo.pendingPropertyDecision.tileID !== request.targetTileID) {
+      || state.turnInfo.pendingPropertyDecision.tileID !== request.targetTileID
+      || state.turnInfo.pendingPropertyDecision.operationId !== request.operationId) {
       throw new CommandError('CONFLICT', 'Phiếu giảm giá chỉ dùng cho tài sản đang chờ quyết định mua.');
     }
     return;
   }
   if (definitionId === 'U09') {
-    if (!state.turnInfo.pendingDevelopmentDecision || state.turnInfo.pendingDevelopmentDecision.playerId !== actor) {
+    if (!state.turnInfo.pendingDevelopmentDecision || state.turnInfo.pendingDevelopmentDecision.playerId !== actor
+      || state.turnInfo.pendingDevelopmentDecision.operationId !== request.operationId) {
       throw new CommandError('CONFLICT', 'Phiếu xây dựng chỉ dùng trước quyết định phát triển đang chờ.');
     }
     return;

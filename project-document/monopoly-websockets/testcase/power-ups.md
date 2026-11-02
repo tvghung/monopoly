@@ -77,3 +77,9 @@ Run the existing stabilization harness with `--refinement` (and `--native` for p
 - Verify exact path for actor/observer, corners/START, one landing and one reward, no early prompt, double submit/competing decisions, stale operation, rollback and reconnect pending/completed.
 - Verify VI/EN, all supported sizes, keyboard/focus, speed/reduced-motion and packaged Electron separately from Owner UAT.
 - Reject protocol-16/17 mismatch in both directions, LAN discovery mismatch and snapshot-14 envelope; validate current schema and update minimum 1.11.2. Existing published assets stay unchanged.
+
+## OB-11 contextual decisions
+
+Check U03 purchase and U09 house/hotel development with Use and Skip, no eligible card, wrong owner/spectator, spent allowance, stale operation and changed decision. Exactly one modal remains; opening/Skip never sends activation or consumes a card. Double-click Use and the original transaction each commit once. Verify server purchase price and total quotes (U09: base 200, quantities 1..4 yield 160/350/550/750, not 160 multiplied by quantity). Denial retains inventory and pending operation; reconnect restores pending decisions without replay. Check focus restoration with snapshot-before-ACK, Tab/Shift+Tab/Escape, VI/EN, reduced motion at 1440×900, 1280×720, 900×500 and 740×360. Owned cards remain complete/3D with no Power-up detail entry/modal.
+
+Card × timing × surface × target matrix and actual automated/native coverage are in [OB-11 validation](../../powerups/OB11_CONTEXT_VALIDATION.md). Owner UAT must separately cover purchase/build/movement with and without eligible cards; automated PASS is not Owner sign-off.

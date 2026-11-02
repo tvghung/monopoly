@@ -224,3 +224,44 @@ describe('authoritative decision prompts', () => {
     expect(screen.getByRole('alert').textContent).toContain('Giao dịch chưa thể thực hiện.');
   });
 });
+
+
+function withContextCard(state:PublicGameState,id:'U03'|'U09',socketFunctions:SocketFunctions) {
+  const value=makeContext(state,socketFunctions);value.privatePlayerState={playerId:'player-a',heldJailFreeCardIds:[],gameplayEvents:{sequence:0,events:[]},powerUps:{activeOfferId:null,offers:[],activeUsedThisTurn:false,inventory:{capacity:3,cards:[{instanceId:'context-card',definitionId:id,ownerPlayerId:'player-a',obtainedFromOfferId:'grant',definition:{definitionId:id,name:id,description:'Contextual effect',category:'UTILITY',rarity:'COMMON',activation:'ACTIVE',effectKey:id}}]}}};return value;
+}
+it.each(['U03','U09'] as const)('OB-11 %s uses the exact operation in one modal and skip leaves the original action',async id=>{
+  const state=id==='U03'?purchaseState():developmentState();const activatePowerUp=vi.fn(()=>Promise.resolve({ok:true,protocolVersion:SOCKET_PROTOCOL_VERSION} as Ack));
+  const value=withContextCard(state,id,makeSocketFunctions({activatePowerUp}));
+  const view=render(<stateContext.Provider value={value}>{id==='U03'?<BuyPrompt tokenArrived/>:<DevelopmentPrompt tokenArrived/>}</stateContext.Provider>);
+  expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);expect(activatePowerUp).not.toHaveBeenCalled();
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:'Không dùng thẻ / Bỏ qua'})));
+  expect(activatePowerUp).not.toHaveBeenCalled();expect(screen.queryByRole('region',{name:'Power-up cho thao tác này'})).toBeNull();
+  expect(screen.getByRole('dialog')).toBeTruthy();view.unmount();
+  render(<stateContext.Provider value={value}>{id==='U03'?<BuyPrompt tokenArrived/>:<DevelopmentPrompt tokenArrived/>}</stateContext.Provider>);
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'})));
+  expect(activatePowerUp).toHaveBeenCalledWith({instanceId:'context-card',operationId:id==='U03'?'purchase-1':'development-1',...(id==='U03'?{targetTileID:1}:{})});
+});
+it('OB-11 holds purchase while activation is pending, shows denial, and reads only server purchase price',async()=>{
+  let resolve!:(ack:Ack)=>void;const activatePowerUp=vi.fn(()=>new Promise<Ack>(done=>{resolve=done}));const value=withContextCard(purchaseState(),'U03',makeSocketFunctions({activatePowerUp}));
+  const rendered=render(<stateContext.Provider value={value}><BuyPrompt tokenArrived/></stateContext.Provider>);
+  fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'}));fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'}));
+  expect(activatePowerUp).toHaveBeenCalledTimes(1);expect(screen.getByRole('button',{name:'Mua tài sản'}).hasAttribute('disabled')).toBe(true);
+  await act(async()=>{resolve(failure);await Promise.resolve()});expect(screen.getByRole('alert').textContent).toContain('Giao dịch chưa thể thực hiện.');
+  expect(value.privatePlayerState!.powerUps!.inventory!.cards).toHaveLength(1);
+  const next=structuredClone(value.state);next.turnInfo.pendingLandingDecision!.price=51;
+  act(()=>rendered.rerender(<stateContext.Provider value={{...value,state:next}}><BuyPrompt tokenArrived/></stateContext.Provider>));
+  expect(document.querySelector('.decision-sheet__price strong')?.textContent).toContain('51.000');expect(screen.getByRole('dialog')).toBeTruthy();
+});
+it('OB-11 development uses capped quantity quotes rather than multiplying the discounted unit',()=>{
+  const state=developmentState();state.turnInfo.pendingLandingDecision!.unitCost=200;state.turnInfo.pendingLandingDecision!.maxQuantity=4;state.turnInfo.pendingLandingDecision!.quantityPrices={1:160,2:350,3:550,4:750};
+  render(<stateContext.Provider value={makeContext(state,makeSocketFunctions())}><DevelopmentPrompt tokenArrived/></stateContext.Provider>);
+  expect(screen.getByRole('button',{name:/Xây 4 Nhà.*750/})).toBeTruthy();expect(screen.queryByRole('button',{name:/Xây 4 Nhà.*640/})).toBeNull();
+});
+it.each(['spectator','foreign','used','none'] as const)('OB-11 hides optional card panel for %s',reason=>{
+  const value=withContextCard(purchaseState(),'U03',makeSocketFunctions());
+  if(reason==='spectator'){value.role='SPECTATOR';value.canMutate=false}
+  if(reason==='foreign')value.privatePlayerState!.playerId='player-b';
+  if(reason==='used')value.privatePlayerState!.powerUps!.activeUsedThisTurn=true;
+  if(reason==='none')value.privatePlayerState!.powerUps!.inventory!.cards=[];
+  render(<stateContext.Provider value={value}><BuyPrompt tokenArrived/></stateContext.Provider>);expect(document.querySelector('.contextual-powerups')).toBeNull();
+});

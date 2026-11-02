@@ -121,6 +121,7 @@ export function PowerUpActivationDialog({ card, onClose, embedded = false, onBus
     if (requiresProperty && id !== 'U03' && targetTileID !== null) request.targetTileID = targetTileID;
     if (id === 'U03' && pendingProperty) request.targetTileID = pendingProperty.tileID;
     if (movementCards.has(id) && pendingMovement) request.operationId = pendingMovement.operationId;
+    if ((id === 'U03' || id === 'U09') && decision) request.operationId = decision.operationId;
     if (id === 'U04') request.ingredientInstanceIds = ingredientInstanceIds;
     if (id === 'U05') request.movementDelta = movementDelta;
     if (id === 'U10') { request.transformedInstanceId = transformedInstanceId; request.category = category; }

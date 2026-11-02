@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "mode": "Two Chromium players",
+  "checks": [
+    {
+      "name": "U03 use=true 1440 language=vi",
+      "status": "PASS",
+      "operationId": "bc0ec81b-af4d-40ab-92aa-a32a56b8e90e",
+      "expectedCost": 350
+    },
+    {
+      "name": "Context card and original transaction U03 use=true 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "U03 use=false 1280 language=vi",
+      "status": "PASS",
+      "operationId": "a6436624-ad03-4368-9eb5-4a8b7c35344e",
+      "expectedCost": 400
+    },
+    {
+      "name": "Context card and original transaction U03 use=false 1280",
+      "status": "PASS"
+    },
+    {
+      "name": "U09 use=true 900 language=vi",
+      "status": "PASS",
+      "operationId": "bf720fb1-ad27-479e-a9bc-cbb145d01790",
+      "expectedCost": 750
+    },
+    {
+      "name": "Context card and original transaction U09 use=true 900",
+      "status": "PASS"
+    },
+    {
+      "name": "U09 use=false 740 language=en",
+      "status": "PASS",
+      "operationId": "a2c202cb-d013-4197-8654-c80a74cac8c7",
+      "expectedCost": 800
+    },
+    {
+      "name": "Context card and original transaction U09 use=false 740",
+      "status": "PASS"
+    },
+    {
+      "name": "Inventory remains complete with 3D owned card and no detail entry/modal",
+      "status": "PASS"
+    },
+    {
+      "name": "No eligible card creates no panel or extra checkpoint",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "context-U03-true-1440.png",
+    "context-denial.png",
+    "context-U03-false-1280.png",
+    "context-U09-true-900.png",
+    "context-U09-false-740.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required."
+}

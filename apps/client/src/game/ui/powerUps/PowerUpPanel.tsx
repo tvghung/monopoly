@@ -79,22 +79,15 @@ export default function PowerUpPanel() {
   const status = usePresentationSelector(selectPresentationStatus);
   const cardPresentation = usePresentationSelector(selectCardPresentation);
   const [inspect, setInspect] = useState(false);
-  const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null);
   const [activationInstanceId, setActivationInstanceId] = useState<string | null>(null);
-  const decisionAutoOpen = useRef<string | null>(null);
   const powerUps = privatePlayerState?.playerId === playerId ? privatePlayerState?.powerUps : undefined;
   const inventory = powerUps?.inventory;
-  const detailCard = inventory?.cards.find(card => card.instanceId === detailInstanceId);
   const active = powerUps?.offers.find(offer => offer.offerId === powerUps.activeOfferId && offer.stage !== 'COMPLETED');
-  const activeCards = (inventory?.cards ?? []).filter(card => card.definition.activation === 'ACTIVE');
   const reactionEventId = powerUps?.reaction?.eventId;
   const tradeRequestId = powerUps?.tradeRequest?.requestId;
   const movementOperationId = powerUps?.movement?.operationId;
   const currentPlayerId = state.boardState.currentPlayer.id;
   const decision = state.turnInfo.pendingLandingDecision;
-  const decisionOperationId = decision?.operationId;
-  const requiredDecisionCard = decision?.kind === 'PURCHASE' ? 'U03' : decision ? 'U09' : null;
-  const hasRequiredDecisionCard = activeCards.some(card => card.definitionId === requiredDecisionCard);
   const safeToShow = status === 'idle' && !cardPresentation && !state.turnInfo.pendingCardInteraction
     && !state.turnInfo.pendingLandingDecision && !state.boardState.paymentShortfall && !privatePlayerState?.forcedSaleProposal;
   const rewardOpen = Boolean(active && safeToShow && connected && role === 'PLAYER');
@@ -102,12 +95,6 @@ export default function PowerUpPanel() {
     if (powerUps?.activeUsedThisTurn || reactionEventId || tradeRequestId || movementOperationId
       || currentPlayerId !== playerId) setActivationInstanceId(null);
   }, [powerUps?.activeUsedThisTurn, reactionEventId, tradeRequestId, movementOperationId, currentPlayerId, playerId]);
-  useEffect(() => {
-    if (hasRequiredDecisionCard && decisionOperationId && decisionAutoOpen.current !== decisionOperationId) {
-      decisionAutoOpen.current = decisionOperationId;
-      setInspect(true);
-    }
-  }, [hasRequiredDecisionCard, decisionOperationId]);
   const activationUnavailableReason = (card: NonNullable<typeof inventory>['cards'][number]): string | null => {
     if (!connected) return t('powerup.disconnected');
     if (!canMutate || role !== 'PLAYER') return t('powerup.playerOnly');
@@ -131,25 +118,19 @@ export default function PowerUpPanel() {
   return <>
     <PowerUpFeedback />
     <div className="power-up-dock">
-      <Button variant="secondary" className="game-board__property-button" aria-label={t('powerup.inventory') + ' · ' + t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })} icon={<Sparkles size={16} />} onClick={() => setInspect(true)}><span className="dock-label">{t('powerup.inventory')}</span><span className="dock-count">{inventory?.cards.length ?? 0} / {inventory?.capacity ?? 3}</span></Button>
+      <Button variant="secondary" className="game-board__property-button" aria-label={t('powerup.inventory') + ' · ' + t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })} icon={<Sparkles size={16} />} disabled={Boolean(decision)} onClick={() => setInspect(true)}><span className="dock-label">{t('powerup.inventory')}</span><span className="dock-count">{inventory?.cards.length ?? 0} / {inventory?.capacity ?? 3}</span></Button>
     </div>
     {rewardOpen && active ? <RewardDecision key={active.offerId} offer={active} inventory={inventory ?? null} /> : null}
     <PowerUpRuntimePanels />
-    {activationInstanceId && inventory ? (() => {
+    {activationInstanceId && inventory && !decision ? (() => {
       const card = inventory.cards.find(item => item.instanceId === activationInstanceId);
       return card ? <PowerUpActivationDialog key={activationInstanceId} card={card} onClose={() => setActivationInstanceId(null)} /> : null;
     })() : null}
-    <Modal open={Boolean(detailCard) && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
-      title={detailCard?.definition.name ?? ''} eyebrow={t('powerup.details')} size="md" className="power-up-detail"
-      onClose={() => { setDetailInstanceId(null); setInspect(true); }} peek="view">
-      {detailCard ? <PowerUpPickerCard surface="owned" category={detailCard.definition.category} definition={detailCard.definition} /> : null}
-    </Modal>
-    <Modal open={inspect && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
+    <Modal open={inspect && !decision && !activationInstanceId && !rewardOpen && !powerUps?.reaction && !powerUps?.tradeRequest && !powerUps?.movement}
       title={t('powerup.inventory')} onClose={() => setInspect(false)} size="xl" peek="view" className="power-up-inventory">
       <p className="power-up-inventory-count">{t('powerup.count', { count: inventory?.cards.length ?? 0, capacity: inventory?.capacity ?? 3 })}</p>
       {!inventory?.cards.length ? <div className="power-up-empty"><Sparkles aria-hidden="true" size={32} /><p>{t('powerup.empty')}</p></div> : <div className="power-up-grid power-up-inventory-gallery" data-count={inventory.cards.length}>{inventory.cards.map(card => <div key={card.instanceId}>
         <PowerUpPickerCard surface="owned" category={card.definition.category} definition={card.definition} />
-        <Button variant="ghost" className="power-up-card-details" icon={<ActionIcon name="view" size={16} />} onClick={() => { setInspect(false); setDetailInstanceId(card.instanceId); }}>{t('powerup.details')} · {card.definition.name}</Button>
         {card.definition.activation === 'ACTIVE' ? (() => {
           const reason = activationUnavailableReason(card);
           return <>

@@ -129,12 +129,12 @@ describe('Power-up reward and inventory interface',()=>{
   });
 });
 
-it('opens full details without issuing gameplay commands and returns to inventory',()=>{
+it('keeps complete owned-card information in inventory without detail controls or a detail modal',()=>{
   const value=context('COMPLETED',true);value.privatePlayerState!.powerUps!.inventory!.cards=value.privatePlayerState!.powerUps!.inventory!.cards.slice(0,1);
   render(view(value));fireEvent.click(screen.getByRole('button',{name:/Kho Power-up/}));
-  fireEvent.click(screen.getByRole('button',{name:'Xem chi tiết · Visible card 0'}));
-  const detail=screen.getByRole('dialog',{name:'Visible card 0'});expect(detail.textContent).toContain('Registry effect 0');expect(detail.querySelector('.power-up-artwork img')).toBeTruthy();
-  fireEvent.click(detail.querySelector('button[aria-label="Đóng"]')!);expect(screen.getByRole('dialog',{name:'Kho Power-up'})).toBeTruthy();expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
+  expect(screen.getByText('Registry effect 0')).toBeTruthy();expect(screen.getByText('Visible card 0')).toBeTruthy();
+  expect(screen.queryByRole('button',{name:/Xem chi tiết/})).toBeNull();expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);
+  expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
 });
 
 

@@ -54,3 +54,7 @@ New START offers use the approved Common/Rare/Epic/Legendary 40/30/20/10 default
 ## OB-8 checkpoint movement (CURRENT DEVELOPMENT)
 
 Protocol 17/snapshot 15 adds a public committed checkpoint path (see [shared contract](../Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development)). U02 still adds two movement steps without changing recorded dice, U05 applies the approved delta, U01 uses rerolled dice, and U08 records TELEPORT. Every path retains one server landing resolution and START reward policy. Activation checks the exact checkpoint operation before consumption; no card/used allowance follows the existing unpaused roll path. No other card effect or money rule changes.
+
+## OB-11 contextual operation binding
+
+U03 and U09 activation require the exact pending purchase/development operationId in addition to owned instance, legal timing, target and Active allowance. Replayed, stale or foreign operations fail before consumption. Derived public development quotes call the existing `powerUpBuildPrice` on the whole requested quantity; the discount cap applies once per transaction. Card effects, costs and allowance rules are unchanged. Coverage: `contextualQuotes.test.ts` and the contextual client acceptance harness.

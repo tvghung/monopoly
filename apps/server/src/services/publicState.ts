@@ -14,7 +14,7 @@ import {
 import { tileState } from '@monopoly/shared';
 import { projectLivePowerUpOwnerState, projectPowerUpSummary } from '../game/powerUps/rewards';
 import { forcedSaleGrossPrice } from '../game';
-import { powerUpPurchasePrice } from '../game/powerUps/economy';
+import { powerUpBuildPrice, powerUpPurchasePrice } from '../game/powerUps/economy';
 import type { RoomRecord } from '../persistence/types';
 import {
   MAX_PLAYERS,
@@ -185,6 +185,10 @@ export function projectPublicRoomState(
             levelAtLanding: development.levelAtLanding,
             maxQuantity: development.kind === 'HOUSES' ? 4 - development.levelAtLanding : 1,
             unitCost: tile?.houseCost ?? 0,
+            quantityPrices: Object.fromEntries(Array.from({length:development.kind === 'HOUSES' ? 4 - development.levelAtLanding : 1}, (_,index)=>{
+              const quantity=index+1;
+              return [quantity,powerUpBuildPrice(gameState,development.playerId,(tile?.houseCost??0)*quantity)];
+            })),
           },
         };
       }
