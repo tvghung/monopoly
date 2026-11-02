@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PowerUpOwnerState, PowerUpDefinition, PrivatePlayerState } from '@monopoly/shared';
 import { makeRoom } from '../testFixtures';
 import { PresentationController } from '../PresentationController';
@@ -9,6 +9,8 @@ function owner(id = 'A01', rarity: PowerUpDefinition['rarity'] = 'COMMON'): Powe
   return { activeOfferId:null,offers:[],activeUsedThisTurn:false,statuses:[],inventory:{capacity:3,cards:[{instanceId:'instance',definitionId:id,ownerPlayerId:'player-a',obtainedFromOfferId:'offer',definition}]}};
 }
 const privateState = (powerUps:PowerUpOwnerState):PrivatePlayerState=>({playerId:'player-a',heldJailFreeCardIds:[],gameplayEvents:{sequence:0,events:[]},powerUps});
+
+afterEach(() => vi.useRealTimers());
 
 describe('08B shared-queue Power-up feedback',()=>{
   it.each([['A01','COMMON','ATTACK'],['D08','LEGENDARY','LEGENDARY'],['D05','RARE','REFLECT'],['D03','COMMON','BLOCK']])('%s emits the committed owner feedback %s', (id,rarity,kind)=>{
@@ -22,7 +24,7 @@ describe('08B shared-queue Power-up feedback',()=>{
     expect(derivePowerUpFeedback(used,ended,room,room.gameState.boardState.turnNumber).map(e=>e.kind)).toEqual(['BLOCK']);expect(derivePowerUpFeedback(used,ended,room,room.gameState.boardState.turnNumber-1).map(e=>e.kind)).toEqual(['EXPIRED']);
   });
   it('sync, hidden updates and reduced motion safely bypass historic feedback',async()=>{
-    const room=makeRoom();const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');const before=owner();const after=structuredClone(before);after.inventory!.cards=[];after.activeUsedThisTurn=true;controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'SESSION_SYNC');expect(controller.getState().powerUpFeedback).toBeFalsy();controller.setVisibility(true);controller.acceptPrivatePlayerState(privateState(before),room,'LIVE_UPDATE');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');expect(controller.queue.getStatus()).toBe('idle');controller.setVisibility(false);controller.setPreferences(true,1);controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');await controller.queue.whenIdle();expect(controller.getState().powerUpFeedback).toBeFalsy();controller.dispose();
+    const room=makeRoom();const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');const before=owner();const after=structuredClone(before);after.inventory!.cards=[];after.activeUsedThisTurn=true;controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'SESSION_SYNC');expect(controller.getState().powerUpFeedback).toBeFalsy();controller.setVisibility(true);controller.acceptPrivatePlayerState(privateState(before),room,'LIVE_UPDATE');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');expect(controller.queue.getStatus()).toBe('idle');controller.setVisibility(false);controller.setPreferences(true,1);controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');await controller.queue.whenIdle();expect(controller.getState().powerUpFeedback?.kind).toBe('CONSUMED');controller.dispose();
   });
   it('skip and reconnect cancel feedback and target highlighting through the existing reset',async()=>{
     const room=makeRoom();const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');const before=owner();const after=structuredClone(before);after.inventory!.cards=[];after.activeUsedThisTurn=true;controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');await Promise.resolve();expect(controller.getState().powerUpFeedback?.kind).toBe('CONSUMED');controller.store.setPowerUpTargets({validTileIds:[1],selectedTileId:1});controller.acceptRoomSnapshot(room,'SESSION_SYNC');await controller.queue.whenIdle();expect(controller.getState().powerUpFeedback).toBeFalsy();expect(controller.getState().powerUpTargets).toBeFalsy();controller.dispose();
@@ -37,4 +39,59 @@ it('newly authorized cards use the existing queue for acquisition and Legendary 
   expect(derivePowerUpFeedback(before,after,room).map(event=>event.kind)).toEqual(['ACQUIRED']);
   const legendary=owner('A08','LEGENDARY');expect(derivePowerUpFeedback(before,legendary,room).map(event=>event.kind)).toEqual(['LEGENDARY']);
   const controller=new PresentationController();controller.acceptRoomSnapshot(room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'SESSION_SYNC');expect(controller.getState().powerUpFeedback).toBeFalsy();controller.acceptPrivatePlayerState(privateState(before),room,'SESSION_SYNC');controller.acceptPrivatePlayerState(privateState(after),room,'LIVE_UPDATE');await Promise.resolve();expect(controller.getState().powerUpFeedback?.kind).toBe('ACQUIRED');controller.acceptRoomSnapshot(room,'SESSION_SYNC');await controller.queue.whenIdle();expect(controller.getState().powerUpFeedback).toBeFalsy();controller.dispose();
+});
+
+
+it.each([false, true])('keeps independent feedback readable for 5s without a gameplay lock (reduced=%s)', async reduced => {
+  vi.useFakeTimers();
+  const controller = new PresentationController(reduced, 2); const room = makeRoom();
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); const epoch = controller.getState().presentationResetEpoch;
+  controller.showPowerUpFeedback('ATTACK', 'A01', 'First', 'first', epoch);
+  controller.showPowerUpFeedback('ATTACK', 'A01', 'Second same definition', 'second', epoch);
+  await controller.queue.whenIdle();
+  expect(controller.queue.getStatus()).toBe('idle');
+  expect(controller.getState().powerUpFeedback?.name).toBe('First');
+  await vi.advanceTimersByTimeAsync(4999);
+  expect(controller.getState().powerUpFeedback?.name).toBe('First');
+  await vi.advanceTimersByTimeAsync(1);
+  expect(controller.getState().powerUpFeedback?.name).toBe('Second same definition');
+  await vi.advanceTimersByTimeAsync(5000); expect(controller.getState().powerUpFeedback).toBeNull();
+  controller.dispose();
+});
+
+it.each([false, true])('merges removal and ACK by exact instance, regardless of arrival order (ackFirst=%s)', async ackFirst => {
+  vi.useFakeTimers(); const controller = new PresentationController(); const room = makeRoom();
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); const before = owner(); const after = structuredClone(before); after.inventory!.cards = [];
+  controller.acceptPrivatePlayerState(privateState(before), room, 'SESSION_SYNC'); const epoch = controller.getState().presentationResetEpoch;
+  const ack = () => controller.showPowerUpFeedback('ATTACK', 'A01', 'A01', 'instance', epoch);
+  if (ackFirst) ack();
+  controller.acceptPrivatePlayerState(privateState(after), room, 'LIVE_UPDATE'); await controller.queue.whenIdle();
+  if (!ackFirst) ack();
+  ack(); await controller.queue.whenIdle();
+  expect(controller.getState().powerUpFeedback?.kind).toBe('ATTACK');
+  await vi.advanceTimersByTimeAsync(5000); expect(controller.getState().powerUpFeedback).toBeNull();
+  controller.dispose();
+});
+
+it('keeps status facts, theft and ingredient removal without inventing successful activation', async () => {
+  vi.useFakeTimers(); const controller = new PresentationController(); const room = makeRoom();
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); const before = owner(); const after = structuredClone(before);
+  after.inventory!.cards = []; after.statuses = [{statusId:'independent-status',definitionId:'A03',kind:'PURCHASE_SURCHARGE',name:'Surcharge'}];
+  controller.acceptPrivatePlayerState(privateState(before), room, 'SESSION_SYNC');
+  controller.acceptPrivatePlayerState(privateState(after), room, 'LIVE_UPDATE'); await controller.queue.whenIdle();
+  expect(controller.getState().powerUpFeedback?.kind).toBe('CONSUMED');
+  await vi.advanceTimersByTimeAsync(5000); expect(controller.getState().powerUpFeedback?.kind).toBe('STATUS');
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); await vi.advanceTimersByTimeAsync(10000);
+  expect(controller.getState().powerUpFeedback).toBeFalsy(); controller.dispose();
+});
+
+
+it('does not replay a completed removal when its successful ACK arrives late', async () => {
+  vi.useFakeTimers(); const controller = new PresentationController(); const room = makeRoom();
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); const before = owner(); const after = structuredClone(before); after.inventory!.cards = [];
+  controller.acceptPrivatePlayerState(privateState(before), room, 'SESSION_SYNC');
+  controller.acceptPrivatePlayerState(privateState(after), room, 'LIVE_UPDATE'); await controller.queue.whenIdle();
+  await vi.advanceTimersByTimeAsync(6000);
+  controller.showPowerUpFeedback('ATTACK', 'A01', 'A01', 'instance', controller.getState().presentationResetEpoch);
+  await controller.queue.whenIdle(); expect(controller.getState().powerUpFeedback).toBeNull(); controller.dispose();
 });

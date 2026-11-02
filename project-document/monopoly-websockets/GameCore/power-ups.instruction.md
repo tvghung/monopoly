@@ -46,3 +46,7 @@ Rent modifiers apply the strongest applicable increase and strongest reduction a
 - D05 reflection can free its own inventory slot before receiving an A06 card; reflected A04 still encounters an existing passive D04 shield without another Reaction Window. U10 excludes the transformed original definition, and can generate a fresh U10 while transforming another Rare card. D10 removes only its owner's participation in global A08.
 - Every direct current-player elimination handoff runs start-of-turn expiry. U05 range/integer checks run before any spending.
 - Tests and all 30 concrete card assertions: [coverage matrix](../../powerups/08B_CARD_TEST_COVERAGE_MATRIX.md). Eighty explicit Attack/Reaction eligibility pairs and multi-card financial paths: [interaction matrix](../../powerups/08B_INTERACTION_MATRIX.md). Native, endurance and release limits are reported separately in [08B stabilization](../../powerups/08B_STABILIZATION_REPORT.md).
+
+## OB-9 default rarity amendment (CURRENT DEVELOPMENT)
+
+New START offers use the approved Common/Rare/Epic/Legendary 40/30/20/10 default pool from `packages/shared/src/powerUpConfig.ts`. Each category draws a tier then uniformly draws an eligible definition. U04/U10 sampling, existing offers/cards and all other parameters are unchanged. Historical P0 weights in the 03C spec are superseded by its OB-9 amendment. Deterministic boundary and seeded distribution checks are in `apps/server/src/game/powerUps/rewards.test.ts`; full-match balance remains unverified.

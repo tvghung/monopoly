@@ -7,6 +7,10 @@
 - **Scope:** Game rules and implementation contracts. **This document does NOT authorize live START wiring, playable effects, UI, or additional phases.**
 - **Interpretation:** `LOCKED` = owner explicitly approved in conversation; `CATALOG-APPROVED` = included in the 30-card approved catalog; `PROPOSED` = recommendation not included in the approved P0 set; `OPEN` = unspecified and requires technical/product decision.
 
+## OB-9 default rarity amendment (CURRENT DEVELOPMENT)
+
+The approved OB-5/OB-9 decision supersedes only the default rarity pool for newly generated START candidates: Common 40%, Rare 30%, Epic 20%, Legendary 10%, in each category. Integer RNG bins are 0–39 / 40–69 / 70–89 / 90–99. Config and strict validation live in `packages/shared/src/powerUpConfig.ts`; the sampler reads that configuration. U04 fixes rarity from its ingredients and U10 preserves rarity; neither uses this pool. Existing offers/instances keep their identity and rarity on reconnect. Candidate frequency does not imply acquired-card frequency or verified full-match balance. Earlier P0 60/29/10/1 entries below are retained as historical approval records.
+
 ## 1. Locked product decisions
 
 | ID | Rule | Status |
