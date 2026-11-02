@@ -5,6 +5,9 @@ import stateContext from '../../../internal';
 import type { StateContextValue } from '../../../types';
 import { makeRoom } from '../../presentation/testFixtures';
 import PowerUpPanel from './PowerUpPanel';
+import { SettingsProvider } from '../../../settings/SettingsProvider';
+import { DEFAULT_GAME_SETTINGS } from '../../../settings/defaults';
+import { I18nProvider } from '../../../i18n/I18n';
 
 afterEach(cleanup);
 const id='00000000-0000-4000-8000-000000000001';
@@ -41,7 +44,8 @@ describe('Power-up reward and inventory interface',()=>{
     expect(value.socketFunctions.resolvePowerUp).toHaveBeenCalledTimes(1);expect(value.socketFunctions.resolvePowerUp).toHaveBeenCalledWith({offerId:id,action:'CLAIM'});
     await act(async()=>{complete(success);await Promise.resolve();});rendered.rerender(view(context('COMPLETED')));
     expect(screen.queryByRole('button',{name:'Nhận thẻ'})).toBeNull();expect(screen.queryByRole('dialog',{name:'Quà Xuất Phát'})).toBeNull();
-    expect(screen.getByText('Đã nhận thẻ vào kho.')).toBeTruthy();
+    expect(screen.queryByText('Đã nhận thẻ vào kho.')).toBeNull();
+    expect(value.privatePlayerState!.powerUps!.offers[0]).toBeTruthy();
   });
   it('restores a full inventory decision with replace and decline, preserving all held cards until a command',async()=>{
     const value=context('INVENTORY_RESOLUTION',true);render(view(value));
@@ -160,11 +164,13 @@ describe('Picker selection authority and replay boundaries',()=>{
     expect(value.socketFunctions.selectPowerUp).not.toHaveBeenCalled();
     expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalled();
   });
-  it('does not apply picker presentation to replacement cards or inventory details',()=>{
+  it('keeps owned replacement cards read-only without reward selection or particles',()=>{
     const value=context('INVENTORY_RESOLUTION',true);render(view(value));
     const replacement=document.querySelector('.power-up-replacement')!;
     expect(replacement.querySelectorAll('.power-up-card')).toHaveLength(3);
-    expect(replacement.querySelector('.power-up-picker-card')).toBeNull();
+    expect(replacement.querySelector('[data-surface=reward]')).toBeNull();
+    expect(replacement.querySelector('button.power-up-card')).toBeNull();
+    expect(replacement.querySelector('.power-up-picker-burst')).toBeNull();
   });
 });
 
@@ -178,4 +184,69 @@ it('clears the pending choice after a transport failure and retries only through
   await act(()=>fireEvent.click(screen.getByRole('button',{name:'Tiện ích'})));
   expect(value.socketFunctions.selectPowerUp).toHaveBeenLastCalledWith({offerId:id,selectedIndex:2});
   expect(screen.queryByText('Visible card 2')).toBeNull();
+});
+
+
+function activationContext() {
+  const value=context('COMPLETED');
+  value.state.boardState.currentPlayer={id:'player-a',hasMoved:false};
+  value.state.players['player-b'].accountBalance=500;
+  value.privatePlayerState!.powerUps!.inventory={capacity:3,cards:[{instanceId:'attack-1',definitionId:'A01',ownerPlayerId:'player-a',obtainedFromOfferId:'grant',definition:{...definitions[0],definitionId:'A01',name:'Móc Túi'}}]};
+  value.socketFunctions.activatePowerUp=vi.fn(()=>Promise.resolve(success));
+  return value;
+}
+function openActivation(value:StateContextValue) {
+  const rendered=render(view(value));
+  fireEvent.click(screen.getByRole('button',{name:/Kho Power-up/}));
+  fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'}));
+  return rendered;
+}
+it('cancels activation without consuming a card or allowance, even while disconnected',()=>{
+  const value=activationContext();const rendered=openActivation(value);
+  expect(screen.queryByRole('button',{name:'Bỏ thẻ mới'})).toBeNull();
+  rendered.rerender(view({...value,connected:false}));
+  expect(screen.getByRole<HTMLButtonElement>('button',{name:'Hủy'}).disabled).toBe(false);
+  fireEvent.click(screen.getByRole('button',{name:'Hủy'}));
+  expect(value.socketFunctions.activatePowerUp).not.toHaveBeenCalled();
+  expect(value.privatePlayerState!.powerUps!.inventory!.cards).toHaveLength(1);
+  expect(value.privatePlayerState!.powerUps!.activeUsedThisTurn).toBeFalsy();
+});
+it('rejects a previously chosen player after their eligibility changes',async()=>{
+  const value=activationContext();const rendered=openActivation(value);
+  fireEvent.click(screen.getByRole('button',{name:'Chọn người chơi'}));
+  fireEvent.click(screen.getByRole('option',{name:'Bình'}));
+  expect(screen.getByRole<HTMLButtonElement>('button',{name:'Dùng thẻ'}).disabled).toBe(false);
+  const next={...value,state:{...value.state,players:{...value.state.players,'player-b':{...value.state.players['player-b'],accountBalance:0}}}};
+  rendered.rerender(view(next));
+  expect(screen.getByRole<HTMLButtonElement>('button',{name:'Dùng thẻ'}).disabled).toBe(true);
+  await act(()=>fireEvent.click(screen.getByRole('button',{name:'Dùng thẻ'})));
+  expect(value.socketFunctions.activatePowerUp).not.toHaveBeenCalled();
+});
+it('keeps a chosen player through dropdown Escape and submits only once during an ACK wait',async()=>{
+  const value=activationContext();let finish!:(ack:Ack)=>void;
+  value.socketFunctions.activatePowerUp=vi.fn(()=>new Promise<Ack>(resolve=>{finish=resolve}));
+  openActivation(value);
+  const trigger=screen.getByRole('button',{name:'Chọn người chơi'});
+  fireEvent.keyDown(trigger,{key:'ArrowDown'});
+  const target=screen.getByRole('option',{name:'Bình'});
+  fireEvent.keyDown(target,{key:'Escape'});
+  expect(screen.queryByRole('listbox')).toBeNull();
+  expect(screen.getByRole('button',{name:'Hủy'})).toBeTruthy();
+  fireEvent.click(trigger);fireEvent.click(screen.getByRole('option',{name:'Bình'}));
+  const activate=screen.getByRole('button',{name:'Dùng thẻ'});
+  fireEvent.click(activate);fireEvent.click(activate);
+  expect(value.socketFunctions.activatePowerUp).toHaveBeenCalledExactlyOnceWith({instanceId:'attack-1',targetPlayerId:'player-b'});
+  expect(screen.getByRole<HTMLButtonElement>('button',{name:'Hủy'}).disabled).toBe(true);
+  await act(()=>{finish(success);return Promise.resolve();});
+});
+
+it('localizes inventory actions and Cancel in English with reduced motion',()=>{
+  const value=activationContext();
+  render(<SettingsProvider initialSettings={{...DEFAULT_GAME_SETTINGS,language:'en',reducedMotion:true}}><I18nProvider>{view(value)}</I18nProvider></SettingsProvider>);
+  fireEvent.click(screen.getByRole('button',{name:/Power-up Inventory/}));
+  fireEvent.click(screen.getByRole('button',{name:'Use card'}));
+  expect(screen.getByRole('button',{name:'Cancel'})).toBeTruthy();
+  expect(document.querySelector('[data-surface=owned][data-reduced-motion=true]')).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Choose a player'})).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'Discard new card'})).toBeNull();
 });

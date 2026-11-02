@@ -53,7 +53,7 @@ export default function DropdownSelector<Value extends string | number>({
     const halfWidth = popover.width / 2;
     const left = Math.min(Math.max(trigger.left + trigger.width / 2, halfWidth + 8), window.innerWidth - halfWidth - 8);
     setPosition({
-      left,
+      left: left - halfWidth,
       top: placement === 'down' ? trigger.bottom + 8 : Math.max(8, trigger.top - height - 8),
       maxHeight,
       placement,

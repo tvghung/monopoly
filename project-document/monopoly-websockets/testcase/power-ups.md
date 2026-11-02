@@ -53,3 +53,11 @@ Run the existing stabilization harness with `--refinement` (and `--native` for p
 - `scripts/powerUpPickerAcceptance.check.mjs` exercises the production renderer with two real browser clients and an authoritative local server. Capture hidden/revealed picker states at 1440×900, 900×500, 667×375 and 760×280; inspect scrolling, footer access, transformed card bounds, focus and pointer effects. Compare before/after frame intervals on the same machine and record rendering limitations.
 - Verify OS and game reduced motion, no hidden front artwork requests, rapid clicks, reconnect without burst replay, full-hand replacement/decline, non-picker isolation and repeated decision open/close cleanup.
 - Owner visual review/full-match UAT and physical GPU/macOS acceptance remain manual. Automated browser results do not mark these manual cases PASS. See [OB-4 evidence](../../powerups/OB4_PICKER_VALIDATION.md).
+
+## OB-6 inventory and activation regression
+
+- Run `scripts/powerUpInventoryAcceptance.check.mjs` through the server tsx loader against a production client build; `--native` uses the freshly packaged Electron application. Inventory 0/1/2/3, detail and activation cover 1440×900, 1280×720, 900×500, 667×375 and 760×280, scrolling, focus and dropdown stacking.
+- Check Cancel/close/peek without consumption, changing/empty player targets, busy/disconnected/observer guards, rapid submit, unchanged reward claim/decline/replacement and no outcome line under Kho.
+- Check VI/EN, OS and game reduced motion, keyboard navigation and opener restoration; verify language selection after the shared viewport correction.
+- Compare frame samples on the same machine and report headless/native limitations; RAF intervals do not establish physical GPU FPS. Owner visual/full-match UAT remains NOT RUN until explicitly recorded.
+- Evidence and commands: [OB-6 validation](../../powerups/OB6_UI_VALIDATION.md).
