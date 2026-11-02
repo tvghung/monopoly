@@ -31,12 +31,11 @@ export async function runRefinementAcceptance({owner,other,seed,open,ownerId,oth
   await owner.getByRole('button',{name:/Kho Power-up/}).click();const inventory=owner.getByRole('dialog',{name:'Kho Power-up'});await expect(inventory).toBeVisible();
   await captureSurface(owner,inventory,'c1-refined-inventory-'+String(offset/3+1),shot);
   for(const id of ids){await owner.setViewportSize(large);const definition=OFFICIAL_POWER_UP_REGISTRY.get(id);
-   await inventory.getByRole('button',{name:'Xem chi tiết · '+definition.name,exact:true}).click();
-   const detail=owner.getByRole('dialog',{name:definition.name,exact:true});await expect(detail).toBeVisible();await inspectArtwork(owner);
-   assert.ok((await detail.locator('img').getAttribute('src')).endsWith('/'+id+'.svg'));
-   if(detailedAtEverySize.has(id))await captureSurface(owner,detail,'c1-refined-detail-'+id,shot);
-   else await shot(owner,'c1-refined-detail-'+id+'-1440x900.png');
-   await owner.keyboard.press('Escape');await expect(detail).toBeHidden();await expect(inventory).toBeVisible();
+   assert.equal(await inventory.getByRole('button',{name:/Xem chi tiết/}).count(),0);
+   const face=inventory.locator('.power-up-card').filter({has:owner.getByText(definition.name,{exact:true})});await expect(face).toBeVisible();await inspectArtwork(owner);
+   assert.ok((await face.locator('img').getAttribute('src')).endsWith('/'+id+'.svg'));
+   if(detailedAtEverySize.has(id))await captureSurface(owner,inventory,'c1-refined-complete-inventory-'+id,shot);
+   else await shot(owner,'c1-refined-complete-inventory-'+id+'-1440x900.png');
   }
   await owner.keyboard.press('Escape');await expect(inventory).toBeHidden();
  }

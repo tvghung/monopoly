@@ -788,6 +788,8 @@ export interface PublicTurnInfo {
     levelAtLanding?: number;
     maxQuantity?: number;
     unitCost?: number;
+    /** Server quote for each permitted quantity; includes any capped discount. */
+    quantityPrices?: Record<number, number>;
     price?: number;
   };
   pendingCardInteraction?: PendingCardInteraction;

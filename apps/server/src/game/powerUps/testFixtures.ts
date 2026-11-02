@@ -111,7 +111,7 @@ export function activationCasesFor(actorId = P1, targetId = P2) {
       const card = putCard(state, actorId, 'U03');
       state.turnInfo.pendingPropertyDecision = { operationId: randomUUID(), playerId: actorId, tileID: 1,
         continuation: { playerId: actorId, turnNumber: state.boardState.turnNumber } };
-      return { card, request: { instanceId: card.instanceId, targetTileID: 1 } };
+      return { card, request: { instanceId: card.instanceId, operationId: state.turnInfo.pendingPropertyDecision.operationId, targetTileID: 1 } };
     } },
     { id: 'U04', prepare: state => {
       const card = putCard(state, actorId, 'U04');
@@ -132,7 +132,7 @@ export function activationCasesFor(actorId = P1, targetId = P2) {
       state.turnInfo.pendingDevelopmentDecision = { operationId: randomUUID(), playerId: actorId,
         turnNumber: state.boardState.turnNumber, tileID: 1, levelAtLanding: 0, kind: 'HOUSES',
         continuation: { playerId: actorId, turnNumber: state.boardState.turnNumber } };
-      return { card, request: { instanceId: card.instanceId } };
+      return { card, request: { instanceId: card.instanceId, operationId: state.turnInfo.pendingDevelopmentDecision.operationId } };
     } },
     { id: 'U10', prepare: state => {
       const card = putCard(state, actorId, 'U10'); putCard(state, actorId, 'A02');

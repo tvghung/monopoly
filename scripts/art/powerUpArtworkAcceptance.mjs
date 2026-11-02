@@ -53,7 +53,7 @@ export async function runArtworkAcceptance({owner,other,seed,load,ownerId,roomId
    if(!seen.has(definition.rarity)){seen.add(definition.rarity);const file=path.join(output,'frames',definition.rarity+'.png');await card.screenshot({path:file,animations:'disabled'});frameFiles.push({rarity:definition.rarity,file})}
   }
   await shot(owner,'11-inventory-'+String(i/3+1).padStart(2,'0')+'.png');
-  if(i===21){await inventory.getByRole('button',{name:'Xem chi tiết · '+definitions[0].name,exact:true}).click();const detail=owner.getByRole('dialog',{name:definitions[0].name,exact:true});await expect(detail).toBeVisible();await captureSurface(owner,detail,'12-full-card-details',shot);await owner.keyboard.press('Escape');await expect(detail).toBeHidden();await expect(inventory).toBeVisible();await owner.setViewportSize(sizes[0]);}
+  if(i===21){assert.equal(await inventory.getByRole('button',{name:/Xem chi tiết/}).count(),0);await captureSurface(owner,inventory,'12-complete-card-inventory',shot);await owner.setViewportSize(sizes[0]);}
   await owner.keyboard.press('Escape');await expect(inventory).toBeHidden();
  }
  assert.equal(seen.size,4);await pass('All 30 official IDs render their own artwork in inventory; four production rarity frames and full-detail view');

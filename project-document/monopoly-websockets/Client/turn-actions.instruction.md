@@ -73,3 +73,7 @@
 During reconnect, spectator mode and non-committed ACK state, all mutation controls
 are disabled. Revision ordering and token arrival animations are presentation-only;
 server state remains authoritative.
+
+## Contextual Power-ups (OB-11)
+
+Purchase displays the server pending price, striking the base price when discounted. Development uses `quantityPrices[quantity]` for each server quote and affordability; multiplying a discounted unit quote would violate the U09 discount cap. Legacy projections without quotes fall back to base unit cost. U03/U09 choices share the original sheet and operation, with no inventory round trip or second modal. Using a card refreshes quotes from the server; the player still explicitly confirms the original transaction. Skip sends no gameplay command. See [Power-up client experience](./power-ups.instruction.md).

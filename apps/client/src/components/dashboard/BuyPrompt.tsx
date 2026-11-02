@@ -10,6 +10,7 @@ import { usePresentationSelector } from '../../game/presentation/usePresentation
 import { selectPresentationResetEpoch } from '../../game/presentation/store/selectors';
 import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import ContextualPowerUpPanel from '../../game/ui/powerUps/ContextualPowerUpPanel';
 import './DecisionSheet.css';
 import { useTranslation, type Language } from '../../i18n/I18n';
 import { translate } from '../../i18n/I18n';
@@ -53,6 +54,9 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   } = useContext(stateContext);
   const presentationResetEpoch = usePresentationSelector(selectPresentationResetEpoch);
   const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
+  const decisionBody = useRef<HTMLDivElement>(null);
+  const focusDecision = () => { requestAnimationFrame(() => { const body=decisionBody.current; const target=body?.querySelector<HTMLButtonElement>('.decision-sheet__actions button:not(:disabled)'); (target??body)?.focus(); }); };
+  const [contextBusy, setContextBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<'BUY' | 'DECLINE' | null>(null);
   const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
   const requestGeneration = useRef(0);
@@ -79,7 +83,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   }, [canMutate, clearError, connected, operationId, playerId, presentationResetEpoch, show, tokenArrived]);
 
   const submit = (action: 'BUY' | 'DECLINE') => {
-    if (pending?.kind !== 'PURCHASE' || pendingAction || !operationId) return;
+    if (pending?.kind !== 'PURCHASE' || pendingAction || contextBusy || !connected || !operationId) return;
     const requestGenerationAtStart = requestGeneration.current + 1;
     requestGeneration.current = requestGenerationAtStart;
     setPendingAction(action);
@@ -107,7 +111,8 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
       });
   };
 
-  const price = typeof tile?.price === 'number' ? tile.price : null;
+  const basePrice = typeof tile?.price === 'number' ? tile.price : null;
+  const price = pending?.kind === 'PURCHASE' ? pending.price ?? basePrice : basePrice;
   const balance = player?.accountBalance ?? 0;
   const shortBy = price !== null && balance < price ? price - balance : 0;
   const hint = typeof tileId === 'number' ? groupProgressHint(tileId, playerId ?? undefined, state.boardState.ownedProps, playerId ? getTeammateIds(state, playerId) : [], language) : null;
@@ -125,7 +130,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
       peekKey={operationId ?? undefined}
       className="decision-sheet buy-prompt"
     >
-      <div className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
+      <div ref={decisionBody} tabIndex={-1} className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
         {deed ? (
           <PropertyDeedCard
             model={deed}
@@ -138,6 +143,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
           {price !== null ? (
             <p className="decision-sheet__price">
               <span>{t('buy.price')}</span>
+              {basePrice !== null && price !== basePrice ? <del>{formatMoney(basePrice)}</del> : null}
               <strong>{formatMoney(price)}</strong>
             </p>
           ) : null}
@@ -162,7 +168,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
               icon={<ShoppingCart />}
               type="button"
               busy={pendingAction === 'BUY'}
-              disabled={pendingAction !== null || shortBy > 0}
+              disabled={pendingAction !== null || contextBusy || !connected || shortBy > 0}
               onClick={() => submit('BUY')}
             >{t('buy.confirm')}</Button>
             <Button
@@ -171,11 +177,12 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
               icon={<X />}
               type="button"
               busy={pendingAction === 'DECLINE'}
-              disabled={pendingAction !== null}
+              disabled={pendingAction !== null || contextBusy || !connected}
               onClick={() => submit('DECLINE')}
             >{t('buy.decline')}</Button>
           </div>
         </div>
+        {show && operationId ? <ContextualPowerUpPanel key={operationId} kind="PURCHASE" operationId={operationId} disabled={pendingAction !== null} onBusyChange={setContextBusy} onReturnToDecision={focusDecision} /> : null}
       </div>
     </Modal>
   );

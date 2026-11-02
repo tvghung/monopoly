@@ -226,3 +226,7 @@ The existing public semantic tail gains PLAYER_MOVED for a committed Power-up mo
 Movement activation requests require the pending checkpoint operationId in addition to the owned instanceId. Server checks operation, actor, turn, roll, allowance and targets before consumption. Continue keeps its existing operation-scoped request. First serialized choice wins; stale competing choices are rejected without another movement.
 
 Current RAM envelopes require snapshot 15; older envelopes are refused, never migrated across host restart. Protocol equality rejects protocol-16 clients/hosts in both directions, LAN discovery mirrors 17, and update policy is reviewed for 17 with minimum 1.11.2. Development metadata does not publish a release or modify existing tags/assets.
+
+## OB-11 optional development quotes
+
+`PublicTurnInfo.pendingLandingDecision.quantityPrices?: Record<number, number>` contains authoritative total development prices by quantity, including the existing U09 cap. It is a derived public DTO, not persisted state; `unitCost` remains the base cost for fallback. U03/U09 use the existing protocol-17 activation `operationId` against the pending purchase/development operation. No further protocol/snapshot bump: current development remains protocol 17 / snapshot 15; published v1.11.1 remains unchanged.

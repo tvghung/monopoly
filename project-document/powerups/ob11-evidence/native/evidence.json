@@ -1,0 +1,116 @@
+{
+  "status": "PASS",
+  "mode": "Packaged Electron acting player + Chromium opponent",
+  "checks": [
+    {
+      "name": "U03 use=true 1440 language=vi",
+      "status": "PASS",
+      "operationId": "b9518cc0-412c-4b11-80a1-005b6467f4e1",
+      "expectedCost": 350
+    },
+    {
+      "name": "Context card and original transaction U03 use=true 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "U03 use=false 1280 language=vi",
+      "status": "PASS",
+      "operationId": "c6e54125-e831-44b8-8df2-787d69bef2fe",
+      "expectedCost": 400
+    },
+    {
+      "name": "Context card and original transaction U03 use=false 1280",
+      "status": "PASS"
+    },
+    {
+      "name": "U09 use=true 900 language=vi",
+      "status": "PASS",
+      "operationId": "fa5582a7-edf5-4174-8cff-c7370311506c",
+      "expectedCost": 750
+    },
+    {
+      "name": "Context card and original transaction U09 use=true 900",
+      "status": "PASS"
+    },
+    {
+      "name": "U09 use=false 740 language=en",
+      "status": "PASS",
+      "operationId": "e38788ab-42f9-4e76-9ecd-d54fa7c7b939",
+      "expectedCost": 800
+    },
+    {
+      "name": "Context card and original transaction U09 use=false 740",
+      "status": "PASS"
+    },
+    {
+      "name": "Inventory remains complete with 3D owned card and no detail entry/modal",
+      "status": "PASS"
+    },
+    {
+      "name": "No eligible card creates no panel or extra checkpoint",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "context-U03-true-1440.png",
+    "context-denial.png",
+    "context-U03-false-1280.png",
+    "context-U09-true-900.png",
+    "context-U09-false-740.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required.",
+  "profile": "C:\\Users\\hungtran\\AppData\\Local\\Temp\\otb-powerup-08b-hrlQLK",
+  "nativeRuntime": {
+    "packaged": true,
+    "versions": {
+      "node": "24.18.1",
+      "acorn": "8.16.0",
+      "ada": "3.4.4",
+      "amaro": "1.1.9",
+      "ares": "1.34.6",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "148",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.69.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.4",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.1",
+      "tz": "2025c",
+      "undici": "7.29.0",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.0.245.28-electron.0",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0",
+      "electron": "43.4.0",
+      "chrome": "150.0.7871.224"
+    },
+    "gpu": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    }
+  }
+}

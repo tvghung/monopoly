@@ -1,4 +1,8 @@
 export const vi = {
+  'powerup.contextTitle': 'Power-up cho thao tác này',
+  'powerup.contextAvailable': 'Có thể dùng trước khi xác nhận',
+  'powerup.contextEffect': 'Tác dụng của thẻ',
+  'powerup.skipContext': 'Không dùng thẻ / Bỏ qua',
   'powerup.movementDecision': 'Chọn cách di chuyển',
   'powerup.movementChoice': 'Dùng thẻ phù hợp hoặc tiếp tục với {total} bước mà không dùng thẻ.',
   'powerup.useNamed': 'Dùng {name}',
@@ -974,6 +978,10 @@ export const vi = {
 export type MessageKey = keyof typeof vi;
 
 export const en = {
+  'powerup.contextTitle': 'Power-up for this action',
+  'powerup.contextAvailable': 'Available before confirmation',
+  'powerup.contextEffect': 'Card effect',
+  'powerup.skipContext': 'Continue without a card',
   'powerup.movementDecision': 'Choose your movement',
   'powerup.movementChoice': 'Use an eligible card or continue {total} steps without a card.',
   'powerup.useNamed': 'Use {name}',
