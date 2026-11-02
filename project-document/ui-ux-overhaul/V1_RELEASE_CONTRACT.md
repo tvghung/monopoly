@@ -12,7 +12,7 @@ Semantic version: 1.11.1
 Socket protocol: 16
 ```
 
-RELEASE PREPARATION — v1.11.1: the OB-6 inventory/activation patch follows verified public v1.11.0. The Owner reports OB-6 UAT OK and authorizes production publication. Socket protocol 16, RAM snapshot 14 and minimum supported version 1.11.0 are unchanged; this compatible patch does not force existing 1.11.0 clients to update. The annotated tag must target verified main and the existing pipeline must pass every release gate before publishing. See [v1.11.1 verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
+RELEASED — v1.11.1: the OB-6 inventory/activation patch is [publicly published](https://github.com/tvghung/monopoly/releases/tag/v1.11.1) after release quality and all three distribution targets passed. The Owner reports OB-6 UAT OK and authorizes production. Socket protocol 16, RAM snapshot 14 and minimum supported version 1.11.0 are unchanged; this compatible patch does not force existing 1.11.0 clients to update. See [v1.11.1 verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
 
 Application semantic version and network protocol version are independent.
 Root `package.json` supplies the product version to desktop release metadata and

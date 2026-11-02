@@ -1,0 +1,127 @@
+{
+  "release": "https://github.com/tvghung/monopoly/releases/tag/v1.11.1",
+  "tag": "v1.11.1",
+  "status": "PASS",
+  "assets": [
+    {
+      "name": "OwnTheBlock-1.11.1-macos-arm64.dmg",
+      "size": 113313095,
+      "sha256": "e23b8fbaa1670cf2383f675367557fc5d9702def6210951dd3b914f2707f551b",
+      "sha1": "4a5f23f30e7c64b74b7ce6e3602aa4b758371c05"
+    },
+    {
+      "name": "OwnTheBlock-1.11.1-macos-x64.dmg",
+      "size": 122554515,
+      "sha256": "8d5577574a39fa33abb1009dd510cc7626d4d34ff0ace21f6a05fb35ed14b88c",
+      "sha1": "3c264960a324bb8fd4a69656460dd59866b07e15"
+    },
+    {
+      "name": "OwnTheBlock-1.11.1-win32-x64-Setup.exe",
+      "size": 156135424,
+      "sha256": "df59999e97b1754d92cc8c207450e8d838ee39390591d7bd31aef29225ed159d",
+      "sha1": "2f2074b3799406d83940ac49b53ed0df8fa03f00"
+    },
+    {
+      "name": "own_the_block-1.11.1-full.nupkg",
+      "size": 155494322,
+      "sha256": "8f084ed4aed93aec7d09ba0a452b3c32459bfaf78331e0db9d524879433fe920",
+      "sha1": "c66fe30aae344d825e737463ceeffca74725a8ed"
+    },
+    {
+      "name": "RELEASES",
+      "size": 85,
+      "sha256": "be301d8caa784773f7f1a8622b89b40c59a56a8fbc984efaea6b43c1cdb0b4d3",
+      "sha1": "ab5311939dcc4cb161e8ce3cf9d4caa4259e351e"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 478,
+      "sha256": "a0a8653681b8561c185473ace29a707a90ca5b40f294d491d807d4df17787703",
+      "sha1": "501727ecbe3910a064f95fc2eca05bf9693e3e85"
+    },
+    {
+      "name": "update-manifest.json",
+      "size": 1096,
+      "sha256": "4d771d88666e0ffbe2accf265ec35f12d43faf9f5c6ec9b1780d579d03829890",
+      "sha1": "8a5265304b44447364cb70faff1f4116983bfa34"
+    }
+  ],
+  "manifest": {
+    "schemaVersion": 1,
+    "app": "own-the-block",
+    "version": "1.11.1",
+    "minimumSupportedVersion": "1.11.0",
+    "assets": {
+      "win32-x64": {
+        "name": "OwnTheBlock-1.11.1-win32-x64-Setup.exe",
+        "size": 156135424,
+        "sha256": "df59999e97b1754d92cc8c207450e8d838ee39390591d7bd31aef29225ed159d",
+        "squirrel": {
+          "releases": {
+            "name": "RELEASES",
+            "size": 85,
+            "sha256": "be301d8caa784773f7f1a8622b89b40c59a56a8fbc984efaea6b43c1cdb0b4d3"
+          },
+          "package": {
+            "name": "own_the_block-1.11.1-full.nupkg",
+            "size": 155494322,
+            "sha256": "8f084ed4aed93aec7d09ba0a452b3c32459bfaf78331e0db9d524879433fe920"
+          }
+        }
+      },
+      "darwin-x64": {
+        "name": "OwnTheBlock-1.11.1-macos-x64.dmg",
+        "size": 122554515,
+        "sha256": "8d5577574a39fa33abb1009dd510cc7626d4d34ff0ace21f6a05fb35ed14b88c"
+      },
+      "darwin-arm64": {
+        "name": "OwnTheBlock-1.11.1-macos-arm64.dmg",
+        "size": 113313095,
+        "sha256": "e23b8fbaa1670cf2383f675367557fc5d9702def6210951dd3b914f2707f551b"
+      }
+    }
+  },
+  "checksumEntries": 5,
+  "latestFeedVersion": "1.11.1",
+  "squirrelSha1Verified": true,
+  "feedComparison": "Raw bytes, preserving the Windows UTF-8 BOM in RELEASES",
+  "sourceCommit": "af47c15459abf4f30d33c685f4874369e56180d1",
+  "annotatedTagObject": "52a0e6ae7d33f43de41f6036730aae5942e67373",
+  "workflow": {
+    "id": 41382922312,
+    "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Release quality gates",
+        "conclusion": "success",
+        "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312/job/125077413169"
+      },
+      {
+        "name": "Windows x64",
+        "conclusion": "success",
+        "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312/job/125079314402"
+      },
+      {
+        "name": "macOS x64",
+        "conclusion": "success",
+        "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312/job/125079314429"
+      },
+      {
+        "name": "macOS arm64",
+        "conclusion": "success",
+        "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312/job/125079314548"
+      },
+      {
+        "name": "Publish GitHub Release",
+        "conclusion": "success",
+        "url": "https://github.com/tvghung/monopoly/actions/runs/41382922312/job/125082296418"
+      }
+    ]
+  },
+  "ownerAcceptance": {
+    "status": "OWNER-REPORTED",
+    "scope": "OB-6",
+    "productionAuthorized": true
+  }
+}
