@@ -4,8 +4,8 @@ Status: CURRENT. Every decision below is verified against the code paths it name
 document records it; otherwise it says *not recorded*. Scope labels follow the [Documentation Hub](../README.md#lifecycle-and-scope-labels):
 **RELEASED** = shipped in a published version, **CURRENT DEVELOPMENT** = on this branch after the latest release, unreleased.
 
-Latest release: **v1.10.0** (published 2026-10-20; Socket protocol 14, room snapshot schema 11; baseline commit `5a93a29c29ee91ad941ecf07eb958fc78e83bf9b`).
-ADR-13 preserves the historical v1.8.0 compatibility decision; ADR-14 records the v1.9.0 tax compatibility change, retained in v1.10.0. The E1 reliability fixes in this working tree are CURRENT DEVELOPMENT and are not included in the v1.10.0 release.
+Latest release: **v1.11.0** (public release verified; Socket protocol 16, RAM snapshot schema 14; minimum supported version 1.11.0). v1.11.1 prepares the compatible OB-6 UI patch; [release verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
+ADR-13 preserves the historical v1.8.0 compatibility decision; ADR-14 records the v1.9.0 tax compatibility change, retained in v1.10.0. The E1 reliability baseline is included in published v1.11.0; the v1.10.0 historical release remains unchanged.
 
 Unless the `Applies to` column says otherwise, these architecture decisions hold in released v1.8.0 through v1.10.0; current E1 implementation details are described in the module contracts and audit reports 12–16.
 

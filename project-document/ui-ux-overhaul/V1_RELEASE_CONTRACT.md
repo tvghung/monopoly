@@ -8,11 +8,11 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.11.0
+Semantic version: 1.11.1
 Socket protocol: 16
 ```
 
-RELEASE PREPARATION — v1.11.0: the integrated Power-up candidate uses Socket protocol 16 and RAM snapshot schema 14. The latest verified published release remains v1.10.0 (protocol 14 / snapshot 11) until publication is verified. This release sets the update floor to 1.11.0 and records protocol 16 in the update policy; older desktop builds cannot play with a protocol-16 Host. The Product Owner has explicitly authorized the merge, annotated tag and existing release pipeline, with unperformed manual UAT recorded as NOT RUN. Preparation and automated checks do not establish publication or manual UAT PASS. See the [v1.11.0 verification record](../releases/V1_11_0_RELEASE_VERIFICATION.md).
+RELEASE PREPARATION — v1.11.1: the OB-6 inventory/activation patch follows verified public v1.11.0. The Owner reports OB-6 UAT OK and authorizes production publication. Socket protocol 16, RAM snapshot 14 and minimum supported version 1.11.0 are unchanged; this compatible patch does not force existing 1.11.0 clients to update. The annotated tag must target verified main and the existing pipeline must pass every release gate before publishing. See [v1.11.1 verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
 
 Application semantic version and network protocol version are independent.
 Root `package.json` supplies the product version to desktop release metadata and
