@@ -53,6 +53,10 @@ For a before-build comparison, pass `--baseline --dist <pre-change-client-dist>`
 
 ## Local UAT
 
-Owner UAT has not run. Use a clean dedicated checkout of the merge SHA linked from Jira; preserve existing work and do not reset another checkout. Prerequisites: Node >=24 and pnpm 11.15.1. At the repository root run `pnpm install --frozen-lockfile`, then `pnpm dev:desktop` (starts server/client and Electron). For browser testing run `pnpm dev:web`; attach Electron to that stack with `pnpm dev:desktop:shell` in a separate terminal. Use the actual URL printed by the launcher. Close the test application/press Ctrl+C in its own terminals to stop it. No database or migration is required; stopping the host permanently ends its RAM-only test match.
+The Owner subsequently reports OB-6 testing OK (OWNER-REPORTED). For a repeat local check, use a clean dedicated checkout of the merge SHA linked from Jira; preserve existing work and do not reset another checkout. Prerequisites: Node >=24 and pnpm 11.15.1. At the repository root run `pnpm install --frozen-lockfile`, then `pnpm dev:desktop` (starts server/client and Electron). For browser testing run `pnpm dev:web`; attach Electron to that stack with `pnpm dev:desktop:shell` in a separate terminal. Use the actual URL printed by the launcher. Close the test application/press Ctrl+C in its own terminals to stop it. No database or migration is required; stopping the host permanently ends its RAM-only test match.
 
 Verify inventory 0–3, reward claim/decline/replacement, details, activate/cancel, player targets, keyboard/focus/peek, VI/EN, reduced motion, disconnect/reconnect and web/Electron at the five listed viewports. Confirm no outcome line below Kho and unchanged gameplay/history. Native macOS and physical GPU/full-match owner acceptance remain manual.
+
+## Owner acceptance after implementation
+
+The Owner subsequently reports OB-6 test OK and explicitly requests production publication in the current chat. Record this as OWNER-REPORTED acceptance of OB-6; it does not turn unrelated full-system/device/macOS checks into automated PASS. The active release evidence is [v1.11.1 verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
