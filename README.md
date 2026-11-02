@@ -26,6 +26,8 @@ No database, Node.js, developer tools, port forwarding or VPN is required on pla
 
 ## Development
 
+Current development targets v1.11.2 with protocol 17 / snapshot 15 for OB-8 checkpoint movement; it is not published. Mixed protocol-16/17 desktop apps must update together; browser guests use the renderer served by their host. Published v1.11.1 remains unchanged.
+
 Requires Node.js 24 and pnpm. From the repository root:
 
 ```bash

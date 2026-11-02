@@ -101,9 +101,9 @@ export function activationCasesFor(actorId = P1, targetId = P2) {
           operationId: randomUUID(), playerId: actorId, turnNumber: state.boardState.turnNumber,
           dice: { dice1: 1, dice2: 2 }, rollSequence: 1,
         };
-        if (id === 'U05') return { card, request: { instanceId: card.instanceId, movementDelta: -3 } };
-        if (id === 'U08') return { card, request: { instanceId: card.instanceId, targetTileID: 1 } };
-        return { card, request: { instanceId: card.instanceId } };
+        if (id === 'U05') return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId, movementDelta: -3 } };
+        if (id === 'U08') return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId, targetTileID: 1 } };
+        return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId } };
       },
     })),
     { id: 'U03', prepare: state => {

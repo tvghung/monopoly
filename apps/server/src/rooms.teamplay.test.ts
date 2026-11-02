@@ -100,7 +100,7 @@ function bankrupt(snapshot: RoomSnapshot, playerId: PlayerId): void {
 
 describe('snapshot schema v14', () => {
   it('is the current durable version and a fresh room is a Solo room with default teams', () => {
-    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(14);
+    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(15);
     const { boardState } = createRoomSnapshot().gameState;
     expect(boardState.gameMode).toBe('SOLO');
     expect(boardState.teams).toEqual({
@@ -622,7 +622,7 @@ describe('public projection of team state', () => {
     const projected = projectPublicRoomState(room(snapshot, 'IN_PROGRESS'), new ConnectionRegistry());
     const board = projected.gameState.boardState;
 
-    expect(projected.protocolVersion).toBe(16);
+    expect(projected.protocolVersion).toBe(17);
     expect(board.gameMode).toBe('TEAM_2V2');
     expect(board.winningTeamId).toBeNull();
     expect(board.teams).toEqual([

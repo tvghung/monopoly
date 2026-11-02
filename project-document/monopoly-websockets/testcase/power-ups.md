@@ -69,3 +69,11 @@ Run the existing stabilization harness with `--refinement` (and `--native` for p
 - Check VI/EN long text, success/denial/disconnect and actor/observer permissions in web and packaged Electron. Owner UAT is separate.
 - Verify rarity boundaries 0,39,40,69,70,89,90,99 per category; reject invalid RNG; uniform definition selection and exactly three category candidates.
 - Run seeded 100000-offer distribution per category (seed 0x0b900001; per-bin absolute tolerance 0.006 chosen in advance), preserve stored offers across reconnect, and regress U04/U10 special pools. Do not infer full-match balance.
+
+## OB-8 movement regression
+
+- N=12 Continue: 12 ordered hops, unchanged card/allowance/dice; U02: 14 ordered hops, one consumed instance, original dice=12.
+- U01/U05/U08 legal targets/timing; U05 bounds 1–15, teleport stays SNAP even at a walk-equivalent destination; no card/used allowance adds no checkpoint.
+- Verify exact path for actor/observer, corners/START, one landing and one reward, no early prompt, double submit/competing decisions, stale operation, rollback and reconnect pending/completed.
+- Verify VI/EN, all supported sizes, keyboard/focus, speed/reduced-motion and packaged Electron separately from Owner UAT.
+- Reject protocol-16/17 mismatch in both directions, LAN discovery mismatch and snapshot-14 envelope; validate current schema and update minimum 1.11.2. Existing published assets stay unchanged.

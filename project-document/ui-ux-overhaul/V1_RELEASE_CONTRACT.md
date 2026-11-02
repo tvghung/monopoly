@@ -8,9 +8,11 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.11.1
-Socket protocol: 16
+Semantic version: 1.11.2
+Socket protocol: 17
 ```
+
+CURRENT DEVELOPMENT — v1.11.2: OB-8 adds committed checkpoint movement facts, protocol 17 / snapshot 15 and minimum supported version 1.11.2. This is development metadata for compatibility checks, not a published release. Mixed protocol-16/17 desktops are rejected by strict handshake/LAN discovery. No tag, installer publication or production authorization is implied.
 
 RELEASED — v1.11.1: the OB-6 inventory/activation patch is [publicly published](https://github.com/tvghung/monopoly/releases/tag/v1.11.1) after release quality and all three distribution targets passed. The Owner reports OB-6 UAT OK and authorizes production. Socket protocol 16, RAM snapshot 14 and minimum supported version 1.11.0 are unchanged; this compatible patch does not force existing 1.11.0 clients to update. See [v1.11.1 verification](../releases/V1_11_1_RELEASE_VERIFICATION.md).
 

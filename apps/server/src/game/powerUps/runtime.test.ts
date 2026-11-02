@@ -123,7 +123,7 @@ describe('authoritative Power-up runtime', () => {
       operationId: randomUUID(), playerId: P1, turnNumber: state.boardState.turnNumber,
       dice: { dice1: 1, dice2: 1 }, rollSequence: 1,
     };
-    activatePowerUp(state, P1, { instanceId: cardInstance.instanceId }, 1_000);
+    activatePowerUp(state, P1, { instanceId: cardInstance.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId }, 1_000);
     expect(state.players[P1].currentTile).toBe(5);
     expect(state.boardState.diceValue).toEqual({ dice1: 1, dice2: 1 });
     expect(state.privateState.powerUps!.pendingMovement).toBeNull();
@@ -375,9 +375,9 @@ describe('authoritative Power-up runtime', () => {
           operationId: randomUUID(), playerId: P1, turnNumber: state.boardState.turnNumber,
           dice: { dice1: 1, dice2: 2 }, rollSequence: 1,
         };
-        if (id === 'U05') return { card, request: { instanceId: card.instanceId, movementDelta: -3 } };
-        if (id === 'U08') return { card, request: { instanceId: card.instanceId, targetTileID: 1 } };
-        return { card, request: { instanceId: card.instanceId } };
+        if (id === 'U05') return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId, movementDelta: -3 } };
+        if (id === 'U08') return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId, targetTileID: 1 } };
+        return { card, request: { instanceId: card.instanceId, operationId: state.privateState.powerUps!.pendingMovement.operationId } };
       },
     })),
     { id: 'U03', prepare: state => {

@@ -30,7 +30,7 @@ const propertyOptions = Object.entries(tileState).flatMap(([key, tile]) => {
     : [];
 });
 
-export function PowerUpActivationDialog({ card, onClose }: { card: OwnedPowerUp; onClose: () => void }) {
+export function PowerUpActivationDialog({ card, onClose, embedded = false, onBusyChange }: { card: OwnedPowerUp; onClose: () => void; embedded?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const { t } = useTranslation();
   const presentation = useContext(presentationStoreContext);
   const { state, playerId, canMutate, connected, role, privatePlayerState, socketFunctions } = useContext(stateContext);
@@ -120,11 +120,12 @@ export function PowerUpActivationDialog({ card, onClose }: { card: OwnedPowerUp;
     if (requiresTarget) request.targetPlayerId = targetPlayerId;
     if (requiresProperty && id !== 'U03' && targetTileID !== null) request.targetTileID = targetTileID;
     if (id === 'U03' && pendingProperty) request.targetTileID = pendingProperty.tileID;
+    if (movementCards.has(id) && pendingMovement) request.operationId = pendingMovement.operationId;
     if (id === 'U04') request.ingredientInstanceIds = ingredientInstanceIds;
     if (id === 'U05') request.movementDelta = movementDelta;
     if (id === 'U10') { request.transformedInstanceId = transformedInstanceId; request.category = category; }
     if (id === 'D10') request.statusId = statusId;
-    inFlight.current = true; setBusy(true); setError(null);
+    inFlight.current = true; setBusy(true); onBusyChange?.(true); setError(null);
     const feedbackEpoch = presentation?.store.getSnapshot().presentationResetEpoch;
     try {
       const ack = await socketFunctions.activatePowerUp(request);
@@ -135,13 +136,12 @@ export function PowerUpActivationDialog({ card, onClose }: { card: OwnedPowerUp;
         onClose();
       }
     } catch { setError(t('powerup.retry')); }
-    finally { inFlight.current = false; setBusy(false); }
+    finally { inFlight.current = false; setBusy(false); onBusyChange?.(false); }
   };
 
-  return <Modal open title={card.definition.name} eyebrow={t('powerup.activateTitle')} size="lg" peek="decision"
-    closeOnEscape={!busy} onClose={busy ? undefined : onClose} className="power-up-activation"
-    footer={<div className="power-up-actions"><Button variant="secondary" icon={<ActionIcon name="cancel" size={16} />} disabled={busy} onClick={onClose}>{t('ui.cancel')}</Button>
-      <Button icon={<ActionIcon name="confirm" size={16} />} busy={busy} disabled={!enabled || !formValid} onClick={() => void activate()}>{t('powerup.activate')}</Button></div>}>
+  const footer = <div className="power-up-actions"><Button variant="secondary" icon={<ActionIcon name="cancel" size={16} />} disabled={busy} onClick={onClose}>{t('ui.cancel')}</Button>
+    <Button icon={<ActionIcon name="confirm" size={16} />} busy={busy} disabled={!enabled || !formValid} onClick={() => void activate()}>{t('powerup.activate')}</Button></div>;
+  const content = <>
     <div className="power-up-activation-card"><PowerUpPickerCard surface="owned" category={card.definition.category} definition={card.definition} /></div>
     {requiresProperty ? <p className="power-up-target-legend"><span>✓ {t('powerup.validTarget')}</span><span>— {t('powerup.invalidTarget')}</span></p> : null}
     <div className="power-up-form">
@@ -178,7 +178,10 @@ export function PowerUpActivationDialog({ card, onClose }: { card: OwnedPowerUp;
       {id === 'D10' && removableStatuses.length === 0 ? <p className="power-up-availability">{t('powerup.noRemovableStatus')}</p> : null}
     </div>
     {error ? <p role="alert" className="power-up-error">{error}</p> : null}
-  </Modal>;
+  </>;
+  return embedded ? <section className="power-up-inline-activation" aria-label={card.definition.name}>{content}{footer}</section>
+    : <Modal open title={card.definition.name} eyebrow={t('powerup.activateTitle')} size="lg" peek="decision"
+      closeOnEscape={!busy} onClose={busy ? undefined : onClose} className="power-up-activation" footer={footer}>{content}</Modal>;
 }
 
 export default function PowerUpRuntimePanels() {
@@ -197,6 +200,12 @@ export default function PowerUpRuntimePanels() {
   const reactionDeadlineAt = reaction?.deadlineAt;
   const tradeRequest = powerUps?.tradeRequest;
   const movement = powerUps?.movement;
+  const [movementSelection, setMovementSelection] = useState<string | null>(null);
+  const movementOperationId = movement?.operationId;
+  useEffect(() => { setMovementSelection(null); setError(null); }, [movementOperationId]);
+  const movementOptions = (inventory?.cards ?? []).filter(card => movementCards.has(card.definitionId)
+    && card.definition.activation === 'ACTIVE' && !powerUps?.activeUsedThisTurn);
+  const selectedMovementCard = movementOptions.find(card => card.instanceId === movementSelection);
   const attackerProperties = Object.entries(state.boardState.ownedProps).flatMap(([tile, property]) => (
     property.id === reaction?.attackerPlayerId
       ? [{ tileID: Number(tile), label: propertyOptions.find(option => option.tileID === Number(tile))?.label ?? `Tile ${tile}` }]
@@ -267,10 +276,16 @@ export default function PowerUpRuntimePanels() {
       <div className="power-up-grid">{inventory?.cards.map(item => <PowerUpCard key={item.instanceId} category={item.definition.category} definition={item.definition} />)}</div>
       {error ? <p role="alert" className="power-up-error">{error}</p> : null}
     </Modal> : null}
-    {movement ? <Modal open title={t('powerup.reactionNeeded')} eyebrow={t('powerup.movementWaiting')} size="md"
-      peek="decision" closeOnEscape={false} footer={<Button icon={<ActionIcon name="next" size={16} />} busy={busy} disabled={!canMutate || !connected || role !== 'PLAYER'}
+    {movement ? <Modal open title={t('powerup.movementDecision')} eyebrow={t('powerup.movementWaiting')} size="lg"
+      className="power-up-movement" peek="decision" closeOnEscape={false} footer={<Button icon={<ActionIcon name="next" size={16} />} busy={busy} disabled={!enabled}
         onClick={() => void send(socketFunctions.continuePowerUpMovement ? () => socketFunctions.continuePowerUpMovement!({ operationId: movement.operationId }) : undefined)}>{t('powerup.keepMovement', { total: movement.total })}</Button>}>
-      <p>{t('powerup.keepMovement', { total: movement.total })}</p>
+      <p>{t('powerup.movementChoice', { total: movement.total })}</p>
+      {selectedMovementCard ? <PowerUpActivationDialog card={selectedMovementCard} embedded onClose={() => setMovementSelection(null)}
+        onBusyChange={value => { inFlight.current = value; setBusy(value); }} />
+        : <div className="power-up-movement-options">{movementOptions.map(card => <div key={card.instanceId}>
+          <PowerUpCard category={card.definition.category} definition={card.definition} />
+          <Button disabled={!enabled} onClick={() => setMovementSelection(card.instanceId)}>{t('powerup.useNamed', { name: card.definition.name })}{card.definitionId === 'U02' ? ' (+2)' : ''}</Button>
+        </div>)}</div>}
       {error ? <p role="alert" className="power-up-error">{error}</p> : null}
     </Modal> : null}
   </>;

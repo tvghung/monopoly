@@ -428,3 +428,19 @@ describe('derivePresentationEvents', () => {
     expect(semanticEventsSince(previous, next)).toBeNull();
   });
 });
+
+
+describe('OB-8 public checkpoint movement proof',()=>{
+  it.each([12,14,15])('walks %s exact steps after a checkpoint without a new roll, for every viewer',steps=>{
+    const previous=makeRoom();previous.gameState.players['player-a'].currentTile=39;previous.gameState.boardState.rollSequence=4;
+    previous.gameState.boardState.currentPlayer.hasMoved=true;previous.gameState.boardState.diceValue={dice1:6,dice2:6};
+    const next=cloneRoom(previous);next.gameState.players['player-a'].currentTile=(39+steps)%40;
+    next.gameState.boardState.gameplayEvents={sequence:1,events:[{type:'PLAYER_MOVED',eventId:'move',sequence:1,operationId:'operation',playerId:'player-a',fromTile:39,destinationTile:(39+steps)%40,steps,presentation:'WALK',rollSequence:4}]};
+    const events=derivePresentationEvents(previous,next);expect(events.find(event=>event.type==='MOVE_CHARACTER')).toMatchObject({steps,presentation:'WALK',from:39,to:(39+steps)%40});
+    expect(events.filter(event=>event.type==='LAND_TILE')).toHaveLength(1);expect(events.some(event=>event.type==='ROLL_DICE')).toBe(false);
+    const teleport=structuredClone(next);teleport.gameState.boardState.gameplayEvents.events=[{...next.gameState.boardState.gameplayEvents.events[0],type:'PLAYER_MOVED',eventId:'teleport',sequence:1,operationId:'operation',playerId:'player-a',fromTile:39,destinationTile:(39+steps)%40,steps:0,presentation:'TELEPORT',rollSequence:4}];
+    expect(derivePresentationEvents(previous,teleport).find(event=>event.type==='MOVE_CHARACTER')).toMatchObject({presentation:'SNAP'});
+    const missing=structuredClone(next);missing.gameState.boardState.gameplayEvents={sequence:0,events:[]};
+    expect(derivePresentationEvents(previous,missing).find(event=>event.type==='MOVE_CHARACTER')).toMatchObject({presentation:'SNAP'});
+  });
+});

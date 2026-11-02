@@ -198,6 +198,7 @@ export type PowerUpState = z.infer<typeof powerUpStateSchema>;
 
 export const powerUpActivationRequestSchema = z.strictObject({
   instanceId: z.uuid(),
+  operationId: z.uuid().optional(),
   targetPlayerId: z.uuid().optional(),
   targetTileID: z.number().int().min(0).max(39).optional(),
   ingredientInstanceIds: z.array(z.uuid()).length(2).optional(),

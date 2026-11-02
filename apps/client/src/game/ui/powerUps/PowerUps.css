@@ -397,3 +397,7 @@
 .power-up-inventory-gallery .power-up-picker-card { flex:0 0 auto; }
 .power-up-inventory-gallery .power-up-card { min-height:420px; }
 @media(max-height:550px), (max-width:650px) { .power-up-inventory-gallery .power-up-card { min-height:300px; } }
+
+.power-up-movement-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1rem; }
+.power-up-movement-options > div { display:grid; align-content:start; gap:.5rem; }
+.power-up-inline-activation .power-up-activation-card { max-width:260px; margin-inline:auto; }

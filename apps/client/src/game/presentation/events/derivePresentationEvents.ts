@@ -261,8 +261,17 @@ export function derivePresentationEvents(
       const diceDestination = sentToJail?.cause === 'BOARD_TILE'
         ? sentToJail.fromTile
         : newPlayer.currentTile;
-      const steps = forwardDistance(oldPlayer.currentTile, diceDestination);
-      const walk = isProvenDiceMovement(
+      const checkpointMovement = semanticEvents.find((event): event is Extract<GameplaySemanticEvent, { type: 'PLAYER_MOVED' }> => (
+        event.type === 'PLAYER_MOVED' && event.playerId === playerId
+        && event.fromTile === oldPlayer.currentTile && event.destinationTile === diceDestination
+        && event.rollSequence === nextGame.boardState.rollSequence
+      ));
+      const steps = checkpointMovement?.presentation === 'WALK'
+        ? checkpointMovement.steps : forwardDistance(oldPlayer.currentTile, diceDestination);
+      const walk = checkpointMovement
+        ? checkpointMovement.presentation === 'WALK' && steps > 0 && steps <= 15
+          && (oldPlayer.currentTile + steps) % BOARD_SIZE === diceDestination
+        : isProvenDiceMovement(
         previous,
         next,
         playerId,

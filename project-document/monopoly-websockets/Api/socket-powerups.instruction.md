@@ -1,6 +1,6 @@
 # Power-up socket contract
 
-> **CURRENT DEVELOPMENT — protocol 16 / RAM snapshot 14.** Published v1.10.0 remains protocol 14 / snapshot 11. Commands are strict schemas and use the authenticated player identity. The owner-level inventory and status data is private; public state exposes only held counts/category totals and authorized reaction state.
+> **CURRENT DEVELOPMENT — protocol 17 / RAM snapshot 15 (OB-8).** Published v1.11.1 remains protocol 16 / snapshot 14. Commands are strict schemas and use the authenticated player identity. The owner-level inventory and status data is private; public state exposes only held counts/category totals and authorized reaction state.
 
 Canonical gameplay rules: [Power-up runtime](../GameCore/power-ups.instruction.md). Shared event names/types and payload schemas are in `packages/shared/src/events.ts` and `packages/shared/src/socketSchemas.ts`. Handlers are in `apps/server/src/socket/powerUps.ts`; commands enter the existing `runGameCommand` transaction in `apps/server/src/commands/gameplay.ts`.
 
@@ -8,7 +8,7 @@ Canonical gameplay rules: [Power-up runtime](../GameCore/power-ups.instruction.m
 | --- | --- | --- |
 | `select power up` | `{ offerId, selectedIndex: 0..2 }` | Locks one candidate; private reveal is committed before broadcast. |
 | `resolve power up` | `{ offerId, action: CLAIM \| DECLINE }` or `{ offerId, action: REPLACE, replaceInstanceId }` | Claims, declines, or atomically replaces one exact owned instance. |
-| `activate power up` | `{ instanceId, targetPlayerId?, targetTileID?, ingredientInstanceIds?, transformedInstanceId?, category?, movementDelta?, statusId? }` | Uses a server-owned card handler; effect-specific request fields are enforced after schema parsing. |
+| `activate power up` | `{ instanceId, operationId?, targetPlayerId?, targetTileID?, ingredientInstanceIds?, transformedInstanceId?, category?, movementDelta?, statusId? }` | Uses a server-owned card handler; movement cards require the exact pending operationId. Effect-specific fields are enforced after schema parsing. |
 | `respond power up` | `{ eventId, action: PASS }` or `{ eventId, action: REACT, instanceId, redirectPlayerId?, redirectTileID? }` | Resolves only the responder currently eligible for the event. |
 | `resolve power up trade` | `{ requestId, accept: boolean }` | Target consents or declines a pending U06 request. Card selection is server-random and private. |
 | `continue power up movement` | `{ operationId }` | Continues the already rolled movement when the owner keeps the dice result. |
