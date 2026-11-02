@@ -27,18 +27,18 @@ function fullHand(state: GameState) {
 }
 
 describe('live START generation and immutable selection', () => {
-  it.each([[0, 'COMMON'], [59, 'COMMON'], [60, 'RARE'], [88, 'RARE'], [89, 'EPIC'], [98, 'EPIC'], [99, 'LEGENDARY']] as const)('rarity boundary %i is %s in each category', (roll, rarity) => {
+  it.each([[0, 'COMMON'], [39, 'COMMON'], [40, 'RARE'], [69, 'RARE'], [70, 'EPIC'], [89, 'EPIC'], [90, 'LEGENDARY'], [99, 'LEGENDARY']] as const)('rarity boundary %i is %s in each category', (roll, rarity) => {
     const candidates = generateStartCandidates(max => max === 100 ? roll : 0);
     expect(candidates.map(card => card.category)).toEqual(['ATTACK', 'DEFENSE', 'UTILITY']);
     expect(candidates.map(card => OFFICIAL_POWER_UP_REGISTRY.get(card.definitionId).rarity)).toEqual([rarity, rarity, rarity]);
   });
-  it.each([0, 60, 89, 99])('uniform definition indices enumerate every eligible card for roll %i', roll => {
+  it.each([0, 40, 70, 90])('uniform definition indices enumerate every eligible card for roll %i', roll => {
     const seen = new Set<string>();
     for (let index = 0; index < 5; index++) for (const card of generateStartCandidates(max => max === 100 ? roll : index % max)) seen.add(card.definitionId);
     const rarity = OFFICIAL_POWER_UP_REGISTRY.get([...seen][0]).rarity;
     expect([...seen].sort()).toEqual(OFFICIAL_POWER_UP_REGISTRY.list().filter(card => card.rarity === rarity).map(card => card.definitionId).sort());
   });
-  it.each([-1, 100, 0.5, NaN])('rejects invalid randomness %s before returning candidates', value => expect(() => generateStartCandidates(() => value)).toThrow());
+  it.each([-1, 100, 0.5, NaN, Infinity])('rejects invalid randomness %s before returning candidates', value => expect(() => generateStartCandidates(() => value)).toThrow());
   it('ties exactly one offer to each PASS_GO, preserves money and never redraws a duplicate occurrence', () => {
     const state = subject(); const before = state.players[P1].accountBalance;
     const first = award(state);
@@ -167,4 +167,26 @@ describe('grant, capacity, recovery and lifecycle', () => {
     expect(state.privateState.powerUps!.continuation??null).toBeNull();expect(nextPowerUpReward(state,P2)).toBeDefined();
   });
 
+});
+
+
+it('samples the OB-9 pool per category with a reproducible uniform RNG and preserves definitions', () => {
+  // Preselected: seed 0x0b900001, 100000 offers/category, absolute tolerance 0.006 per bin.
+  let seed = 0x0b900001;
+  const random = (max: number) => {
+    // Rejection sampling avoids modulo bias for arbitrary definition-pool sizes.
+    const limit = Math.floor(0x100000000 / max) * max; let value: number;
+    do { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; value = seed >>> 0; } while (value >= limit);
+    return value % max;
+  };
+  const counts = new Map<string, number>(); const sampleSize = 100000;
+  for (let index = 0; index < sampleSize; index++) for (const card of generateStartCandidates(random)) {
+    const rarity = OFFICIAL_POWER_UP_REGISTRY.get(card.definitionId).rarity;
+    const key = card.category + ':' + rarity; counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  for (const category of ['ATTACK', 'DEFENSE', 'UTILITY']) for (const [rarity, expected] of Object.entries({COMMON:0.4,RARE:0.3,EPIC:0.2,LEGENDARY:0.1})) {
+    const observed = (counts.get(category + ':' + rarity) ?? 0) / sampleSize;
+    console.info('OB-9 distribution', category, rarity, observed);
+    expect(Math.abs(observed - expected)).toBeLessThan(0.006);
+  }
 });

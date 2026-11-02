@@ -10,7 +10,7 @@ export default function PowerUpFeedback() {
   const feedback = usePresentationSelector(state => state.powerUpFeedback);
   if (!feedback) return null;
   const Icon = icons[feedback.kind];
-  return <div key={feedback.id} role="status" aria-live="polite" className={'power-up-feedback power-up-feedback--' + feedback.kind.toLowerCase()} data-powerup-feedback={feedback.kind}>
+  return <div key={feedback.id} role="status" aria-live="polite" className={'power-up-feedback power-up-feedback--' + feedback.kind.toLowerCase()} data-powerup-feedback={feedback.kind} data-feedback-id={feedback.id} data-feedback-entity={feedback.entityId}>
     <Icon aria-hidden="true" /><PowerUpArtwork category={feedback.definitionId.startsWith('A') ? 'ATTACK' : feedback.definitionId.startsWith('D') ? 'DEFENSE' : 'UTILITY'} definitionId={feedback.definitionId} thumbnail /><div><strong>{t(('powerup.feedback.' + feedback.kind) as MessageKey)}</strong><span>{feedback.name}</span></div>
   </div>;
 }

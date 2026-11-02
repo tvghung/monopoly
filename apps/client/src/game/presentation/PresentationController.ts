@@ -34,6 +34,11 @@ export class PresentationController {
   private disposed = false;
   private hidden = false;
   private privatePowerUps: { playerId: string; state: PowerUpOwnerState | undefined; turnNumber: number } | null = null;
+  private readonly powerUpFeedbackPending: PowerUpFeedbackPresentationEvent[] = [];
+  private readonly powerUpAcknowledgedInstances = new Set<string>();
+  private readonly powerUpRemovalInstances = new Set<string>();
+  private readonly powerUpFeedbackSeen = new Set<string>();
+  private powerUpFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly privateSemanticSequences = new Map<string, number>();
   private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
@@ -52,13 +57,13 @@ export class PresentationController {
       ...createBasicExecutors(this.store, audio),
       ...createSemanticExecutors(this.store, audio),
       POWER_UP_FEEDBACK: {
-        run: async (event: PowerUpFeedbackPresentationEvent, context: import('./queue/types').AnimationExecutionContext) => {
-          if (context.signal.aborted || context.isCurrent?.() === false) return;
-          this.store.setPowerUpFeedback(event);
-          try { await context.wait(context.reducedMotion ? 0 : 650); }
-          finally { if (context.isCurrent?.() !== false) this.store.setPowerUpFeedback(null); }
+        // Text has its own reading lifetime inside the existing presentation channel.
+        // Completing this handoff immediately keeps movement and gameplay gates free.
+        run: (event: PowerUpFeedbackPresentationEvent, context: import('./queue/types').AnimationExecutionContext) => {
+          if (!context.signal.aborted && context.isCurrent?.() !== false) this.enqueuePowerUpFeedback(event);
+          return Promise.resolve();
         },
-        finish: () => this.store.setPowerUpFeedback(null),
+        finish: () => {},
       },
       ROLL_DICE: createDiceExecutor(this.store, audio),
       MOVE_CHARACTER: createMovementExecutor(this.store, audio),
@@ -69,6 +74,7 @@ export class PresentationController {
       speedMultiplier,
       onStall: () => this.skipAllAndSnap(),
       onReset: snapshot => {
+        this.clearPowerUpFeedback();
         audio.stopPresentationVoices?.();
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
           const room = snapshot as PublicRoomState;
@@ -101,6 +107,10 @@ export class PresentationController {
         || (room.version === this.acceptedRoom.version && source === 'LIVE_UPDATE'))) return false;
 
     const previous = this.acceptedRoom;
+    if (previous && previous.roomId !== room.roomId) {
+      this.privatePowerUps = null;
+      this.privateSemanticSequences.clear();
+    }
     this.acceptedRoom = room;
     if (!previous || source !== 'LIVE_UPDATE' || this.hidden) {
       this.queue.reset(room);
@@ -172,8 +182,58 @@ export class PresentationController {
   public showPowerUpFeedback(kind: PowerUpFeedbackPresentationEvent['kind'], definitionId: string, name: string, instanceId: string, expectedEpoch: number): void {
     const room = this.acceptedRoom;
     if (!room || this.hidden || this.disposed || this.store.getSnapshot().presentationResetEpoch !== expectedEpoch) return;
-    void this.queue.enqueue({ type: 'POWER_UP_FEEDBACK', id: room.roomId + ':ack:' + instanceId + ':' + kind,
-      entityId: instanceId, roomId: room.roomId, roomVersion: room.version, kind, definitionId, name });
+    const identity = room.roomId + ':' + instanceId;
+    if (this.powerUpAcknowledgedInstances.has(identity)) return;
+    this.powerUpAcknowledgedInstances.add(identity);
+    const event: PowerUpFeedbackPresentationEvent = { type: 'POWER_UP_FEEDBACK', id: room.roomId + ':ack:' + instanceId,
+      entityId: instanceId, roomId: room.roomId, roomVersion: room.version, kind, definitionId, name };
+    const current = this.store.getSnapshot().powerUpFeedback;
+    if (current?.kind === 'CONSUMED' && current.entityId === instanceId) {
+      this.store.setPowerUpFeedback({ ...event, id: current.id });
+      this.startPowerUpFeedbackTimer();
+      return;
+    }
+    const pending = this.powerUpFeedbackPending.findIndex(item => item.kind === 'CONSUMED' && item.entityId === instanceId);
+    if (pending >= 0) { this.powerUpFeedbackPending[pending] = event; return; }
+    if (this.powerUpRemovalInstances.has(identity)) return;
+    void this.queue.enqueue(event);
+  }
+
+  private enqueuePowerUpFeedback(event: PowerUpFeedbackPresentationEvent): void {
+    if (this.hidden || this.disposed || this.powerUpFeedbackSeen.has(event.id)) return;
+    this.powerUpFeedbackSeen.add(event.id);
+    if (event.kind === 'CONSUMED') {
+      const identity = event.roomId + ':' + event.entityId;
+      this.powerUpRemovalInstances.add(identity);
+      if (this.powerUpAcknowledgedInstances.has(identity)) return;
+    }
+    this.powerUpFeedbackPending.push(event);
+    if (!this.store.getSnapshot().powerUpFeedback) this.advancePowerUpFeedback();
+  }
+
+  private advancePowerUpFeedback(): void {
+    const event = this.powerUpFeedbackPending.shift() ?? null;
+    this.store.setPowerUpFeedback(event);
+    if (event) this.startPowerUpFeedbackTimer();
+  }
+
+  private startPowerUpFeedbackTimer(): void {
+    if (this.powerUpFeedbackTimer !== null) clearTimeout(this.powerUpFeedbackTimer);
+    // Wall-clock reading time is independent of animation speed and reduced motion.
+    this.powerUpFeedbackTimer = setTimeout(() => {
+      this.powerUpFeedbackTimer = null;
+      this.advancePowerUpFeedback();
+    }, 5_000);
+  }
+
+  private clearPowerUpFeedback(): void {
+    if (this.powerUpFeedbackTimer !== null) clearTimeout(this.powerUpFeedbackTimer);
+    this.powerUpFeedbackTimer = null;
+    this.powerUpFeedbackPending.length = 0;
+    this.powerUpAcknowledgedInstances.clear();
+    this.powerUpFeedbackSeen.clear();
+    this.powerUpRemovalInstances.clear();
+    this.store.setPowerUpFeedback(null);
   }
 
   public acceptPrivatePlayerState(
@@ -181,6 +241,7 @@ export class PresentationController {
     room: PublicRoomState,
     source: 'LIVE_UPDATE' | 'SESSION_SYNC',
   ): void {
+    if (source !== 'LIVE_UPDATE' || this.privatePowerUps && this.privatePowerUps.playerId !== privateState.playerId) this.clearPowerUpFeedback();
     const previousPowerUps = this.privatePowerUps?.playerId === privateState.playerId ? this.privatePowerUps.state : undefined;
     const previousTurnNumber = this.privatePowerUps?.turnNumber;
     this.privatePowerUps = { playerId: privateState.playerId, state: privateState.powerUps, turnNumber: room.gameState.boardState.turnNumber };
@@ -276,6 +337,7 @@ export class PresentationController {
     this.disposed = true;
     this.consumerCount = 0;
     this.disposalGeneration += 1;
+    this.clearPowerUpFeedback();
     this.audioStopPresentationVoices();
     this.queue.dispose();
   }

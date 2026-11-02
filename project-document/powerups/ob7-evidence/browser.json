@@ -1,0 +1,72 @@
+{
+  "status": "PASS",
+  "mode": "Two Chromium players",
+  "checks": [
+    {
+      "name": "OB-7 A08 ACK/removal + independent status; 5s per cue; gameplay free; reduced=false",
+      "status": "PASS",
+      "timeline": [
+        {
+          "id": null,
+          "at": 578.2000000011176
+        },
+        {
+          "id": "33dbef91-ffb5-49b1-9caa-ebe78eabe469:powerup:11:06fa83d8-7e71-4e02-b2a5-d6912042aaca",
+          "kind": "LEGENDARY",
+          "text": "Thẻ Huyền ThoạiKhủng Hoảng Thị Trường",
+          "at": 1523.300000000745
+        },
+        {
+          "id": "33dbef91-ffb5-49b1-9caa-ebe78eabe469:powerup:11:34ab3c98-6189-4e1d-99f4-5f18fd95d2e9",
+          "kind": "STATUS",
+          "text": "Hiệu ứng đang hoạt độngKhủng Hoảng Thị Trường",
+          "at": 6537.0999999996275
+        },
+        {
+          "id": null,
+          "at": 11540.400000000373
+        }
+      ]
+    },
+    {
+      "name": "Readable A08 feedback and exact-instance merge, reduced=false",
+      "status": "PASS"
+    },
+    {
+      "name": "OB-7 A08 ACK/removal + independent status; 5s per cue; gameplay free; reduced=true",
+      "status": "PASS",
+      "timeline": [
+        {
+          "id": null,
+          "at": 493.90000000037253
+        },
+        {
+          "id": "33dbef91-ffb5-49b1-9caa-ebe78eabe469:powerup:19:57e47411-ec5a-44e9-b677-e51b07d890c3",
+          "kind": "LEGENDARY",
+          "text": "Thẻ Huyền ThoạiKhủng Hoảng Thị Trường",
+          "at": 741.2000000011176
+        },
+        {
+          "id": "33dbef91-ffb5-49b1-9caa-ebe78eabe469:powerup:19:41d892f0-bd51-413c-b58e-89fd37a4651d",
+          "kind": "STATUS",
+          "text": "Hiệu ứng đang hoạt độngKhủng Hoảng Thị Trường",
+          "at": 5746.4000000003725
+        },
+        {
+          "id": null,
+          "at": 10760.900000000373
+        }
+      ]
+    },
+    {
+      "name": "Readable A08 feedback and exact-instance merge, reduced=true",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "ob7-feedback-false.png",
+    "ob7-feedback-true.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required."
+}

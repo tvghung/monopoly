@@ -7,7 +7,7 @@ describe('Phase 03D approved global configuration', () => {
   it('preserves every approved value and the 100-point rarity distribution', () => {
     expect(POWER_UP_CONFIG).toEqual({
       inventoryCapacity: 3,
-      rarityWeights: { COMMON: 60, RARE: 29, EPIC: 10, LEGENDARY: 1 },
+      rarityWeights: { COMMON: 40, RARE: 30, EPIC: 20, LEGENDARY: 10 },
       activeLimitPerPlayerTurn: 1,
       reactionLimitPerPlayerEvent: 1,
       reactionWindowSeconds: 15,
@@ -50,7 +50,7 @@ describe('Phase 03D approved global configuration', () => {
       expect(Reflect.set(config.rarityWeights, 'COMMON', 99)).toBe(false);
     }
     expect(Reflect.set(input.rarityWeights, 'COMMON', 99)).toBe(true);
-    expect(parsed.rarityWeights.COMMON).toBe(60);
+    expect(parsed.rarityWeights.COMMON).toBe(40);
   });
 
   it('uses Phase 02 inventory primitives with duplicate definitions and a three-card capacity', () => {

@@ -61,3 +61,11 @@ Run the existing stabilization harness with `--refinement` (and `--native` for p
 - Check VI/EN, OS and game reduced motion, keyboard navigation and opener restoration; verify language selection after the shared viewport correction.
 - Compare frame samples on the same machine and report headless/native limitations; RAF intervals do not establish physical GPU FPS. Owner visual/full-match UAT remains NOT RUN until explicitly recorded.
 - Evidence and commands: [OB-6 validation](../../powerups/OB6_UI_VALIDATION.md).
+
+## OB-7 / OB-9 regression
+
+- Verify ACK before/after inventory removal merges only that exact instance; two same-definition instances, theft, U04 ingredients, new status, shield charge and expiry retain independent meaning.
+- Verify every text cue remains readable for at least 5 seconds at all speeds and with reduced motion, without holding gameplay; sync/hidden/viewer change cancels old text and delayed ACK does not replay it.
+- Check VI/EN long text, success/denial/disconnect and actor/observer permissions in web and packaged Electron. Owner UAT is separate.
+- Verify rarity boundaries 0,39,40,69,70,89,90,99 per category; reject invalid RNG; uniform definition selection and exactly three category candidates.
+- Run seeded 100000-offer distribution per category (seed 0x0b900001; per-bin absolute tolerance 0.006 chosen in advance), preserve stored offers across reconnect, and regress U04/U10 special pools. Do not infer full-match balance.

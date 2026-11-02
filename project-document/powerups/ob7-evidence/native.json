@@ -1,0 +1,125 @@
+{
+  "status": "PASS",
+  "mode": "Packaged Electron acting player + Chromium opponent",
+  "checks": [
+    {
+      "name": "OB-7 A08 ACK/removal + independent status; 5s per cue; gameplay free; reduced=false",
+      "status": "PASS",
+      "timeline": [
+        {
+          "id": null,
+          "at": 1960.6000000014901
+        },
+        {
+          "id": "7fe96d48-e9b9-4510-b80f-860c59b5a695:powerup:11:a4a4c718-1e9b-41af-9c37-913747f85e86",
+          "kind": "LEGENDARY",
+          "text": "Thẻ Huyền ThoạiKhủng Hoảng Thị Trường",
+          "at": 3034.5
+        },
+        {
+          "id": "7fe96d48-e9b9-4510-b80f-860c59b5a695:powerup:11:6949f334-0763-403f-a3e6-7ed5ec589c09",
+          "kind": "STATUS",
+          "text": "Hiệu ứng đang hoạt độngKhủng Hoảng Thị Trường",
+          "at": 8055.700000001118
+        },
+        {
+          "id": null,
+          "at": 13058.900000000373
+        }
+      ]
+    },
+    {
+      "name": "Readable A08 feedback and exact-instance merge, reduced=false",
+      "status": "PASS"
+    },
+    {
+      "name": "OB-7 A08 ACK/removal + independent status; 5s per cue; gameplay free; reduced=true",
+      "status": "PASS",
+      "timeline": [
+        {
+          "id": null,
+          "at": 1613.300000000745
+        },
+        {
+          "id": "7fe96d48-e9b9-4510-b80f-860c59b5a695:powerup:19:8bb89018-d3e9-492d-9b2c-fc1166b11496",
+          "kind": "LEGENDARY",
+          "text": "Thẻ Huyền ThoạiKhủng Hoảng Thị Trường",
+          "at": 2089.5
+        },
+        {
+          "id": "7fe96d48-e9b9-4510-b80f-860c59b5a695:powerup:19:e2f9c6b9-61ac-402c-87b5-943ce8699c17",
+          "kind": "STATUS",
+          "text": "Hiệu ứng đang hoạt độngKhủng Hoảng Thị Trường",
+          "at": 7114.4000000003725
+        },
+        {
+          "id": null,
+          "at": 12119.300000000745
+        }
+      ]
+    },
+    {
+      "name": "Readable A08 feedback and exact-instance merge, reduced=true",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "ob7-feedback-false.png",
+    "ob7-feedback-true.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required.",
+  "profile": "C:\\Users\\hungtran\\AppData\\Local\\Temp\\otb-powerup-08b-wchRnj",
+  "nativeRuntime": {
+    "packaged": true,
+    "versions": {
+      "node": "24.18.1",
+      "acorn": "8.16.0",
+      "ada": "3.4.4",
+      "amaro": "1.1.9",
+      "ares": "1.34.6",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "148",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.69.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.4",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.1",
+      "tz": "2025c",
+      "undici": "7.29.0",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "15.0.245.28-electron.0",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0",
+      "electron": "43.4.0",
+      "chrome": "150.0.7871.224"
+    },
+    "gpu": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    }
+  }
+}
