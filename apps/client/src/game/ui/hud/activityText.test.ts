@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { REVIVE_WINDOW_SURVIVOR_TURNS, type ActivityEvent, type ActivityEventInput } from '@monopoly/shared';
-import { activityText } from './activityText';
+import { activitySegments, activityText } from './activityText';
 
 /** Adds the envelope every committed activity event carries. */
 const event = (input: ActivityEventInput): ActivityEvent => (
@@ -113,4 +113,52 @@ it('OB-12 translates receipt/use and keeps official proper card names',()=>{
  expect(activityText(receipt,'en')).toBe('Hưng received a Power-up card');
  expect(activityText(used,'vi')).toBe('Hưng đã dùng thẻ Tăng Tốc');
  expect(activityText(used,'en')).toBe('Hưng used Tăng Tốc');
+});
+
+
+describe('OB-14 player segments', () => {
+  it('tags semantic slots by ID even when names match content or contain placeholders', () => {
+    const name = 'Tăng Tốc {playerName} <img>';
+    const receipt = event({ type: 'POWER_UP_RECEIVED', playerId: 'a', playerName: name });
+    const used = event({ type: 'POWER_UP_USED', playerId: 'a', playerName: name, definitionId: 'U02', cardName: name });
+    for (const language of ['vi', 'en'] as const) {
+      expect(activitySegments(receipt, language).filter(s => s.playerId)).toEqual([{ text: name, playerId: 'a' }]);
+      const parts = activitySegments(used, language);
+      expect(parts.filter(s => s.playerId)).toEqual([{ text: name, playerId: 'a' }]);
+      expect(parts.at(-1)).toEqual({ text: name });
+      expect(parts.map(s => s.text).join('')).toBe(activityText(used, language));
+    }
+  });
+
+  it('keeps equal endpoint names distinct and bank/team/chat content untagged', () => {
+    const transfer = event({ type: 'MONEY_TRANSFER', source: { kind: 'PLAYER', playerId: 'a', name: 'An' }, destination: { kind: 'PLAYER', playerId: 'b', name: 'An' }, amount: 12, reason: 'RENT' });
+    expect(activitySegments(transfer).filter(s => s.playerId)).toEqual([{ text: 'An', playerId: 'a' }, { text: 'An', playerId: 'b' }]);
+    const bank = event({ ...transfer, source: { kind: 'BANK' }, destination: { kind: 'BANK' } } as ActivityEventInput);
+    expect(activitySegments(bank).some(s => s.playerId)).toBe(false);
+    const chat = event({ type: 'CHAT', senderRole: 'PLAYER', senderPlayerId: 'a', senderName: 'An', message: 'An {playerName}' });
+    expect(activitySegments(chat).some(s => s.playerId)).toBe(false);
+    expect(activityText(chat)).toBe('An: An {playerName}');
+    const win = event({ type: 'GAME_FINISHED', winnerPlayerId: 'a', winnerName: 'An', winnerColor: 'red', winnerCharacterId: null, finalCash: 1, winningTeamName: 'An', winningTeamId: 'TEAM_1' });
+    expect(activitySegments(win).some(s => s.playerId)).toBe(false);
+  });
+
+  it('covers actor, owner, winner, survivor and rescue references in both locales', () => {
+    const cases: Array<[ActivityEventInput, string[]]> = [
+      [{ type: 'PLAYER_JOINED', playerId: 'a', playerName: 'A', color: 'red', characterId: null }, ['a']],
+      [{ type: 'GAME_STARTED', startingPlayerId: 'a', startingPlayerName: 'A', playerIds: ['a','b'] }, ['a']],
+      [{ type: 'DICE_ROLL', playerId: 'a', playerName: 'A', dice1: 1, dice2: 2, total: 3, context: 'JAIL' }, ['a']],
+      [{ type: 'TILE_LANDED', playerId: 'a', playerName: 'A', tileID: 1 }, ['a']],
+      [{ type: 'PROPERTY_PURCHASE', playerId: 'a', playerName: 'A', tileID: 1, price: 60 }, ['a']],
+      [{ type: 'PROPERTY_TRANSFER', from: { kind: 'PLAYER', playerId: 'a', name: 'A' }, to: { kind: 'PLAYER', playerId: 'b', name: 'B' }, tileID: 1, cause: 'VOLUNTARY_TRADE' }, ['a','b']],
+      [{ type: 'PROPERTY_DEVELOPMENT', playerId: 'a', playerName: 'A', ownerPlayerId: 'b', ownerName: 'B', tileID: 1, fromHouses: 1, toHouses: 2, action: 'BUILD' }, ['a','b']],
+      [{ type: 'JAIL', playerId: 'a', playerName: 'A', action: 'ENTRY' }, ['a']],
+      [{ type: 'PLAYER_FINISHED', playerId: 'a', playerName: 'A', reason: 'BANKRUPT', finalCash: 0 }, ['a']],
+      [{ type: 'GAME_FINISHED', winnerPlayerId: 'a', winnerName: 'A', winnerColor: 'red', winnerCharacterId: null, finalCash: 5 }, ['a']],
+      [{ type: 'TEAM_REVIVE', action: 'REVIVED', playerId: 'a', playerName: 'A', survivorPlayerId: 'b', survivorName: 'B', turnsRemaining: 2 }, ['b','a']],
+      [{ type: 'EMERGENCY_RESCUE', action: 'ACCEPTED', debtorPlayerId: 'a', debtorName: 'A', rescuerPlayerId: 'b', rescuerName: 'B', amount: 3 }, ['b','a']],
+    ];
+    for (const [input, ids] of cases) for (const language of ['vi','en'] as const) {
+      expect(activitySegments(event(input), language).filter(s => s.playerId).map(s => s.playerId), input.type).toEqual(ids);
+    }
+  });
 });

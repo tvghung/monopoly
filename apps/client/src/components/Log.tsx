@@ -8,7 +8,8 @@ import stateContext from '../internal';
 import { usePresentationQueue } from '../game/presentation/PresentationProvider';
 import { usePresentationSelector } from '../game/presentation/usePresentationSelector';
 import type { PresentationState } from '../game/presentation/store/types';
-import { activityText } from '../game/ui/hud/activityText';
+import { activitySegments } from '../game/ui/hud/activityText';
+import { getActivityPlayerColor } from '../game/ui/hud/activityPlayerColor';
 import { useHudDrawer } from '../game/ui/hud/hudDrawer';
 import { useTranslation } from '../i18n/I18n';
 
@@ -102,6 +103,17 @@ export default function Log() {
     () => visibleActivity.reduce((latest, event) => (event.type === 'CHAT' ? Math.max(latest, event.sequence) : latest), 0),
     [visibleActivity],
   );
+  const playerColors = useMemo(() => {
+    const colors = new Map<string, string>();
+    // Event colors can identify a departed player whose roster entry is gone.
+    for (const event of authoritativeActivity) {
+      if (event.type === 'PLAYER_JOINED') colors.set(event.playerId, event.color);
+      if (event.type === 'GAME_FINISHED') colors.set(event.winnerPlayerId, event.winnerColor);
+    }
+    for (const [id, player] of Object.entries(state.boardState.finishedPlayers)) colors.set(id, player.color);
+    for (const [id, player] of Object.entries(state.players)) colors.set(id, player.color);
+    return colors;
+  }, [authoritativeActivity, state.boardState.finishedPlayers, state.players]);
   const entries = useMemo(
     () => [
       ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
@@ -110,11 +122,16 @@ export default function Log() {
           key={event.eventId}
           className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
         >
-          {activityText(event, language)}
+          {activitySegments(event, language).map((segment, index) => {
+            const color = segment.playerId ? getActivityPlayerColor(playerColors.get(segment.playerId)) : undefined;
+            return color
+              ? <span key={index} className="activity-player-name" data-player-id={segment.playerId} style={{ color }}>{segment.text}</span>
+              : segment.text;
+          })}
         </p>
       )),
     ],
-    [language, narrativeActivity, visibleLogs],
+    [language, narrativeActivity, playerColors, visibleLogs],
   );
 
   useEffect(() => {
