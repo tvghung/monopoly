@@ -476,3 +476,11 @@ describe('CSS Journal lifecycle', () => {
     focus.mockRestore();
   });
 });
+
+it('OB-12 renders public Power-up semantics as safe text once across rerender',()=>{
+ const name='<img src=x onerror=alert(1)>';const activity:ActivityEvent[]=[{type:'POWER_UP_RECEIVED',playerId:'a',playerName:name,eventId:'receipt',sequence:1,occurredAt:'2026-11-03T00:00:00Z'},{type:'POWER_UP_USED',playerId:'a',playerName:name,definitionId:'U02',cardName:'Tăng Tốc',eventId:'use',sequence:2,occurredAt:'2026-11-03T00:00:01Z'}];
+ window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY,'open');
+ const view=renderLog([],activity);expect(screen.getAllByText(name+' đã nhận 1 thẻ Power-up')).toHaveLength(1);expect(screen.getAllByText(name+' đã dùng thẻ Tăng Tốc')).toHaveLength(1);expect(view.container.querySelector('img')).toBeNull();
+ view.rerender(<stateContext.Provider value={makeContext(makeState([],structuredClone(activity)))}><Log/></stateContext.Provider>);expect(screen.getAllByText(name+' đã nhận 1 thẻ Power-up')).toHaveLength(1);
+ view.unmount();window.localStorage.clear();
+});

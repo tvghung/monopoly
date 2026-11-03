@@ -1,7 +1,8 @@
+import type { OfficialPowerUpId } from './powerUpEffects';
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 17 as const;
+export const SOCKET_PROTOCOL_VERSION = 18 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -305,6 +306,8 @@ export type ActivityMoneyEndpoint =
   | { kind: 'PLAYER'; playerId: PlayerId; name: string };
 
 export type ActivityEvent = ActivityEventBase & (
+  | { type: 'POWER_UP_RECEIVED'; playerId: PlayerId; playerName: string }
+  | { type: 'POWER_UP_USED'; playerId: PlayerId; playerName: string; definitionId: OfficialPowerUpId; cardName: string }
   | {
     type: 'PLAYER_JOINED';
     playerId: PlayerId;

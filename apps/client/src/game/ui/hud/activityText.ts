@@ -36,6 +36,10 @@ const endpointName = (endpoint: Extract<ActivityEvent, { type: 'MONEY_TRANSFER' 
 export function activityText(event: ActivityEvent, language: Language = 'vi'): string {
   const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   switch (event.type) {
+    case 'POWER_UP_RECEIVED':
+      return t('activity.powerUpReceived', { playerName: event.playerName });
+    case 'POWER_UP_USED':
+      return t('activity.powerUpUsed', { playerName: event.playerName, cardName: event.cardName });
     case 'PLAYER_JOINED':
       return t('activity.playerJoined', { playerName: event.playerName });
     case 'GAME_STARTED':

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { officialPowerUpIdSchema } from './powerUpEffects';
 import { powerUpStateSchema, powerUpOwnerStateSchema } from './powerUps';
 import {
   ACTIVITY_FEED_MAX_EVENTS,
@@ -298,6 +299,8 @@ const activityMoneyEndpointSchema = z.discriminatedUnion('kind', [
 ]);
 
 export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnion('type', [
+  z.strictObject({ ...activityEventBase, type: z.literal('POWER_UP_RECEIVED'), playerId: playerIdSchema, playerName: z.string().min(1).max(20) }),
+  z.strictObject({ ...activityEventBase, type: z.literal('POWER_UP_USED'), playerId: playerIdSchema, playerName: z.string().min(1).max(20), definitionId: officialPowerUpIdSchema, cardName: z.string().min(1).max(100) }),
   z.strictObject({
     ...activityEventBase,
     type: z.literal('PLAYER_JOINED'),

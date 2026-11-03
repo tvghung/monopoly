@@ -18,3 +18,7 @@ The ACK is emitted after commit with the room revision. Invalid payloads fail be
 Reaction deadlines are absolute server timestamps 15 seconds from event creation. The server scheduler and reconnect recovery resolve expiry; UI countdown is display-only. Reconnect projects the current private prompt/status to its authorized owner. A save failure discards the cloned draft and publishes no result. Recovery is same-process only: the RAM host has no process-restart persistence.
 
 Tests: `apps/server/src/socket.powerUps.integration.test.ts` and `apps/server/src/game/powerUps/runtime.test.ts`. End-to-end evidence and command coverage limitations are recorded in [Phase 08 validation](../../powerups/08_FINAL_VALIDATION_REPORT.md).
+
+## OB-12 committed activity
+
+Current development uses protocol18/snapshot16 (superseding the17/15 heading above); command payloads stay unchanged. The existing public update carries received/used activity semantics after room commit only. Failed commands or failed commit publish no success activity; other players/spectators see the same public tail. See [shared contract](../Shared/socket-and-state-contracts.instruction.md#ob-12-power-up-activity-current-development).

@@ -1,3 +1,4 @@
+import { recordPowerUpUsed } from './activity';
 import { randomUUID } from 'node:crypto';
 import {
   areTeammates,
@@ -192,7 +193,11 @@ export function resolvePowerUpRent(
   if (usedDefenseId === 'D01') {
     rentDue -= Math.min(80, Math.floor(rentDue * 40 / 100));
   }
-  if (usedDefenseInstanceId) removeInstance(state, event.debtorPlayerId, usedDefenseInstanceId);
+  if (usedDefenseInstanceId) {
+    const defense = state.privateState.powerUps?.inventories[event.debtorPlayerId]?.cards.find(card => card.instanceId === usedDefenseInstanceId);
+    removeInstance(state, event.debtorPlayerId, usedDefenseInstanceId);
+    if (defense) recordPowerUpUsed(state, event.debtorPlayerId, defense.definitionId);
+  }
 
   const rentShareStatus = statusesOf(state).find(status => status.kind === 'RENT_SHARE'
     && status.targetPlayerId === event.landlordPlayerId);
