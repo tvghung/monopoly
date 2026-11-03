@@ -280,3 +280,10 @@ it('OB-8 continue submits once without consuming a card, and pending activation 
   expect(value.socketFunctions.continuePowerUpMovement).toHaveBeenCalledWith({operationId:'movement-operation'});expect(value.privatePlayerState!.powerUps!.inventory!.cards).toHaveLength(1);
   rendered.unmount();
 });
+
+it('OB-13 restores reward with safe primary focus and decline/claim order without swapping commands',async()=>{
+ const value=context('REVEALED');render(view(value));const decline=screen.getByRole('button',{name:'Bỏ thẻ mới'});const claim=screen.getByRole('button',{name:'Nhận thẻ'});
+ expect(Boolean(decline.compareDocumentPosition(claim)&Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+ await act(async()=>{await Promise.resolve()});expect(document.activeElement).toBe(claim);
+ await act(()=>fireEvent.click(decline));expect(value.socketFunctions.resolvePowerUp).toHaveBeenCalledWith({offerId:id,action:'DECLINE'});expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalledWith({offerId:id,action:'CLAIM'});
+});

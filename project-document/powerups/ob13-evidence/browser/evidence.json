@@ -1,0 +1,64 @@
+{
+  "status": "PASS",
+  "mode": "Two Chromium players",
+  "checks": [
+    {
+      "name": "vi 1440x900 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "vi 1280x720 order/focus/DECLINE",
+      "status": "PASS"
+    },
+    {
+      "name": "vi 900x500 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "vi 667x375 order/focus/DECLINE",
+      "status": "PASS"
+    },
+    {
+      "name": "vi 760x280 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "en 1440x900 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "en 1280x720 order/focus/DECLINE",
+      "status": "PASS"
+    },
+    {
+      "name": "en 900x500 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "en 667x375 order/focus/DECLINE",
+      "status": "PASS"
+    },
+    {
+      "name": "en 760x280 order/focus/CLAIM",
+      "status": "PASS"
+    },
+    {
+      "name": "Full inventory retains REPLACE/DECLINE without a fake CLAIM",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "vi-1440x900.png",
+    "vi-1280x720.png",
+    "vi-900x500.png",
+    "vi-667x375.png",
+    "vi-760x280.png",
+    "en-1440x900.png",
+    "en-1280x720.png",
+    "en-900x500.png",
+    "en-667x375.png",
+    "en-760x280.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required."
+}

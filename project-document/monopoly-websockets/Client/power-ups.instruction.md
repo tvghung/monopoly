@@ -76,3 +76,7 @@ The inventory no longer opens automatically for purchase/development. Its Power-
 ## OB-12 activity history
 
 Power-up receipt/use history is separate from OB-7 feedback and produced by the server. See [activity log](./activity-log-and-chat.instruction.md#ob-12-power-up-history-current-development). Opening, selecting, skipping or cancelling a UI action never appends a success log locally.
+
+## OB-13 reward action order
+
+At the revealed reward decision, footer DOM/read order is Decline then Claim, with Claim retaining primary styling on the right when on one row. Wrapping keeps the same order. The Claim action declares shared Modal autofocus on open/restore, so reversing DOM order does not default focus to rejection. Existing request callbacks, busy/connection/permission guards and locked selection are unchanged. Full inventory still offers replacement in the body and Decline without a fake Claim action. No global Enter handler or confirmation is added.

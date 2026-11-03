@@ -87,3 +87,7 @@ Card × timing × surface × target matrix and actual automated/native coverage 
 ## OB-12 Power-up activity regression
 
 Check generic reward/REPLACE/automatic receipts with no card metadata in the payload; no receipt for offer/reveal/full-hand wait/decline/failure. Use U02 through checkpoint and Active/Reaction/contextual commands: exact actor/catalog name once, no phantom entry on rollback/skip/denial, no replay on reconnect. A06/reflection credits actual receiver; U04/U10 log activator use plus one unnamed output; U06 accepted logs initiator use and two generic receipts, pending/declined/expired logs neither. Verify 128-event/500-line bounds, two independent identical actions, Host/Guest/spectator, VI/EN text escaping, presentation gate and unchanged OB-7 feedback. Refuse protocol17/older and snapshot15/older under current18/16 contract.
+
+## OB-13 reward footer regression
+
+Check Decline | Claim visual and DOM order, primary Claim right when on one row, safe Claim autofocus for a restored revealed reward, Tab/Shift+Tab/Enter/Space tied to the focused action. Verify independent CLAIM/DECLINE commands, busy double-submit guard, VI/EN, reduced motion, reconnect, full inventory REPLACE/DECLINE and no Decline in owned activation. Viewports1440×900,1280×720,900×500,667×375,760×280; footer stays visible, wraps in DOM order without overflow.
