@@ -1,6 +1,6 @@
 # Power-up socket contract
 
-> **CURRENT DEVELOPMENT — protocol 17 / RAM snapshot 15 (OB-8).** Published v1.11.1 remains protocol 16 / snapshot 14. Commands are strict schemas and use the authenticated player identity. The owner-level inventory and status data is private; public state exposes only held counts/category totals and authorized reaction state.
+> **CURRENT DEVELOPMENT — protocol 18 / RAM snapshot 16 (OB-12).** Published v1.11.1 remains protocol 16 / snapshot 14. Commands are strict schemas and use the authenticated player identity. The owner-level inventory and status data is private; public state exposes only held counts/category totals and authorized reaction state.
 
 Canonical gameplay rules: [Power-up runtime](../GameCore/power-ups.instruction.md). Shared event names/types and payload schemas are in `packages/shared/src/events.ts` and `packages/shared/src/socketSchemas.ts`. Handlers are in `apps/server/src/socket/powerUps.ts`; commands enter the existing `runGameCommand` transaction in `apps/server/src/commands/gameplay.ts`.
 
@@ -21,4 +21,4 @@ Tests: `apps/server/src/socket.powerUps.integration.test.ts` and `apps/server/sr
 
 ## OB-12 committed activity
 
-Current development uses protocol18/snapshot16 (superseding the17/15 heading above); command payloads stay unchanged. The existing public update carries received/used activity semantics after room commit only. Failed commands or failed commit publish no success activity; other players/spectators see the same public tail. See [shared contract](../Shared/socket-and-state-contracts.instruction.md#ob-12-power-up-activity-current-development).
+Current development uses protocol18/snapshot16; command payloads stay unchanged. The existing public update carries received/used activity semantics after room commit only. Failed commands or failed commit publish no success activity; other players/spectators see the same public tail. See [shared contract](../Shared/socket-and-state-contracts.instruction.md#ob-12-power-up-activity-current-development).
