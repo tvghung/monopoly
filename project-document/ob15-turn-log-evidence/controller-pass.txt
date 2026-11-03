@@ -1,0 +1,16 @@
+$ vitest run --environment jsdom --pool=threads --maxWorkers=1 --no-file-parallelism "src/game/presentation/PresentationController.turnLogs.test.ts" "src/game/presentation/PresentationController.test.ts" "src/components/Log.test.tsx" "src/game/ui/hud/tickerAndBubbles.test.tsx"
+
+ RUN  v4.1.10 C:/Users/hungtran/Documents/ChatGPT/Own the block (monopoly)/ob-7-9-powerups/apps/client
+
+ ✓ src/game/presentation/PresentationController.test.ts (20 tests) 3786ms
+     ✓ snaps session sync and queues only live diffs  359ms
+     ✓ flushes a roll log only after the card interaction hands off the turn  3012ms
+ ✓ src/components/Log.test.tsx (27 tests) 566ms
+ ✓ src/game/ui/hud/tickerAndBubbles.test.tsx (16 tests) 170ms
+ ✓ src/game/presentation/PresentationController.turnLogs.test.ts (10 tests) 29ms
+
+ Test Files  4 passed (4)
+      Tests  73 passed (73)
+   Start at  16:52:33
+   Duration  10.57s (transform 759ms, setup 0ms, import 2.57s, tests 4.55s, environment 2.47s)
+

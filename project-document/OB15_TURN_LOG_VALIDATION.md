@@ -12,7 +12,7 @@ No gameplay command, bot pacing, animation duration, event source, protocol18/sn
 
 ## Failing-before evidence
 
-- Baseline source/main: `74a34d5ce6ab712b5aaab26361f8fecaed1e8f55`. All seven initial controller regressions FAIL before the production patch; they cover four continuous handoffs in Solo/2v2, next-turn purchase/card/payment, terminal/same-player handoff and legacy history. Raw [test log](./ob15-turn-log-evidence/before/controller-fail.log).
+- Baseline source/main: `74a34d5ce6ab712b5aaab26361f8fecaed1e8f55`. All seven initial controller regressions FAIL before the production patch; they cover four continuous handoffs in Solo/2v2, next-turn purchase/card/payment, terminal/same-player handoff and legacy history. Raw [test log](./ob15-turn-log-evidence/before/controller-fail.txt).
 - Production Chromium baseline also FAILS at the first handoff: the committed landing row remains absent past the 650ms deadline while dice/walk presentation is still active. [JSON](./ob15-turn-log-evidence/before/browser-fail.json), [screenshot](./ob15-turn-log-evidence/before/browser-fail.png). This verifies the queue-idle delay; it does not claim every reported Owner session was reproduced identically.
 
 ## Validation and reproduction
@@ -35,7 +35,7 @@ The acceptance harness uses server-validated Dev transactions, real nextTurn/mov
 
 PASS: Chromium and packaged Electron each complete all four acceptance groups, with no page errors. Each handoff was observed on all three viewer roles in 57–338ms in the recorded runs, under the 650ms regression deadline. These are test-machine observations, not a physical-device performance guarantee. The after image shows all four actor landing lines while earlier board presentation is still running.
 
-Raw results: [browser JSON](./ob15-turn-log-evidence/browser/evidence.json), [native JSON](./ob15-turn-log-evidence/native/evidence.json), [passing controller log](./ob15-turn-log-evidence/controller-pass.log). Screenshots: [native four handoffs](./ob15-turn-log-evidence/native/four-handoffs.png), [native English reconnect](./ob15-turn-log-evidence/native/english-history.png), [browser four handoffs](./ob15-turn-log-evidence/browser/four-handoffs.png). Images were visually reviewed.
+Raw results: [browser JSON](./ob15-turn-log-evidence/browser/evidence.json), [native JSON](./ob15-turn-log-evidence/native/evidence.json), [passing controller log](./ob15-turn-log-evidence/controller-pass.txt). Screenshots: [native four handoffs](./ob15-turn-log-evidence/native/four-handoffs.png), [native English reconnect](./ob15-turn-log-evidence/native/english-history.png), [browser four handoffs](./ob15-turn-log-evidence/browser/four-handoffs.png). Images were visually reviewed.
 
 ## Owner UAT local
 
