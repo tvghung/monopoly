@@ -352,6 +352,8 @@ export class PresentationController {
     next: PublicRoomState,
     events: ReturnType<typeof derivePresentationEvents>,
   ): void {
+    const precedingLogs = this.authoritativeLogs;
+    const precedingActivity = this.authoritativeActivity;
     if (
       this.authoritativeActivity.length === 0
       && next.gameState.boardState.activityFeed.events.length === 0
@@ -360,8 +362,36 @@ export class PresentationController {
     }
     this.authoritativeLogs = [...this.legacyLogPrefix];
     this.authoritativeActivity = [...next.gameState.boardState.activityFeed.events];
+    const before = previous.gameState.boardState;
+    const after = next.gameState.boardState;
+    const handedOff = before.currentPlayer.id !== after.currentPlayer.id
+      || after.turnNumber > before.turnNumber;
+    const finished = next.status === 'FINISHED' || Boolean(after.winner);
+    const nextTurnActive = after.currentPlayer.hasMoved || Boolean(
+      next.gameState.turnInfo.pendingCardInteraction
+      || next.gameState.turnInfo.pendingLandingDecision
+      || after.paymentShortfall,
+    );
+    if (handedOff && nextTurnActive && !finished) {
+      // If an incoming state already contains the next turn's interaction, only
+      // the preceding snapshot is a proven completed prefix. Gate the new tail
+      // under the new actor rather than retaining the old turn's gate.
+      this.store.setDisplayLogs(precedingLogs);
+      this.store.setDisplayActivity(precedingActivity);
+      this.logGate = { playerId: after.currentPlayer.id, turnNumber: after.turnNumber };
+      return;
+    }
+    if (handedOff || finished) {
+      // App accepts each committed snapshot synchronously. This tail ends at the
+      // observed handoff, before any later action by the next player. Publish it
+      // even while earlier animations run; a later snapshot gets its own gate.
+      this.store.setDisplayLogs(this.authoritativeLogs);
+      this.store.setDisplayActivity(this.authoritativeActivity);
+      this.logGate = null;
+      return;
+    }
     if (this.logGate) return;
-    if (events.length === 0) {
+    if (events.length === 0 && !nextTurnActive) {
       this.store.setDisplayLogs(this.authoritativeLogs);
       this.store.setDisplayActivity(this.authoritativeActivity);
       return;

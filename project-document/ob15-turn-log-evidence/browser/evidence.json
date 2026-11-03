@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "mode": "Chromium Host/4 players/Spectator",
+  "checks": [
+    {
+      "name": "Four consecutive authoritative handoffs publish each completed actor on Host/Guest/Spectator without waiting for anchor or dice/walk queue idle",
+      "status": "PASS"
+    },
+    {
+      "name": "New pending purchase does not hide earlier completed turns; current gameplay stays gated and authoritative chat remains immediate",
+      "status": "PASS"
+    },
+    {
+      "name": "Reconnect hydrates the same committed identities/order without duplicate gameplay or chat",
+      "status": "PASS"
+    },
+    {
+      "name": "VI/EN copy and OB-14 player-name colors survive the new timing and reconnect",
+      "status": "PASS"
+    }
+  ],
+  "handoffs": [
+    {
+      "actor": "626a9351-4dbb-413a-b941-5ee01225108c",
+      "name": "Log Host",
+      "publishedWithinMs": 164
+    },
+    {
+      "actor": "bf838b0d-95fb-44e6-b803-b3d81c108b81",
+      "name": "Log Guest",
+      "publishedWithinMs": 58
+    },
+    {
+      "actor": "4d3d8230-6999-4f77-83d0-39844151af42",
+      "name": "Log Third",
+      "publishedWithinMs": 120
+    },
+    {
+      "actor": "e0990cd1-00c9-476b-b7e7-38f59dfb61b8",
+      "name": "Log Fourth",
+      "publishedWithinMs": 61
+    }
+  ],
+  "screenshots": [
+    "four-handoffs.png",
+    "english-history.png"
+  ],
+  "pageErrors": []
+}
