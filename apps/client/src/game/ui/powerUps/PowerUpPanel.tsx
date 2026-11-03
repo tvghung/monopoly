@@ -55,8 +55,8 @@ function RewardDecision({ offer, inventory }: { offer: Offer; inventory: PowerUp
   const resolve = (request: ResolvePowerUpRequest) => void send(socketFunctions.resolvePowerUp ? () => socketFunctions.resolvePowerUp!(request) : undefined);
   return <Modal open title={t('powerup.title')} eyebrow={t('powerup.earned')} size="xl" tone="celebration" peek="decision" peekKey={offer.offerId}
     closeOnEscape={false} className="power-up-reward" footer={revealed ? <div className="power-up-actions">
-      {!full ? <Button icon={<ActionIcon name="accept" size={16} />} busy={busy} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'CLAIM' })}>{t('powerup.claim')}</Button> : null}
       <Button variant="secondary" icon={<ActionIcon name="decline" size={16} />} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'DECLINE' })}>{t('powerup.decline')}</Button>
+      {!full ? <Button data-modal-autofocus={enabled || undefined} icon={<ActionIcon name="accept" size={16} />} busy={busy} disabled={!enabled} onClick={() => resolve({ offerId: offer.offerId, action: 'CLAIM' })}>{t('powerup.claim')}</Button> : null}
     </div> : undefined}>
     <div className="power-up-grid power-up-picker-grid" aria-busy={busy || waitingForSelection}>
       {offer.candidates.map((candidate, index) => <PowerUpPickerCard key={candidate.category} {...candidate}
