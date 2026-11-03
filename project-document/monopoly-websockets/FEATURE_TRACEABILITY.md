@@ -421,9 +421,9 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F38 Activity log and chat
 - **Entry:** HUD log drawer; chat input.
 - **Docs:** [activity-log-and-chat][c-log], [socket-chat][a-chat].
-- **Client:** `apps/client/src/components/Log.tsx`, `apps/client/src/game/ui/hud/activityText.ts`, `apps/client/src/game/ui/hud/ActivityTicker.tsx`.
+- **Client:** `apps/client/src/components/Log.tsx`, `apps/client/src/game/ui/hud/activityText.ts`, `apps/client/src/game/ui/hud/ActivityTicker.tsx`, `apps/client/src/game/ui/hud/activityPlayerColor.ts` (OB-14 ID-based Journal name colors).
 - **Server:** `apps/server/src/socket/chat.ts`, `apps/server/src/game/activity.ts`, `apps/server/src/game/text.ts`, `apps/server/src/game/powerUps/activity.ts` (OB-12 committed receipt/use).
-- **Tests:** `apps/client/src/components/Log.test.tsx`, `apps/client/src/game/ui/hud/activityText.test.ts`, `apps/server/src/socket.integration.test.ts`.
+- **Tests:** `apps/client/src/components/Log.test.tsx`, `apps/client/src/game/ui/hud/activityText.test.ts`, `apps/client/src/game/ui/hud/activityPlayerColor.test.ts`, `apps/server/src/socket.integration.test.ts`.
 - **Manual:** [chat checklist][t-chat]. **Affects:** F21, F40.
 
 ### F39 Spectator mode

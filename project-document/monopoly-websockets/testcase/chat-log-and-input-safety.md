@@ -33,3 +33,12 @@ runtime schema or RAM transaction failure behavior.
 ## OB-12 Power-up activity regression
 
 Check generic reward/REPLACE/automatic receipts with no card metadata in the payload; no receipt for offer/reveal/full-hand wait/decline/failure. Use U02 through checkpoint and Active/Reaction/contextual commands: exact actor/catalog name once, no phantom entry on rollback/skip/denial, no replay on reconnect. A06/reflection credits actual receiver; U04/U10 log activator use plus one unnamed output; U06 accepted logs initiator use and two generic receipts, pending/declined/expired logs neither. Verify 128-event/500-line bounds, two independent identical actions, Host/Guest/spectator, VI/EN text escaping, presentation gate and unchanged OB-7 feedback. Refuse protocol17/older and snapshot15/older under current18/16 contract.
+
+
+## OB-14 Player colors in the Journal
+
+- [ ] Verify each gameplay actor/target name uses its player ID color, including transfers, teammate development, rescue/revival and Solo winner. Matching names must still use their respective colors; matching text in card names or descriptions stays ordinary.
+- [ ] Generic Power-up receipts reveal no card metadata; uses retain exact official card names. CHAT, team/bank names and legacy/freeform strings are unchanged; unknown ID/color stays plain.
+- [ ] Switch VI/EN, reopen the Journal and reconnect Host/Guest: same history, identities and order without duplicates or replay. Finished-player colors remain available.
+- [ ] Check long unbroken names, identical names, braces and HTML-like characters in wide and phone landscape layouts; no injected HTML, horizontal overflow or unreadable colors on V1 white/V2 paper.
+- [ ] Owner Electron UAT is recorded separately from automated Dev checks. Automated formatter/component/contrast coverage lives in `activityText.test.ts`, `Log.test.tsx` and `activityPlayerColor.test.ts`; production browser/packaged Electron checks use `scripts/powerUpActivityAcceptance.check.mjs --player-colors` (add `--native` for Electron).

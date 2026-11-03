@@ -147,3 +147,12 @@ The panel stays mounted; CSS slides it from/to the right in 240 ms using transfo
 ## OB-12 Power-up history (CURRENT DEVELOPMENT)
 
 activityText renders POWER_UP_RECEIVED as a generic receipt and POWER_UP_USED with the server catalog proper card name, using VI/EN sentence templates. Official proper names remain catalog names in both languages, consistent with cards. Log renders these as React text, never markup. Existing presentation gate, event identities, 128-event tail, reconnect hydration and legacy-prefix handling remain unchanged; no client append or inventory-diff inference is added. ActivityTicker reuses the same semantics; OB-7 feedback duration/dedupe is unchanged. Receipt payload itself contains no card metadata.
+
+
+## OB-14 Player name color (CURRENT DEVELOPMENT)
+
+The Journal uses `activitySegments` from `apps/client/src/game/ui/hud/activityText.ts` to interpolate catalog placeholders into text and player-reference segments. Only semantic player slots carry IDs; user-controlled values are never parsed or searched for names. Multiple actors/targets, teammate owners, revival/rescue participants and the Solo winner keep their own IDs. Team names, bank endpoints, card descriptions/names and CHAT remain plain text. Plain-text consumers still use `activityText` with identical wording.
+
+`Log.tsx` resolves colors by ID from current public players, then finished players, then explicit PLAYER_JOINED/GAME_FINISHED event colors. Missing IDs or unknown colors remain ordinary text; no name or seat-order inference is used. Stored event names remain unchanged even if the current roster name differs. No payload, feed ordering, history or protocol changes are made.
+
+`apps/client/src/game/ui/hud/activityPlayerColor.ts` derives text colors from the existing board palette, darkening each hue only enough to reach 4.5:1 on the V2 paper surface (and legacy white). Only the name span receives that color; font size and line flow remain inherited. Long unbroken names can wrap within the span. React renders every segment as text, never HTML. Existing presentation gating, reconnect hydration, unread behavior and legacy-prefix fallback are unchanged.

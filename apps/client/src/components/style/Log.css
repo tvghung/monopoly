@@ -232,3 +232,6 @@
     font-size: 0;
   }
 }
+
+/* Player references remain inline text and wrap even when a name has no spaces. */
+.activity-player-name { overflow-wrap: anywhere; }

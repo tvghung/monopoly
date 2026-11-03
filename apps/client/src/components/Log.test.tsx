@@ -484,3 +484,63 @@ it('OB-12 renders public Power-up semantics as safe text once across rerender',(
  view.rerender(<stateContext.Provider value={makeContext(makeState([],structuredClone(activity)))}><Log/></stateContext.Provider>);expect(screen.getAllByText(name+' đã nhận 1 thẻ Power-up')).toHaveLength(1);
  view.unmount();window.localStorage.clear();
 });
+
+
+describe('OB-14 colored player references', () => {
+  beforeEach(() => window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'open'));
+  afterEach(() => { cleanup(); window.localStorage.clear(); });
+  const receipt = (id: string, name: string, sequence = 1): ActivityEvent => ({ type: 'POWER_UP_RECEIVED', playerId: id, playerName: name, eventId: 'receipt-' + sequence, sequence, occurredAt: '2026-11-03T00:00:00Z' });
+  function withColors(events: ActivityEvent[], colors: Record<string, 'red' | 'blue' | 'yellow'>) {
+    const state = makeState([], events);
+    for (const [id, color] of Object.entries(colors)) state.boardState.finishedPlayers[id] = { name: 'Same', color, characterId: null, teamId: 'TEAM_1' };
+    return state;
+  }
+  const draw = (state: PublicGameState) => <stateContext.Provider value={makeContext(state)}><Log /></stateContext.Provider>;
+
+  it('colors equal names by ID, preserves historical text, and updates colors on state replacement without adding rows', () => {
+    const feed = [receipt('a', 'Same'), receipt('b', 'Same', 2)];
+    const view = render(draw(withColors(feed, { a: 'red', b: 'blue' })));
+    const names = () => [...view.container.querySelectorAll<HTMLElement>('.activity-player-name')];
+    expect(names().map(n => n.dataset.playerId)).toEqual(['a', 'b']);
+    expect(names()[0].style.color).not.toBe(names()[1].style.color);
+    const first = names()[0].style.color;
+    view.rerender(draw(withColors(structuredClone(feed), { a: 'yellow', b: 'blue' })));
+    expect(names()[0].style.color).not.toBe(first);
+    expect(names().map(n => n.textContent)).toEqual(['Same', 'Same']);
+    expect(view.container.querySelectorAll('.activity-entry')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(names()).toHaveLength(2);
+  });
+
+  it('styles both transfer endpoints but no matching text in card names or chat', () => {
+    const feed: ActivityEvent[] = [
+      { type: 'MONEY_TRANSFER', source: { kind: 'PLAYER', playerId: 'a', name: 'Same' }, destination: { kind: 'PLAYER', playerId: 'b', name: 'Same' }, amount: 1, reason: 'RENT', eventId: 'money', sequence: 1, occurredAt: '2026-11-03T00:00:00Z' },
+      { type: 'POWER_UP_USED', playerId: 'a', playerName: 'Tăng Tốc', cardName: 'Tăng Tốc', definitionId: 'U02', eventId: 'used', sequence: 2, occurredAt: '2026-11-03T00:00:00Z' },
+      { type: 'CHAT', senderRole: 'PLAYER', senderPlayerId: 'a', senderName: 'Tăng Tốc', message: 'Tăng Tốc', eventId: 'chat', sequence: 3, occurredAt: '2026-11-03T00:00:00Z' },
+    ];
+    const view = render(draw(withColors(feed, { a: 'red', b: 'blue' })));
+    expect([...view.container.querySelectorAll('.activity-entry--money_transfer span')].map(n => n.getAttribute('data-player-id'))).toEqual(['a', 'b']);
+    expect(view.container.querySelectorAll('.activity-entry--power_up_used span')).toHaveLength(1);
+    expect(view.container.querySelector('.activity-entry--power_up_used')?.textContent).toBe('Tăng Tốc đã dùng thẻ Tăng Tốc');
+    expect(view.container.querySelector('.activity-entry--chat span')).toBeNull();
+  });
+
+  it('escapes names as text, keeps unknown identities plain and never parses legacy markup', () => {
+    const name = '<img src=x onerror=alert(1)> {playerName}';
+    const view = render(draw(withColors([receipt('a', name), receipt('missing', 'Same', 2)], { a: 'red' })));
+    expect(view.container.querySelector('img')).toBeNull();
+    expect(view.container.querySelector('.activity-player-name')?.textContent).toBe(name);
+    expect(view.container.querySelectorAll('.activity-player-name')).toHaveLength(1);
+    view.rerender(draw(makeState([name])));
+    expect(view.container.querySelector('.activity-player-name')).toBeNull();
+    expect(screen.getByText(name)).toBeTruthy();
+    expect(view.container.querySelector('img')).toBeNull();
+  });
+
+  it('uses stored join identity color when a departed player is no longer in the roster', () => {
+    const feed: ActivityEvent[] = [{ type: 'PLAYER_JOINED', playerId: 'gone', playerName: 'Old name', color: 'blue', characterId: null, eventId: 'join', sequence: 1, occurredAt: '2026-11-03T00:00:00Z' }, receipt('gone', 'Old name', 2)];
+    const view = render(draw(makeState([], feed)));
+    expect(view.container.querySelectorAll('[data-player-id="gone"]')).toHaveLength(2);
+  });
+});
