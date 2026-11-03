@@ -11,6 +11,7 @@ import {
   addPowerUpInstance, canPresentPowerUpReward, createPowerUpInventory, createPowerUpState,
   enqueueStartRewardOffer, nextPowerUpReward,
 } from './foundation';
+import { recordPowerUpReceived } from './activity';
 import { CommandError } from '../../socket/errors';
 import { eligiblePowerUpReactionIds } from './runtime';
 
@@ -106,6 +107,7 @@ export function resolvePowerUpReward(
       instanceId: randomUUID(), ownerPlayerId: actor, obtainedFromOfferId: offer.offerId,
       definitionId: offer.candidates[offer.selectedIndex].definitionId,
     });
+    recordPowerUpReceived(state, actor);
   }
   offer.outcome = {
     kind: discard ? (automatic && full ? 'DISCARDED_FULL' : 'DECLINED') : request.action === 'REPLACE' ? 'REPLACED' : 'GRANTED',

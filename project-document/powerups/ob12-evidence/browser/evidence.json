@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "mode": "Two Chromium players",
+  "checks": [
+    {
+      "name": "Real reward claim double-click logs one generic receipt for Host and Guest without card metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "U02 movement activation logs one official card use on both viewers",
+      "status": "PASS"
+    },
+    {
+      "name": "Reconnect hydrates identical event identities without appending",
+      "status": "PASS"
+    },
+    {
+      "name": "English message rendering uses official catalog proper card name",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    "receipt.png",
+    "used.png",
+    "english.png"
+  ],
+  "pageErrors": [],
+  "manual": "Physical GPU, refresh rates, listening, cross-device and macOS UAT remain required."
+}

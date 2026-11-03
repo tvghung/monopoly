@@ -35,6 +35,7 @@ import {
   removeInstance,
   resolvePowerUpRent,
 } from './economy';
+import { recordPowerUpReceived, recordPowerUpUsed } from './activity';
 import { createPowerUpState } from './foundation';
 
 const REACTION_WINDOW_MS = POWER_UP_CONFIG.reactionWindowSeconds * 1_000;
@@ -106,9 +107,15 @@ function assertActiveUnused(state: GameState, actor: PlayerId): void {
     throw new CommandError('CONFLICT', 'Bạn đã dùng một thẻ Active trong lượt này.');
   }
 }
+function consumeUsed(state: GameState, actor: PlayerId, instanceId: string): void {
+  const card = cardsOf(state, actor).find(item => item.instanceId === instanceId);
+  if (!card) return;
+  removeInstance(state, actor, instanceId);
+  recordPowerUpUsed(state, actor, card.definitionId);
+}
 function consumeActive(state: GameState, actor: PlayerId, instance: PowerUpInstance): void {
   markActiveUsed(state, actor);
-  removeInstance(state, actor, instance.instanceId);
+  consumeUsed(state, actor, instance.instanceId);
 }
 function assertNoConflictingInteraction(state: GameState): void {
   if (state.boardState.paymentQueue || state.turnInfo.pendingCardInteraction
@@ -355,7 +362,6 @@ function applyAttack(
     const target = targetPlayerId && state.players[targetPlayerId];
     const amount = target ? Math.min(50, Math.floor(Math.max(0, target.accountBalance) * 10 / 100)) : 0;
     if (targetPlayerId) directTransfer(state, targetPlayerId, actor, amount, 'OTHER', op);
-    sendToLog(state, `${activityPlayerName(state, actor)} đã dùng Móc Túi.`);
   } else if (definitionId === 'A06') {
     const inventory = targetPlayerId && inventoryOf(state, targetPlayerId);
     const own = inventoryOf(state, actor);
@@ -365,6 +371,7 @@ function applyAttack(
     const stolen = inventory.cards.splice(randomInt(inventory.cards.length), 1)[0];
     stolen.ownerPlayerId = actor;
     own.cards.push(stolen);
+    recordPowerUpReceived(state, actor);
   } else if (definitionId === 'A09') {
     if (targetPlayerId) levyBuildings(state, targetPlayerId, op, now);
   } else if (definitionId !== 'A08') {
@@ -372,7 +379,7 @@ function applyAttack(
   } else {
     addAttackStatus(state, actor, instance, definitionId);
   }
-  removeInstance(state, actor, instance.instanceId);
+  consumeUsed(state, actor, instance.instanceId);
 }
 
 function shieldIntercepts(state: GameState, tileID: number | undefined): PowerUpStatus | undefined {
@@ -500,6 +507,8 @@ export function activatePowerUp(
       throw new CommandError('CONFLICT', error instanceof Error ? error.message : 'Công thức thẻ không hợp lệ.');
     }
     markActiveUsed(state, actor);
+    recordPowerUpUsed(state, actor, instance.definitionId);
+    recordPowerUpReceived(state, actor);
     return;
   }
 
@@ -526,7 +535,6 @@ export function activatePowerUp(
         dice1: rerolled.dice1, dice2: rerolled.dice2,
         total: rerolled.dice1 + rerolled.dice2, context: 'TURN',
       });
-      sendToLog(state, `${activityPlayerName(state, actor)} dùng Xúc Xắc May Mắn.`);
       consumeActive(state, actor, instance);
       finishPowerUpMovement(state, actor, rerolled.dice1 + rerolled.dice2,
         rerolled.dice1 + rerolled.dice2, now);
@@ -556,7 +564,7 @@ export function activatePowerUp(
       const shield = shieldIntercepts(state, tileID);
       if (shield) {
         consumeStatusCharge(state, shield);
-        removeInstance(state, actor, instance.instanceId);
+        consumeUsed(state, actor, instance.instanceId);
         sendToLog(state, 'Lá Chắn Bất Động Sản đã chặn Phong Tỏa lên tài sản.');
         return;
       }
@@ -575,7 +583,7 @@ export function activatePowerUp(
       targetTileID: tileID, targetPlayerId: actor, ownerTurnPlayerId: actor,
       remainingOwnerTurns: 3, remainingUses: 2,
     }));
-    removeInstance(state, actor, instance.instanceId);
+    consumeUsed(state, actor, instance.instanceId);
     return;
   }
   if (id === 'D10') {
@@ -586,7 +594,7 @@ export function activatePowerUp(
       const affectedPlayerIds = status.affectedPlayerIds.filter(playerId => playerId !== actor);
       return affectedPlayerIds.length ? [{ ...status, affectedPlayerIds }] : [];
     });
-    removeInstance(state, actor, instance.instanceId);
+    consumeUsed(state, actor, instance.instanceId);
     return;
   }
   if (id === 'U03') {
@@ -594,7 +602,7 @@ export function activatePowerUp(
     pushStatus(state, newStatus('U03', 'PURCHASE_DISCOUNT', instance, actor, {
       targetTileID: tileID, percent: 15, capUnits: 50, expiresAtTurnNumber: state.boardState.turnNumber,
     }));
-    removeInstance(state, actor, instance.instanceId);
+    consumeUsed(state, actor, instance.instanceId);
     return;
   }
   if (id === 'U07') {
@@ -619,7 +627,7 @@ export function activatePowerUp(
     pushStatus(state, newStatus('U09', 'BUILD_DISCOUNT', instance, actor, {
       percent: 20, capUnits: 50, ownerTurnPlayerId: actor, remainingOwnerTurns: 2, remainingUses: 1,
     }));
-    removeInstance(state, actor, instance.instanceId);
+    consumeUsed(state, actor, instance.instanceId);
     return;
   }
   if (id === 'U10') {
@@ -630,13 +638,14 @@ export function activatePowerUp(
       && card.rarity === rarity && card.definitionId !== transformed.definitionId);
     const replacement = pool[randomInt(pool.length)];
     if (!replacement) throw new CommandError('CONFLICT', 'Không có thẻ thay thế hợp lệ.');
-    removeInstance(state, actor, instance.instanceId);
+    consumeUsed(state, actor, instance.instanceId);
     removeInstance(state, actor, transformed.instanceId);
     inventoryOf(state, actor)!.cards.push({
       instanceId: randomUUID(), ownerPlayerId: actor, obtainedFromOfferId: randomUUID(),
       definitionId: replacement.definitionId,
     });
     markActiveUsed(state, actor);
+    recordPowerUpReceived(state, actor);
     return;
   }
   throw new CommandError('CONFLICT', 'Hiệu ứng thẻ này chưa có bộ xử lý.');
@@ -667,7 +676,7 @@ function reflectAttack(
   if (id === 'A01') {
     const amount = Math.min(50, Math.floor(Math.max(0, attacker.accountBalance) * 10 / 100));
     directTransfer(state, event.attackerPlayerId, event.defenderPlayerId, amount, 'OTHER', event.eventId);
-    removeInstance(state, event.attackerPlayerId, attackInstance.instanceId);
+    consumeUsed(state, event.attackerPlayerId, attackInstance.instanceId);
     return;
   }
   if (id === 'A04') {
@@ -677,7 +686,7 @@ function reflectAttack(
     const shield = shieldIntercepts(state, redirectTileID);
     if (shield) consumeStatusCharge(state, shield);
     else addAttackStatus(state, event.defenderPlayerId, attackInstance, id, event.attackerPlayerId, redirectTileID);
-    removeInstance(state, event.attackerPlayerId, attackInstance.instanceId);
+    consumeUsed(state, event.attackerPlayerId, attackInstance.instanceId);
     return;
   }
   if (id === 'A06') {
@@ -691,17 +700,18 @@ function reflectAttack(
     removeInstance(state, event.attackerPlayerId, stolen.instanceId);
     stolen.ownerPlayerId = event.defenderPlayerId;
     receiver.cards.push(stolen);
-    removeInstance(state, event.attackerPlayerId, attackInstance.instanceId);
+    recordPowerUpReceived(state, event.defenderPlayerId);
+    consumeUsed(state, event.attackerPlayerId, attackInstance.instanceId);
     return;
   }
   if (id === 'A09') {
     levyBuildings(state, event.attackerPlayerId, event.eventId, now);
-    removeInstance(state, event.attackerPlayerId, attackInstance.instanceId);
+    consumeUsed(state, event.attackerPlayerId, attackInstance.instanceId);
     return;
   }
   if (['A03', 'A05', 'A07', 'A10'].includes(id)) {
     addAttackStatus(state, event.defenderPlayerId, attackInstance, id, event.attackerPlayerId);
-    removeInstance(state, event.attackerPlayerId, attackInstance.instanceId);
+    consumeUsed(state, event.attackerPlayerId, attackInstance.instanceId);
     return;
   }
   if (redirectPlayerId || redirectTileID !== undefined) throw new CommandError('INVALID_REQUEST', 'Đích phản đòn không hợp lệ.');
@@ -769,18 +779,18 @@ export function respondPowerUpReaction(
   }
   if (card.definitionId === 'D03') {
     if (!canD03Block(state, event)) throw new CommandError('CONFLICT', 'Phá Mưu không chặn được đòn này.');
-    removeInstance(state, actor, card.instanceId);
-    removeInstance(state, event.attackerPlayerId, event.attackInstanceId);
+    consumeUsed(state, actor, card.instanceId);
+    consumeUsed(state, event.attackerPlayerId, event.attackInstanceId);
     return;
   }
   if (card.definitionId === 'D06' || card.definitionId === 'D02' || card.definitionId === 'D09') {
-    removeInstance(state, actor, card.instanceId);
-    removeInstance(state, event.attackerPlayerId, event.attackInstanceId);
+    consumeUsed(state, actor, card.instanceId);
+    consumeUsed(state, event.attackerPlayerId, event.attackInstanceId);
     return;
   }
   if (card.definitionId === 'D05') {
     // Reserve the consumed Reaction slot before an A06 reflection receives a card.
-    removeInstance(state, actor, card.instanceId);
+    consumeUsed(state, actor, card.instanceId);
     reflectAttack(state, event, request.redirectPlayerId, request.redirectTileID, now);
     return;
   }
@@ -814,7 +824,7 @@ function resolveShortfallReaction(
   creditPaymentReceipt(state, claim, contribution, { kind: 'BANK' }, queue.operationId);
   claim.remainingAmount -= paid + contribution;
   if (claim.remainingAmount <= 0) { claim.remainingAmount = 0; claim.status = 'SETTLED'; queue.activeClaimIndex += 1; }
-  removeInstance(state, event.debtorPlayerId, card.instanceId);
+  consumeUsed(state, event.debtorPlayerId, card.instanceId);
   const progress = progressPaymentQueue(state, { now });
   if (progress.status === 'COMPLETED' && progress.continuation) completeTurnResolution(state, progress.continuation);
 }
@@ -855,13 +865,15 @@ export function resolvePowerUpTrade(state: GameState, actor: PlayerId, request: 
   const secondIndex = randomInt(targetPool.length);
   const first = initiatorPool[firstIndex];
   const second = targetPool[secondIndex];
-  removeInstance(state, trade.initiatorPlayerId, activator.instanceId);
+  consumeUsed(state, trade.initiatorPlayerId, activator.instanceId);
   removeInstance(state, trade.initiatorPlayerId, first.instanceId);
   removeInstance(state, trade.targetPlayerId, second.instanceId);
   first.ownerPlayerId = trade.targetPlayerId;
   second.ownerPlayerId = trade.initiatorPlayerId;
   inventoryOf(state, trade.initiatorPlayerId)!.cards.push(second);
   inventoryOf(state, trade.targetPlayerId)!.cards.push(first);
+  recordPowerUpReceived(state, trade.initiatorPlayerId);
+  recordPowerUpReceived(state, trade.targetPlayerId);
 }
 
 export function expirePowerUpInteraction(state: GameState, now = Date.now()): boolean {

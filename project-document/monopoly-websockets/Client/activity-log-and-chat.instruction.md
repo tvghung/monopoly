@@ -143,3 +143,7 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 ## HISTORICAL — v1.9.0 final drawer refinement (released in v1.9.0)
 
 The panel stays mounted; CSS slides it from/to the right in 240 ms using transform only. Toggle and panel share width/inset-derived travel and easing, including narrow/landscape safe areas. Closed/closing content is inert, aria-hidden and cannot intercept clicks; visibility becomes hidden after exit. Rapid toggles reverse the same transition without remounting. Escape and focus return to the toggle are preserved. Reduced Motion removes sliding; chat drafts still clear on close, and feed/unread/preference behavior is unchanged.
+
+## OB-12 Power-up history (CURRENT DEVELOPMENT)
+
+activityText renders POWER_UP_RECEIVED as a generic receipt and POWER_UP_USED with the server catalog proper card name, using VI/EN sentence templates. Official proper names remain catalog names in both languages, consistent with cards. Log renders these as React text, never markup. Existing presentation gate, event identities, 128-event tail, reconnect hydration and legacy-prefix handling remain unchanged; no client append or inventory-diff inference is added. ActivityTicker reuses the same semantics; OB-7 feedback duration/dedupe is unchanged. Receipt payload itself contains no card metadata.

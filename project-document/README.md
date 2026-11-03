@@ -57,7 +57,7 @@ and `ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`; the history is
 
 ## Current development after v1.11.1
 
-OB-8 introduces committed checkpoint movement, protocol 17 / snapshot 15 and development version 1.11.2 (not published). The Owner approved the contract change in Jira OB-8. See [shared movement contract](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development); published v1.11.1 verification above remains unchanged.
+OB-8 introduced committed checkpoint movement at protocol17/snapshot15. OB-12 extends the existing activity feed at Owner-approved protocol18/snapshot16, retaining development version1.11.2 and minimum1.11.2; this work does not publish a release. See [shared movement contract](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development); published v1.11.1 verification above remains unchanged.
 
 ## Reading order for a code task
 

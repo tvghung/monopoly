@@ -128,6 +128,7 @@ describe('all 30 cards through authenticated serialized transactions', () => {
     try { okOf(await f.submit()); } finally { dice.mockRestore(); }
     let after = await f.room();
     assertEffect(definitionId, after.gameSnapshot.gameState, f.owner.playerId, f.other.playerId);
+    if (definitionId === 'U06') expect(after.gameSnapshot.gameState.boardState.activityFeed.events.filter(event => event.type === 'POWER_UP_USED')).toHaveLength(0);
     expect((await f.submit()).ok).toBe(false);
     expect(await f.room()).toEqual(after);
     if (definitionId === 'U06') {
@@ -138,6 +139,7 @@ describe('all 30 cards through authenticated serialized transactions', () => {
       expect(after.gameSnapshot.gameState.privateState.powerUps!.inventories[f.other.playerId].cards.map(c => c.definitionId)).toEqual(['A01']);
     }
     expect(after.gameSnapshot.gameState.privateState.powerUps!.inventories[f.owner.playerId].cards.some(c => c.instanceId === f.instanceId)).toBe(false);
+    const activityBeforeReconnect = structuredClone(after.gameSnapshot.gameState.boardState.activityFeed);
     const expected = projectPrivatePlayerState(after, f.owner.playerId).powerUps;
     f.owner.socket.disconnect();
     await vi.waitFor(() => expect(f.server.runtime.connections.isConnected(f.owner.playerId)).toBe(false));
@@ -145,7 +147,16 @@ describe('all 30 cards through authenticated serialized transactions', () => {
     const reconnected = await resume(reconnectedSocket, f.owner.token);
     expect(reconnected.privatePlayerState.powerUps?.inventory).toEqual(expected?.inventory);
     expect(reconnected.privatePlayerState.powerUps?.statuses).toEqual(expected?.statuses);
-    expect(JSON.stringify(projectPublicRoomState(await f.room(), f.server.runtime.connections))).not.toMatch(/definitionId|instanceId|rewardQueue|candidates|rentRevenueShare/);
+    expect((await f.room()).gameSnapshot.gameState.boardState.activityFeed).toEqual(activityBeforeReconnect);
+    const publicRoom = projectPublicRoomState(await f.room(), f.server.runtime.connections);
+    const uses = publicRoom.gameState.boardState.activityFeed.events.filter(event => event.type === 'POWER_UP_USED');
+    expect(uses.filter(event => event.playerId === f.owner.playerId && event.definitionId === definitionId)).toHaveLength(1);
+    for (const receipt of publicRoom.gameState.boardState.activityFeed.events.filter(event => event.type === 'POWER_UP_RECEIVED')) {
+      expect(Object.keys(receipt).sort()).toEqual(['eventId', 'occurredAt', 'playerId', 'playerName', 'sequence', 'type']);
+    }
+    const withoutPublicUses = structuredClone(publicRoom);
+    withoutPublicUses.gameState.boardState.activityFeed.events = withoutPublicUses.gameState.boardState.activityFeed.events.filter(event => event.type !== 'POWER_UP_USED');
+    expect(JSON.stringify(withoutPublicUses)).not.toMatch(/definitionId|instanceId|rewardQueue|candidates|rentRevenueShare/);
     okOf(await ack<LeaveRoomResult>(cb => reconnectedSocket.emit('leave room', cb)));
     const eliminated = (await f.room()).gameSnapshot.gameState;
     expect(eliminated.privateState.powerUps!.inventories[f.owner.playerId]).toBeUndefined();

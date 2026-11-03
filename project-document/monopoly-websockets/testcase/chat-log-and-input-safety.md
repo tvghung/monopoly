@@ -29,3 +29,7 @@ runtime schema or RAM transaction failure behavior.
 - [x] `[CLIENT][AUTOMATED]` Closing the activity drawer discards a half-typed message, so reopening it never sends
   text the player cannot see (`Log.test.tsx`).
 - [ ] Client does not duplicate listeners, auto-retry timed-out chat or report failure as sent.
+
+## OB-12 Power-up activity regression
+
+Check generic reward/REPLACE/automatic receipts with no card metadata in the payload; no receipt for offer/reveal/full-hand wait/decline/failure. Use U02 through checkpoint and Active/Reaction/contextual commands: exact actor/catalog name once, no phantom entry on rollback/skip/denial, no replay on reconnect. A06/reflection credits actual receiver; U04/U10 log activator use plus one unnamed output; U06 accepted logs initiator use and two generic receipts, pending/declined/expired logs neither. Verify 128-event/500-line bounds, two independent identical actions, Host/Guest/spectator, VI/EN text escaping, presentation gate and unchanged OB-7 feedback. Refuse protocol17/older and snapshot15/older under current18/16 contract.

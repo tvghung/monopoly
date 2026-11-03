@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "oldHostCommit": "db11a8bed5826b59f4d0951ae3924e845011a900",
+  "hostProtocol": 17,
+  "clientProtocol": 18,
+  "error": {
+    "code": "UPGRADE_REQUIRED",
+    "message": "Client protocol version is no longer supported.",
+    "retryable": false
+  }
+}

@@ -105,3 +105,12 @@ describe('activityText for 2v2 events', () => {
     expect(activityText(rescue('EXPIRED'))).toBe('Hết thời gian: Chi chưa hỗ trợ An.');
   });
 });
+
+it('OB-12 translates receipt/use and keeps official proper card names',()=>{
+ const receipt=event({type:'POWER_UP_RECEIVED',playerId:'a',playerName:'Hưng'});
+ const used=event({type:'POWER_UP_USED',playerId:'a',playerName:'Hưng',definitionId:'U02',cardName:'Tăng Tốc'});
+ expect(activityText(receipt,'vi')).toBe('Hưng đã nhận 1 thẻ Power-up');
+ expect(activityText(receipt,'en')).toBe('Hưng received a Power-up card');
+ expect(activityText(used,'vi')).toBe('Hưng đã dùng thẻ Tăng Tốc');
+ expect(activityText(used,'en')).toBe('Hưng used Tăng Tốc');
+});

@@ -99,12 +99,13 @@ export const powerUpRulesSchema = z.strictObject({
 }).readonly();
 export type PowerUpRules = z.infer<typeof powerUpRulesSchema>;
 
-const identity = powerUpDefinitionSchema.omit({ effectKey: true }).extend({
-  definitionId: z.enum([
+export const officialPowerUpIdSchema = z.enum([
     'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10',
     'D01', 'D02', 'D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D09', 'D10',
     'U01', 'U02', 'U03', 'U04', 'U05', 'U06', 'U07', 'U08', 'U09', 'U10',
-  ]),
+  ]);
+const identity = powerUpDefinitionSchema.omit({ effectKey: true }).extend({
+  definitionId: officialPowerUpIdSchema,
   rules: powerUpRulesSchema,
 });
 // Keep a nonempty tuple for Zod's discriminated-union inference.

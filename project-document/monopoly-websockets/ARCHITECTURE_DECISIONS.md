@@ -237,3 +237,7 @@ Phase 08B retains the approved catalog and all gameplay values. Private settleme
 ## ADR-18 Committed checkpoint movement facts (OB-8)
 
 Owner approved adding movement events and updating protocol/snapshot compatibility in OB-8 after the private checkpoint projection proved insufficient for observer animation. Server emits public position facts from the serialized transaction; client never guesses U02 versus U08 from distance. Contract ownership and version history remain in [Shared contracts](./Shared/socket-and-state-contracts.instruction.md#ob-8-movement-contract-current-development). No persistence beyond host RAM or production publication is introduced.
+
+## ADR-19 — Public Power-up activity (CURRENT DEVELOPMENT)
+
+Owner approved OB-12 protocol18/snapshot16 and update-policy review, retaining version/minimum1.11.2. Extend existing typed activity rather than client inventory diff/ACK inference. Generic receipts contain no card metadata; use identity becomes public only at successful consumption/resolution, with U06 accepted-only per Owner Q2=B and special output receipts per Q1=A. The existing serialized room draft provides rollback and commit ordering; existing offer/instance/reaction/trade identities prevent repeat append. No new long-lived ledger or retention change; keep128 typed events/500 compatibility strings. Strict older peer/envelope refusal avoids exhaustive old renderers seeing unknown variants. Details: [contract review](../powerups/OB12_ACTIVITY_CONTRACT.md).

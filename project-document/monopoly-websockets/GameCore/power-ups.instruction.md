@@ -58,3 +58,7 @@ Protocol 17/snapshot 15 adds a public committed checkpoint path (see [shared con
 ## OB-11 contextual operation binding
 
 U03 and U09 activation require the exact pending purchase/development operationId in addition to owned instance, legal timing, target and Active allowance. Replayed, stale or foreign operations fail before consumption. Derived public development quotes call the existing `powerUpBuildPrice` on the whole requested quantity; the discount cap applies once per transaction. Card effects, costs and allowance rules are unchanged. Coverage: `contextualQuotes.test.ts` and the contextual client acceptance harness.
+
+## OB-12 activity boundaries (CURRENT DEVELOPMENT)
+
+Reward CLAIM/REPLACE/automatic grant records one generic receipt only after ownership succeeds. Full-hand CLAIM merely waiting for replacement, reveal, decline and failures record none. Active/Reaction use is recorded at actual consumption; pending private attacks wait for resolution, including block/reflection/PASS/expiry resolution. D04 charges/expiry do not repeat activation. U04/U10 record only activator use and one generic output receipt, never ingredient/transform-source use. A06 records actual receiver including reflection. U06 pending/declined/expired has no use/receipt; accepted exchange records one initiator use plus one generic receipt for each receiver. The existing room transaction rolls all entries back on failure. Existing instance/operation completion gates retries; no event is inferred from an ACK or count diff.
