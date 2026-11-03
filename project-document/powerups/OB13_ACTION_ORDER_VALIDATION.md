@@ -8,7 +8,7 @@ RewardDecision footer DOM is Decline then Claim. Claim retains its original prim
 
 ## Verification
 
-- PowerUpPanel suite23 passed: existing selection lock, ACK gap, busy/double-submit, owner/reward/replace/decline/activation coverage plus new DOM order, safe initial focus and correct Decline callback assertion.
+- PowerUpPanel suite24 passed: existing selection lock, ACK gap, busy/double-submit, owner/reward/replace/decline/activation coverage plus new DOM order, safe initial/read-only focus and correct Decline callback assertions.
 - Chromium production and packaged Electron acceptance exercise VI/EN at1440×900,1280×720,900×500,667×375,760×280. Ten action cases each assert DOM/visual order, viewport/footer bounds, no document overflow, Tab/Shift+Tab, actual CLAIM or DECLINE outcome and inventory; first case in each locale reconnects into a revealed reward and checks Claim autofocus and double-click. English runs with OS/game reduced motion. Full-hand case checks no fake Claim, three replacement actions and committed correct inventory.
 - Typecheck through production build, full lint, docs validator and Windows package are checked; required CI/Docs on the final head are recorded in Jira. No backend/schema changes in OB-13.
 - Wide and760×280 screenshots were inspected: the shared scrollable body keeps the sticky action footer reachable and both labels readable.

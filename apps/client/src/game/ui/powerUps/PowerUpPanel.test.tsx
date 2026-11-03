@@ -287,3 +287,8 @@ it('OB-13 restores reward with safe primary focus and decline/claim order withou
  await act(async()=>{await Promise.resolve()});expect(document.activeElement).toBe(claim);
  await act(()=>fireEvent.click(decline));expect(value.socketFunctions.resolvePowerUp).toHaveBeenCalledWith({offerId:id,action:'DECLINE'});expect(value.socketFunctions.resolvePowerUp).not.toHaveBeenCalledWith({offerId:id,action:'CLAIM'});
 });
+
+it('OB-13 keeps focus inside a read-only reward instead of targeting a disabled Claim',async()=>{
+ const value=context('REVEALED');value.canMutate=false;render(view(value));await act(async()=>{await Promise.resolve()});
+ const claim=screen.getByRole('button',{name:'Nhận thẻ'});expect(claim.hasAttribute('disabled')).toBe(true);expect(claim.hasAttribute('data-modal-autofocus')).toBe(false);expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+});
