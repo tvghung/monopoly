@@ -158,3 +158,8 @@ The Journal uses `activitySegments` from `apps/client/src/game/ui/hud/activityTe
 `apps/client/src/game/ui/hud/activityPlayerColor.ts` derives text colors from the existing board palette, darkening each hue only enough to reach 4.5:1 on the V2 paper surface (and legacy white). Only the name span receives that color; font size and line flow remain inherited. Long unbroken names can wrap within the span. React renders every segment as text, never HTML. Existing presentation gating, reconnect hydration, unread behavior and legacy-prefix fallback are unchanged.
 
 OB-14 Dev evidence and reproduction: [validation report](../../powerups/OB14_PLAYER_COLOR_VALIDATION.md). Owner UAT remains separate.
+
+
+## OB-15 Per-turn publication (CURRENT DEVELOPMENT)
+
+Gameplay committed through a completed turn appears at its authoritative handoff, independently of whether the animation queue reaches idle. Later pending gameplay cannot hide that completed prefix. Current-turn card/purchase/payment presentation remains gated; chat stays immediate. Journal coloring, locale, event identity/order, unread/scroll and legacy text safety are unchanged. The controller handles the boundary; Log still consumes displayActivity/displayLogs through its existing selector. See [gate contract](./presentation-pipeline.instruction.md#activity-tail-gate) and [Dev validation](../../OB15_TURN_LOG_VALIDATION.md).

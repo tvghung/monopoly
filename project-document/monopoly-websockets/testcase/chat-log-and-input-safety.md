@@ -42,3 +42,12 @@ Check generic reward/REPLACE/automatic receipts with no card metadata in the pay
 - [ ] Switch VI/EN, reopen the Journal and reconnect Host/Guest: same history, identities and order without duplicates or replay. Finished-player colors remain available.
 - [ ] Check long unbroken names, identical names, braces and HTML-like characters in wide and phone landscape layouts; no injected HTML, horizontal overflow or unreadable colors on V1 white/V2 paper.
 - [ ] Owner Electron UAT is recorded separately from automated Dev checks. Automated formatter/component/contrast coverage lives in `activityText.test.ts`, `Log.test.tsx` and `activityPlayerColor.test.ts`; production browser/packaged Electron checks use `scripts/powerUpActivityAcceptance.check.mjs --player-colors` (add `--native` for Electron).
+
+
+## OB-15 Per-turn timing
+
+- [ ] Four players A/B/C/D: each completed turn appears at its handoff, including B/C/D before anchor A returns; test slow presentation/continuous bot turns without queue idle.
+- [ ] A new purchase/card/payment hold keeps its own gameplay gated but cannot hide prior completed turns; chat remains immediate.
+- [ ] Skip/timeout, same-player fresh turn, current-player leave/bankruptcy, 2v2, game finish, reconnect/spectator sync preserve committed ordering, identity and bounded history without duplicates.
+- [ ] Keep OB-14 name colors, OB-12 privacy/copy, VI/EN, ticker/unread/scroll, safe legacy text and accessibility.
+- [ ] Separate automated controller/live-store/production-browser/packaged Electron results from Owner UAT. Reproduce with `scripts/activityTurnAcceptance.check.mjs` (add `--native` for packaged Electron); see [OB-15 report](../../OB15_TURN_LOG_VALIDATION.md).

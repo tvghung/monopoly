@@ -1,0 +1,158 @@
+$ vitest run --environment jsdom --pool=threads --maxWorkers=1 --no-file-parallelism "src/game/presentation/PresentationController.turnLogs.test.ts"
+
+ RUN  v4.1.10 C:/Users/hungtran/Documents/ChatGPT/Own the block (monopoly)/ob-7-9-powerups/apps/client
+
+ ❯ src/game/presentation/PresentationController.turnLogs.test.ts (7 tests | 7 failed) 19ms
+     × publishes A/B/C/D at each handoff while the animation queue never idles (SOLO) 12ms
+     × publishes A/B/C/D at each handoff while the animation queue never idles (TEAM_2V2) 1ms
+     × keeps the next turn purchase tail gated without hiding the completed prefix 1ms
+     × keeps the next turn card tail gated without hiding the completed prefix 1ms
+     × keeps the next turn payment tail gated without hiding the completed prefix 1ms
+     × publishes a same-player turn-number handoff and terminal game tail while paused 1ms
+     × preserves legacy-only lines at handoff and rejects duplicate/older live updates 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > publishes A/B/C/D at each handoff while the animation queue never idles (SOLO)
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > publishes A/B/C/D at each handoff while the animation queue never idles (TEAM_2V2)
+AssertionError: expected [] to deeply equal [ { …(6) }, …(1) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "eventId": "activity-1",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 1,
+-     "type": "POWER_UP_RECEIVED",
+-   },
+-   {
+-     "cardName": "Tăng Tốc",
+-     "definitionId": "U02",
+-     "eventId": "activity-2",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 2,
+-     "type": "POWER_UP_USED",
+-   },
+- ]
++ []
+
+ ❯ src/game/presentation/PresentationController.turnLogs.test.ts:57:53
+     55|       controller.acceptRoomSnapshot(room, 'LIVE_UPDATE');
+     56|       expect(controller.queue.getStatus()).toBe('playing');
+     57|       expect(controller.getState().displayActivity).toEqual(room.gameS…
+       |                                                     ^
+     58|     }
+     59|     const shown = controller.getState().displayActivity;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > keeps the next turn purchase tail gated without hiding the completed prefix
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > keeps the next turn card tail gated without hiding the completed prefix
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > keeps the next turn payment tail gated without hiding the completed prefix
+AssertionError: expected [] to deeply equal [ { …(6) }, …(1) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "eventId": "activity-1",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 1,
+-     "type": "POWER_UP_RECEIVED",
+-   },
+-   {
+-     "cardName": "Tăng Tốc",
+-     "definitionId": "U02",
+-     "eventId": "activity-2",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 2,
+-     "type": "POWER_UP_USED",
+-   },
+- ]
++ []
+
+ ❯ src/game/presentation/PresentationController.turnLogs.test.ts:76:51
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > publishes a same-player turn-number handoff and terminal game tail while paused
+AssertionError: expected [] to deeply equal [ { …(6) }, …(1) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "eventId": "activity-1",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 1,
+-     "type": "POWER_UP_RECEIVED",
+-   },
+-   {
+-     "cardName": "Tăng Tốc",
+-     "definitionId": "U02",
+-     "eventId": "activity-2",
+-     "occurredAt": "2026-11-03T00:00:00Z",
+-     "playerId": "player-a",
+-     "playerName": "An",
+-     "sequence": 2,
+-     "type": "POWER_UP_USED",
+-   },
+- ]
++ []
+
+ ❯ src/game/presentation/PresentationController.turnLogs.test.ts:90:51
+     88|     const skipped = handoff(roll, 'player-a');
+     89|     controller.acceptRoomSnapshot(skipped, 'LIVE_UPDATE');
+     90|     expect(controller.getState().displayActivity).toEqual(skipped.game…
+       |                                                   ^
+     91|     const last = moving(skipped);
+     92|     controller.acceptRoomSnapshot(last, 'LIVE_UPDATE');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/game/presentation/PresentationController.turnLogs.test.ts > OB-15 committed turn log boundaries > preserves legacy-only lines at handoff and rejects duplicate/older live updates
+AssertionError: expected [] to deeply equal [ 'player-a received', …(1) ]
+
+- Expected
++ Received
+
+- [
+-   "player-a received",
+-   "player-a finished",
+- ]
++ []
+
+ ❯ src/game/presentation/PresentationController.turnLogs.test.ts:109:47
+    107|     ended.gameState.boardState.activityFeed = { sequence: 0, events: […
+    108|     controller.acceptRoomSnapshot(ended, 'LIVE_UPDATE');
+    109|     expect(controller.getState().displayLogs).toEqual(ended.gameState.…
+       |                                               ^
+    110|     expect(controller.acceptRoomSnapshot(ended, 'LIVE_UPDATE')).toBe(f…
+    111|     expect(controller.acceptRoomSnapshot(roll, 'LIVE_UPDATE')).toBe(fa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+   Start at  16:46:30
+   Duration  1.18s (transform 161ms, setup 0ms, import 320ms, tests 19ms, environment 690ms)
+
+C:\Users\hungtran\Documents\ChatGPT\Own the block (monopoly)\ob-7-9-powerups\apps\client:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @monopoly/client@1.11.2 test: `vitest run --environment jsdom --pool=threads --maxWorkers=1 --no-file-parallelism "src/game/presentation/PresentationController.turnLogs.test.ts"`
+Exit status 1

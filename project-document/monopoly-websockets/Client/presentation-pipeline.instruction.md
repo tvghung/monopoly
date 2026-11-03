@@ -76,10 +76,11 @@ A REVEALED card blocks this client's FIFO queue for `CARD_MINIMUM_VISIBLE_MS = 3
 
 ### Activity tail gate
 
-The log and the typed activity feed shown to players (`displayLogs`, `displayActivity`) wait on the same queue: after a live
-diff with events the controller holds the tail until the queue is `idle`, the turn has handed off (or the actor has not
-moved yet, or the game finished) and no card interaction, landing decision or payment shortfall is pending. Chat is not gated (`mergeUngatedChat` in `apps/client/src/components/Log.tsx`). A reset
-replaces the tail with the snapshot's feed at once. Reconnect never replays history.
+Within an active turn, the controller holds moved/pending gameplay (including updates that create no animation event) under its queue-idle and pending card/landing/payment rules for `displayLogs` and `displayActivity`. A committed handoff (current-player ID changes or turnNumber advances) publishes the authoritative tail at that boundary immediately, even while dice/movement/other queued presentation remains busy. FINISHED/winner publishes the terminal tail. No anchor or full-cycle condition exists.
+
+`App.applyRoom` accepts every incoming public snapshot synchronously before React rendering. Thus the tail in a fresh-turn handoff snapshot is a completed prefix; a later active-turn snapshot gets its own gate and cannot delay or hide that prefix. If an incoming handoff state is already moved/pending, only the preceding accepted tail is proven complete: it is published while the new tail is held under the incoming player/turn. This avoids exposing the new active turn during an already-progressed handoff. No log event is invented or relabeled; arrays are replaced with committed ordered tails, preserving sequence/eventId and bounded history.
+
+Chat remains ungated (`mergeUngatedChat` in `apps/client/src/components/Log.tsx`). Reset/sync replaces the tail at once and never replays history. Public roster removal/revival and semantic/roll gaps retain the existing snap policy. Queue contents, animation durations, bot pacing, command authority, privacy and protocol/snapshot are unchanged. Regression: `PresentationController.turnLogs.test.ts` and live-store `Log.test.tsx`; [OB-15 evidence](../../OB15_TURN_LOG_VALIDATION.md).
 
 ### Bot pacing
 

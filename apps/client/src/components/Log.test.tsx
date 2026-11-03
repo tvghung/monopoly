@@ -7,6 +7,9 @@ import { emptyPresentationState, presentationContext } from '../game/presentatio
 import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
 import { HUD_DRAWER_STORAGE_KEY } from '../game/ui/hud/hudDrawer';
 import Log, { mergeUngatedChat } from './Log';
+import { PresentationController } from '../game/presentation/PresentationController';
+import { presentationStoreContext } from '../game/presentation/PresentationProvider';
+import { cloneRoom, makeTeamRoom } from '../game/presentation/testFixtures';
 import { soloTeamBoardFields } from '../game/presentation/testFixtures';
 
 const makeSocketFunctions = (): SocketFunctions => ({
@@ -543,4 +546,48 @@ describe('OB-14 colored player references', () => {
     const view = render(draw(makeState([], feed)));
     expect(view.container.querySelectorAll('[data-player-id="gone"]')).toHaveLength(2);
   });
+});
+
+
+it.each(['player-a', 'player-b', null])('OB-15 publishes completed turns through the live store for viewer %s without releasing the next pending turn', viewer => {
+  window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'open');
+  const controller = new PresentationController();
+  const initial = makeTeamRoom();
+  controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+  controller.queue.pause();
+  const draw = (room: typeof initial) => <presentationStoreContext.Provider value={{ store: controller.store, queue: controller.queue }}><stateContext.Provider value={makeContext(room.gameState, viewer)}><Log /></stateContext.Provider></presentationStoreContext.Provider>;
+  const view = render(draw(initial));
+  try {
+    const roll = cloneRoom(initial);
+    roll.gameState.boardState.currentPlayer.hasMoved = true;
+    roll.gameState.boardState.rollSequence++;
+    roll.gameState.boardState.diceValue = { dice1: 1, dice2: 1 };
+    roll.gameState.players['player-a'].currentTile = 2;
+    roll.gameState.boardState.activityFeed = { sequence: 1, events: [{ type: 'POWER_UP_RECEIVED', playerId: 'player-a', playerName: 'An', eventId: 'done-a', sequence: 1, occurredAt: '2026-11-03T00:00:00Z' }] };
+    act(() => { controller.acceptRoomSnapshot(roll, 'LIVE_UPDATE'); });
+    view.rerender(draw(roll));
+    expect(view.container.querySelector('.activity-entry--power_up_received')).toBeNull();
+    const end = cloneRoom(roll);
+    end.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+    end.gameState.boardState.turnNumber++;
+    act(() => { controller.acceptRoomSnapshot(end, 'LIVE_UPDATE'); });
+    view.rerender(draw(end));
+    expect(controller.queue.getStatus()).toBe('paused');
+    expect(view.container.querySelector('.activity-entry--power_up_received')?.textContent).toBe('An đã nhận 1 thẻ Power-up');
+    expect(view.container.querySelector('.activity-player-name')?.getAttribute('data-player-id')).toBe('player-a');
+    const next = cloneRoom(end);
+    next.gameState.boardState.currentPlayer.hasMoved = true;
+    next.gameState.players['player-b'].currentTile = 7;
+    next.gameState.turnInfo.pendingLandingDecision = { kind: 'PURCHASE', operationId: 'next-buy', playerId: 'player-b', tileID: 7, price: 100 };
+    next.gameState.boardState.activityFeed.events.push({ type: 'POWER_UP_RECEIVED', playerId: 'player-b', playerName: 'Bình', eventId: 'pending-b', sequence: 2, occurredAt: '2026-11-03T00:00:01Z' }, { type: 'CHAT', senderRole: 'PLAYER', senderPlayerId: 'player-d', senderName: 'Dũng', message: 'Chat ngay', eventId: 'chat-live', sequence: 3, occurredAt: '2026-11-03T00:00:02Z' });
+    next.gameState.boardState.activityFeed.sequence = 3;
+    act(() => { controller.acceptRoomSnapshot(next, 'LIVE_UPDATE'); });
+    view.rerender(draw(next));
+    expect(view.container.querySelectorAll('.activity-entry--power_up_received')).toHaveLength(1);
+    expect(screen.getByText('Dũng: Chat ngay')).toBeTruthy();
+    act(() => { controller.acceptRoomSnapshot(next, 'SESSION_SYNC'); });
+    view.rerender(draw(next));
+    expect(view.container.querySelectorAll('.activity-entry--power_up_received')).toHaveLength(2);
+    expect(view.container.querySelectorAll('.activity-entry--chat')).toHaveLength(1);
+  } finally { view.unmount(); controller.dispose(); window.localStorage.clear(); }
 });
