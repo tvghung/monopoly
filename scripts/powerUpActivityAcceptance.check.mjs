@@ -1,4 +1,4 @@
-/* global location, document, getComputedStyle */
+/* global location, document, getComputedStyle, innerWidth, innerHeight */
 /** Production-client acceptance. Set POWERUP_NATIVE=1 to exercise the packaged Electron renderer as the acting player. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -70,7 +70,7 @@ try{
   await reconnectOwner();assert.deepEqual((await load()).gameSnapshot.gameState.boardState.activityFeed,feed);const restored=await journal(owner);await expect(restored.getByText('08B Owner đã dùng thẻ Tăng Tốc',{exact:true})).toHaveCount(1);await pass('Reconnect hydrates identical event identities without appending');
   await owner.evaluate(key=>{const settings=JSON.parse(localStorage.getItem(key));localStorage.setItem(key,JSON.stringify({...settings,language:'en'}))},SETTINGS_STORAGE_KEY);await reconnectOwner();const english=await journal(owner);await expect(english.getByText('08B Owner received a Power-up card',{exact:true})).toHaveCount(1);await expect(english.getByText('08B Owner used Tăng Tốc',{exact:true})).toHaveCount(1);await shot(owner,'english.png');await pass('English message rendering uses official catalog proper card name');
   if(playerColorsMode){
-    const special='Same <img src=x onerror=alert(1)> {playerName} '+ 'LongName'.repeat(12);
+    const special='<img>{playerName}XYZ'; // Maximum legal 20-character name; no spaces.
     const fixture=await commitRoomCommand(runtime,roomId,({state})=>{
       state.players[ownerId].color='yellow';state.players[otherId].color='blue';
       state.players[ownerId].name=special;state.players[otherId].name=special;
@@ -92,7 +92,10 @@ try{
     await pass('OB-14 fixture: matching names use distinct IDs/colors, card/chat remain plain, markup is escaped');
     const before=structuredClone((await load()).gameSnapshot.gameState.boardState.activityFeed);
     for(const theme of ['v1','v2'])for(const[width,height]of [[1440,900],[667,375]]){
-      if(native)await nativeApp.evaluate(({BrowserWindow},size)=>BrowserWindow.getAllWindows()[0].setContentSize(...size),[width,height]);else await owner.setViewportSize({width,height});
+      if(native)await nativeApp.evaluate(({BrowserWindow},size)=>{const win=BrowserWindow.getAllWindows()[0];win.setFullScreen(false);win.unmaximize();win.setMinimumSize(0,0);win.setContentSize(...size)},[width,height]);else await owner.setViewportSize({width,height});
+      result.resizeDiagnostic={requested:[width,height],actual:await owner.evaluate(()=>[innerWidth,innerHeight]),window:native?await nativeApp.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];return {content:w.getContentSize(),bounds:w.getBounds(),max:w.isMaximized(),full:w.isFullScreen(),zoom:w.webContents.getZoomFactor()}}):null};
+      await owner.waitForFunction(size=>Math.abs(innerWidth-size[0])<=1&&Math.abs(innerHeight-size[1])<=1,[width,height]);
+      (result.layouts??=[]).push({theme,requested:[width,height],actual:await owner.evaluate(()=>[innerWidth,innerHeight])});
       await owner.evaluate(value=>document.documentElement.setAttribute('data-visual-theme',value),theme);
       await verify(owner);await shot(owner,'colors-'+theme+'-'+width+'.png');
     }

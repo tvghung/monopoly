@@ -156,3 +156,5 @@ The Journal uses `activitySegments` from `apps/client/src/game/ui/hud/activityTe
 `Log.tsx` resolves colors by ID from current public players, then finished players, then explicit PLAYER_JOINED/GAME_FINISHED event colors. Missing IDs or unknown colors remain ordinary text; no name or seat-order inference is used. Stored event names remain unchanged even if the current roster name differs. No payload, feed ordering, history or protocol changes are made.
 
 `apps/client/src/game/ui/hud/activityPlayerColor.ts` derives text colors from the existing board palette, darkening each hue only enough to reach 4.5:1 on the V2 paper surface (and legacy white). Only the name span receives that color; font size and line flow remain inherited. Long unbroken names can wrap within the span. React renders every segment as text, never HTML. Existing presentation gating, reconnect hydration, unread behavior and legacy-prefix fallback are unchanged.
+
+OB-14 Dev evidence and reproduction: [validation report](../../powerups/OB14_PLAYER_COLOR_VALIDATION.md). Owner UAT remains separate.
