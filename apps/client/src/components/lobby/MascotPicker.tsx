@@ -1,10 +1,17 @@
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
-import { motion } from 'framer-motion';
+import {
+  AnimatePresence,
+  motion,
+  useAnimationControls,
+  type PanInfo,
+  type Variants,
+} from 'framer-motion';
 import { getAppearanceCombinationKey } from '@monopoly/shared';
 import type {
   CharacterId,
@@ -25,6 +32,7 @@ import { useEffectiveReducedMotion } from '../../settings/selectors';
 import { useTranslation } from '../../i18n/I18n';
 import { getCharacterName } from '../../i18n/characters';
 import { getPlayerColorLabel } from '../../game/ui/playerVisualColors';
+import MascotSparkles, { MASCOT_SPARKLE_LIFETIME_MS } from '../mascot/MascotSparkles';
 
 interface MascotPickerProps {
   selectedCharacterId: CharacterId | null;
@@ -42,6 +50,42 @@ function wrapCharacterIndex(index: number): number {
   return (index + CHARACTER_IDS.length) % CHARACTER_IDS.length;
 }
 
+/** -1 when the viewed mascot came from the left (previous), 1 from the right (next), 0 for the first view. */
+type BrowseDirection = -1 | 0 | 1;
+
+/** A horizontal swipe on the viewed mascot this far, or this fast, moves to the neighbour. */
+export const MASCOT_SWIPE_DISTANCE_PX = 48;
+export const MASCOT_SWIPE_VELOCITY_PX_S = 420;
+
+/** Which neighbour a finished swipe asks for: 1 next, -1 previous, 0 none (the mascot springs back). */
+export function getSwipeDirection(info: Pick<PanInfo, 'offset' | 'velocity'>): BrowseDirection {
+  if (info.offset.x <= -MASCOT_SWIPE_DISTANCE_PX || info.velocity.x <= -MASCOT_SWIPE_VELOCITY_PX_S) return 1;
+  if (info.offset.x >= MASCOT_SWIPE_DISTANCE_PX || info.velocity.x >= MASCOT_SWIPE_VELOCITY_PX_S) return -1;
+  return 0;
+}
+
+/** The viewed mascot slides in from the side it came from and leans into the move; the first view rises in place. */
+const heroVariants: Variants = {
+  enter: (direction: BrowseDirection) => ({
+    opacity: 0, x: direction * 64, y: direction === 0 ? 10 : 0, rotate: direction * 10, scale: 0.86,
+  }),
+  center: {
+    opacity: 1, x: 0, y: 0, rotate: 0, scale: 1,
+  },
+  exit: (direction: BrowseDirection) => ({
+    opacity: 0, x: direction * -64, y: 0, rotate: direction * -10, scale: 0.86,
+  }),
+};
+
+/** A cheer: crouch, jump, wiggle and land; played when the player taps the mascot or a new mascot or color is confirmed. */
+const CHEER_ANIMATION = {
+  y: [0, 6, -30, -24, 0, -5, 0],
+  scaleX: [1, 1.12, 0.9, 1, 1.1, 0.98, 1],
+  scaleY: [1, 0.86, 1.12, 1, 0.9, 1.03, 1],
+  rotate: [0, 0, -8, 7, 0, -2, 0],
+  transition: { duration: 0.72, ease: 'easeOut' as const },
+};
+
 export default function MascotPicker({
   selectedCharacterId,
   playerColor,
@@ -57,10 +101,36 @@ export default function MascotPicker({
   const [focusedCharacterId, setFocusedCharacterId] = useState<CharacterId>(
     selectedCharacterId ?? firstCharacter,
   );
+  const [direction, setDirection] = useState<BrowseDirection>(0);
+  const [burst, setBurst] = useState<number | null>(null);
+  const cheerControls = useAnimationControls();
+  const previousAppearanceRef = useRef({ characterId: selectedCharacterId, color: playerColor });
 
   useEffect(() => {
     if (!busy) setFocusedCharacterId(selectedCharacterId ?? firstCharacter);
   }, [busy, firstCharacter, selectedCharacterId]);
+
+  const cheer = (): void => {
+    if (reducedMotion) return;
+    void cheerControls.start(CHEER_ANIMATION);
+    setBurst(current => (current ?? 0) + 1);
+  };
+
+  // A confirmed change of mascot or color (the server's answer, not the click) is celebrated once.
+  useEffect(() => {
+    const previous = previousAppearanceRef.current;
+    previousAppearanceRef.current = { characterId: selectedCharacterId, color: playerColor };
+    const changed = previous.characterId !== selectedCharacterId || previous.color !== playerColor;
+    if (changed && selectedCharacterId !== null) cheer();
+    // `cheer` only reads the latest reduced-motion flag; running again for it would celebrate a change twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerColor, selectedCharacterId]);
+
+  useEffect(() => {
+    if (burst === null) return undefined;
+    const timer = window.setTimeout(() => setBurst(null), MASCOT_SPARKLE_LIFETIME_MS);
+    return () => window.clearTimeout(timer);
+  }, [burst]);
 
   const focusedIndex = CHARACTER_IDS.indexOf(focusedCharacterId);
   const previousCharacterId = CHARACTER_IDS[wrapCharacterIndex(focusedIndex - 1)];
@@ -79,8 +149,13 @@ export default function MascotPicker({
     isCombinationTaken(focusedCharacterId, color) ? focusedCharacterId : null
   );
 
-  const selectCharacter = (characterId: CharacterId): void => {
+
+  const selectCharacter = (characterId: CharacterId, browse?: BrowseDirection): void => {
     if (busy) return;
+    if (characterId !== focusedCharacterId) {
+      const step = CHARACTER_IDS.indexOf(characterId) - focusedIndex;
+      setDirection(browse ?? (Math.sign(step) as BrowseDirection));
+    }
     setFocusedCharacterId(characterId);
     if (
       selectedCharacterId !== characterId
@@ -103,11 +178,17 @@ export default function MascotPicker({
   const handleKeyboardNavigation = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      selectCharacter(previousCharacterId);
+      selectCharacter(previousCharacterId, -1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      selectCharacter(nextCharacterId);
+      selectCharacter(nextCharacterId, 1);
     }
+  };
+
+  const handleSwipeEnd = (_event: unknown, info: PanInfo): void => {
+    const swipe = getSwipeDirection(info);
+    if (swipe === 1) selectCharacter(nextCharacterId, 1);
+    else if (swipe === -1) selectCharacter(previousCharacterId, -1);
   };
 
   return (
@@ -124,14 +205,14 @@ export default function MascotPicker({
           label={t('lobby.mascotPrevious')}
           icon="previous"
           disabled={busy}
-          onClick={() => selectCharacter(previousCharacterId)}
+          onClick={() => selectCharacter(previousCharacterId, -1)}
         />
         <button
           className="mascot-picker__side mascot-picker__side--previous"
           type="button"
           aria-label={t('lobby.selectMascot', { name: getCharacterName(previousCharacterId, language) })}
           disabled={busy}
-          onClick={() => selectCharacter(previousCharacterId)}
+          onClick={() => selectCharacter(previousCharacterId, -1)}
         >
           <img
             src={characterSvgDataUri(CHARACTER_REGISTRY[previousCharacterId].svgSource, playerColor)}
@@ -144,25 +225,45 @@ export default function MascotPicker({
             <span className="mascot-picker__spotlight" aria-hidden="true" />
             <span className="mascot-picker__hero-shadow" aria-hidden="true" />
             <span className="mascot-picker__podium" aria-hidden="true" />
+            {/* Swipe the mascot sideways to browse, tap it to make it cheer; the arrows and the keyboard do the same job. */}
             <motion.div
-              className="mascot-picker__hero-float"
-              animate={{ y: reducedMotion ? 0 : [0, -4, 0] }}
-              transition={reducedMotion
-                ? { duration: 0 }
-                : { duration: 3.4, ease: 'easeInOut', repeat: Infinity }}
+              className="mascot-picker__hero-grab"
+              drag={busy || reducedMotion ? false : 'x'}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.45}
+              dragSnapToOrigin
+              onDragEnd={handleSwipeEnd}
+              onTap={cheer}
             >
-              <motion.img
-                key={focusedCharacterId}
-                className="mascot-picker__hero-image"
-                src={characterSvgDataUri(focusedCharacter.svgSource, playerColor)}
-                alt={getCharacterName(focusedCharacterId, language)}
-                initial={reducedMotion ? false : { opacity: 0, scale: 0.86, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+              <motion.div
+                className="mascot-picker__hero-float"
+                animate={{ y: reducedMotion ? 0 : [0, -4, 0] }}
                 transition={reducedMotion
                   ? { duration: 0 }
-                  : { type: 'spring', stiffness: 240, damping: 18 }}
-              />
+                  : { duration: 3.4, ease: 'easeInOut', repeat: Infinity }}
+              >
+                <motion.div className="mascot-picker__hero-cheer" animate={cheerControls}>
+                  <AnimatePresence mode="popLayout" custom={direction}>
+                    <motion.img
+                      key={focusedCharacterId}
+                      className="mascot-picker__hero-image"
+                      src={characterSvgDataUri(focusedCharacter.svgSource, playerColor)}
+                      alt={getCharacterName(focusedCharacterId, language)}
+                      draggable={false}
+                      custom={direction}
+                      variants={heroVariants}
+                      initial={reducedMotion ? false : 'enter'}
+                      animate="center"
+                      exit={reducedMotion ? undefined : 'exit'}
+                      transition={reducedMotion
+                        ? { duration: 0 }
+                        : { type: 'spring', stiffness: 260, damping: 20 }}
+                    />
+                  </AnimatePresence>
+                </motion.div>
+              </motion.div>
             </motion.div>
+            {burst !== null ? <MascotSparkles key={burst} className="mascot-picker__sparkles" /> : null}
           </div>
         </div>
 
@@ -171,7 +272,7 @@ export default function MascotPicker({
           type="button"
           aria-label={t('lobby.selectMascot', { name: getCharacterName(nextCharacterId, language) })}
           disabled={busy}
-          onClick={() => selectCharacter(nextCharacterId)}
+          onClick={() => selectCharacter(nextCharacterId, 1)}
         >
           <img
             src={characterSvgDataUri(CHARACTER_REGISTRY[nextCharacterId].svgSource, playerColor)}
@@ -183,7 +284,7 @@ export default function MascotPicker({
           label={t('lobby.mascotNext')}
           icon="next"
           disabled={busy}
-          onClick={() => selectCharacter(nextCharacterId)}
+          onClick={() => selectCharacter(nextCharacterId, 1)}
         />
       </div>
 
@@ -232,7 +333,18 @@ export default function MascotPicker({
                   style={{ backgroundColor: visual.display, color: visual.foreground }}
                   aria-hidden="true"
                 >
-                  {selected ? <ActionIcon name="ready" /> : null}
+                  {selected
+                    ? (
+                      <motion.span
+                        className="mascot-picker__color-check"
+                        initial={reducedMotion ? false : { scale: 0, rotate: -45 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 18 }}
+                      >
+                        <ActionIcon name="ready" />
+                      </motion.span>
+                    )
+                    : null}
                 </span>
                 <span>{getPlayerColorLabel(color, language)}</span>
               </button>

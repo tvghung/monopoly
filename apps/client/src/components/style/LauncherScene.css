@@ -68,6 +68,11 @@
 .launcher-scene__postcard:nth-child(4) { --tilt: 5deg; --lift: 0.04; --scale: 0.96; }
 .launcher-scene__postcard:nth-child(5) { --tilt: -5deg; --lift: 0.16; --scale: 0.84; }
 
+/* The postcards are decoration but answer the mouse: a hovered card straightens and comes forward (behind the guard below). */
+.launcher-scene__postcard {
+  pointer-events: auto;
+}
+
 .launcher-scene__picture {
   display: block;
   width: 100%;
@@ -95,6 +100,15 @@
   :root:not([data-reduced-motion='true']) .launcher-scene__postcard {
     animation: launcher-postcard-drop var(--motion-duration-emphasis) var(--motion-ease-out) both;
     animation-delay: calc(var(--card-index, 0) * 90ms);
+    transition: rotate var(--motion-duration-panel) var(--motion-ease-out), scale var(--motion-duration-panel) var(--motion-ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  :root:not([data-reduced-motion='true']) .launcher-scene__postcard:hover {
+    z-index: 2;
+    rotate: calc(var(--tilt) * -1);
+    scale: 1.1;
   }
 }
 

@@ -202,6 +202,26 @@
   margin-bottom: 0.6rem;
   object-fit: contain;
   filter: drop-shadow(0 0.4rem 0.3rem rgb(43 29 20 / 22%));
+  transform-origin: 50% 100%;
+}
+
+/*
+ * A seated mascot cheers once when its player becomes ready (a bot cheers as it sits down, since it is always ready), behind
+ * the reduced-motion guard. Hovering a seat does not move its mascot.
+ */
+@keyframes lobby-seat-cheer {
+  0% { transform: none; }
+  18% { transform: translateY(4%) scale(1.12, 0.86); }
+  45% { transform: translateY(-22%) scale(0.94, 1.08) rotate(-6deg); }
+  70% { transform: translateY(0) scale(1.08, 0.92) rotate(3deg); }
+  85% { transform: translateY(-3%) scale(0.98, 1.03); }
+  100% { transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .lobby-player--ready .lobby-player__mascot {
+    animation: lobby-seat-cheer 680ms var(--motion-ease-out);
+  }
 }
 
 .lobby-player__mascot--empty {
@@ -356,20 +376,15 @@
   cursor: pointer;
   font: inherit;
   opacity: 0.68;
-  transition: opacity var(--motion-fast) var(--motion-ease);
 }
 
-.mascot-picker__side:hover:not(:disabled) { opacity: 0.95; }
 .mascot-picker__side:disabled { cursor: not-allowed; opacity: 0.4; }
 
 .mascot-picker__side img {
   width: clamp(3.7rem, 9vw, 6.2rem);
   height: clamp(4.8rem, 11vw, 7.5rem);
   object-fit: contain;
-  transition: transform var(--motion-fast) var(--motion-ease);
 }
-
-.mascot-picker__side:hover:not(:disabled) img { transform: translateY(-3px) scale(1.03); }
 
 .mascot-picker__hero {
   display: grid;
@@ -451,7 +466,7 @@
   transition: transform var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease);
 }
 
-.mascot-picker__thumbnail:hover:not(:disabled),
+/* Mascot thumbnails do not move on hover (owner decision); color chips keep the key lift. */
 .mascot-picker__color:hover:not(:disabled) { transform: translateY(-1px); }
 
 .mascot-picker__thumbnail:active:not(:disabled),
@@ -553,6 +568,66 @@
 /* A color a neighbor already wears with this mascot is struck through, not only dimmed. */
 .mascot-picker__color:disabled .mascot-picker__color-swatch {
   background-image: linear-gradient(135deg, transparent 44%, var(--color-surface) 44% 56%, transparent 56%);
+}
+
+/*
+ * Picker interactions. The viewed mascot can be swiped sideways (vertical scrolling stays with the page) and tapped to cheer;
+ * the newly chosen thumbnail pops. No mascot moves on hover or follows the mouse. Everything that moves is behind the
+ * reduced-motion guard; framer-motion parts read the same effective setting in MascotPicker.
+ */
+.mascot-picker__hero-grab {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.mascot-picker__hero-grab:active { cursor: grabbing; }
+
+.mascot-picker__hero-cheer {
+  transform-origin: 50% 100%;
+}
+
+.mascot-picker__hero-image {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mascot-picker__sparkles {
+  --sparkle-origin-y: 34%;
+  --sparkle-size: 9%;
+  --sparkle-distance: 520%;
+}
+
+.mascot-picker__color-check {
+  display: grid;
+  place-items: center;
+}
+
+.mascot-picker__thumbnail img {
+  transform-origin: 50% 100%;
+}
+
+@keyframes mascot-thumbnail-pop {
+  0% { transform: scale(0.7) rotate(-10deg); }
+  55% { transform: scale(1.18) rotate(6deg); }
+  100% { transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .mascot-picker__thumbnail--selected img {
+    animation: mascot-thumbnail-pop var(--motion-duration-emphasis) var(--motion-ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  :root:not([data-reduced-motion='true']) .mascot-picker__color:hover:not(:disabled) .mascot-picker__color-swatch {
+    transform: scale(1.15);
+  }
+}
+
+.mascot-picker__color-swatch {
+  transition: transform var(--motion-duration-ui) var(--motion-ease-out);
 }
 
 /* LAN share (host): the invitation as a QR code on a paper card, with a copy button. */

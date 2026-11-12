@@ -260,10 +260,11 @@ describe('JoinForm hero', () => {
   it('keeps the page heading and labels the landing region with it', () => {
     renderForm();
 
-    const heading = screen.getByRole('heading', { level: 1, name: 'Phiên bản Việt Nam' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'OWN THE BLOCK' });
     expect(heading.id).toBe('join-title');
-    expect(screen.getByRole('region', { name: 'Phiên bản Việt Nam' })).toBeTruthy();
-    expect(screen.getByText('OWN THE BLOCK').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByRole('region', { name: 'OWN THE BLOCK' })).toBeTruthy();
+    // The game's name alone: no edition line.
+    expect(screen.queryByText(/Phiên bản Việt Nam|Vietnam Edition/u)).toBeNull();
   });
 
   it('is decoration: eight mascots with empty alt text, hidden from assistive technology, never named', () => {

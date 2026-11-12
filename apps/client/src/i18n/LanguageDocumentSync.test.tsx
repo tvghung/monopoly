@@ -39,12 +39,12 @@ describe('LanguageDocumentSync', () => {
       </SettingsProvider>,
     );
     expect(document.documentElement.lang).toBe('en');
-    expect(document.title).toBe('OWN THE BLOCK — Vietnam Edition');
+    expect(document.title).toBe('OWN THE BLOCK');
     expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('real-time online multiplayer');
 
     act(() => setLanguage('vi'));
     expect(document.documentElement.lang).toBe('vi');
-    expect(document.title).toBe('OWN THE BLOCK — Phiên bản Việt Nam');
+    expect(document.title).toBe('OWN THE BLOCK');
     act(() => setLanguage('en'));
     expect(document.documentElement.lang).toBe('en');
   });

@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <path fill="#94a3b8" stroke="#334155" stroke-width="7" d="M61 190h134l-15-105c-5-33-28-52-52-52S81 52 76 85Z"/>
-  <circle cx="104" cy="112" r="8" fill="#334155"/><circle cx="152" cy="112" r="8" fill="#334155"/>
-  <path fill="none" stroke="#334155" stroke-width="7" stroke-linecap="round" d="M108 148q20 15 40 0"/>
-  <path fill="#64748b" d="M48 196h160v25H48Z"/>
+  <defs>
+    <path id="p" d="M64 220h128l-16-112c-5-36-28-56-48-56s-43 20-48 56Z"/>
+    <clipPath id="pc"><use href="#p"/></clipPath>
+  </defs>
+  <use href="#p" fill="#7c8ba1"/>
+  <g clip-path="url(#pc)"><use href="#p" fill="#94a3b8" transform="translate(-10 -6)"/></g>
+  <use href="#p" fill="none" stroke="#334155" stroke-width="7" stroke-linejoin="round"/>
+  <path fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="6" stroke-linecap="round" d="M94 92c6-16 18-26 30-28"/>
+  <g fill="#1f2937"><ellipse cx="106" cy="118" rx="7" ry="8.5"/><ellipse cx="150" cy="118" rx="7" ry="8.5"/></g>
+  <g fill="#fff" fill-opacity=".6"><circle cx="104" cy="115" r="1.6"/><circle cx="148" cy="115" r="1.6"/></g>
+  <path fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round" d="M112 150q16 12 32 0"/>
+  <path fill="#64748b" stroke="#334155" stroke-width="6" stroke-linejoin="round" d="M48 220h160v16c0 6-4 10-10 10H58c-6 0-10-4-10-10Z"/>
 </svg>

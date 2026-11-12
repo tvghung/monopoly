@@ -29,10 +29,27 @@
   margin-bottom: -5%;
 }
 
+/* Each mascot answers the pointer (decoration, never a control: not focusable, no role, no text). */
 .join-hero__figure {
   position: relative;
   display: flex;
   justify-content: center;
+  transform-origin: 50% 100%;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .join-hero__figure { cursor: pointer; }
+}
+
+.join-hero__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  transform-origin: 50% 100%;
 }
 
 .join-hero__figure::after {
@@ -52,6 +69,12 @@
   max-width: none;
   aspect-ratio: 1;
   object-fit: contain;
+}
+
+/* The burst is the shared MascotSparkles; here it starts at the mascot's head and is sized to one figure. */
+.join-hero__sparkles {
+  --sparkle-origin-y: 28%;
+  --sparkle-size: 22%;
 }
 
 .join-hero__board {
@@ -80,17 +103,47 @@
 }
 
 /*
- * A short greeting, not a loop: two hops per mascot, staggered along the row, over about three seconds. It is absent under both
- * sources of reduced motion, and the landing is quiet afterwards (plan 01 principle P4).
+ * A short greeting, not a loop: two hops per mascot, staggered along the row, over about three seconds. After it the landing is
+ * quiet (plan 01 principle P4) and moves only when the player taps a mascot: it jumps once and throws a few coins. There is no
+ * hover effect and no lean toward the pointer. All of it is absent under both sources of reduced motion.
  */
 @keyframes join-hero-hop {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5%); }
 }
 
+/* Two names for one jump: the component alternates them so a second tap restarts the jump. */
+@keyframes join-hero-jump-a {
+  0% { transform: none; }
+  14% { transform: translateY(3%) scale(1.14, 0.84); }
+  40% { transform: translateY(-36%) scale(0.92, 1.1) rotate(-10deg); }
+  62% { transform: translateY(-30%) scale(1, 1) rotate(8deg); }
+  82% { transform: translateY(0) scale(1.12, 0.88); }
+  92% { transform: translateY(-3%) scale(0.97, 1.04); }
+  100% { transform: none; }
+}
+
+@keyframes join-hero-jump-b {
+  0% { transform: none; }
+  14% { transform: translateY(3%) scale(1.14, 0.84); }
+  40% { transform: translateY(-36%) scale(0.92, 1.1) rotate(-10deg); }
+  62% { transform: translateY(-30%) scale(1, 1) rotate(8deg); }
+  82% { transform: translateY(0) scale(1.12, 0.88); }
+  92% { transform: translateY(-3%) scale(0.97, 1.04); }
+  100% { transform: none; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-reduced-motion='true']) .join-hero__mascot {
     animation: join-hero-hop 1.2s var(--motion-ease-in-out) 2;
     animation-delay: calc(var(--hero-index, 0) * 0.12s);
+  }
+
+  :root:not([data-reduced-motion='true']) .join-hero__figure[data-reaction='a'] .join-hero__body {
+    animation: join-hero-jump-a 720ms var(--motion-ease-out) both;
+  }
+
+  :root:not([data-reduced-motion='true']) .join-hero__figure[data-reaction='b'] .join-hero__body {
+    animation: join-hero-jump-b 720ms var(--motion-ease-out) both;
   }
 }

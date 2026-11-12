@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback, useEffect, useLayoutEffect, useRef, useState,
+} from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type {
@@ -408,6 +410,18 @@ export default function CharacterBillboard({
     tileMotionOffsetYSnapshot,
   ]);
 
+  /**
+   * The player pointed at or clicked this mascot: it hops on the spot. Only a resting mascot reacts, so a poke never cuts into a
+   * move, a landing or a reaction the game asked for; it changes nothing but this card's own transform.
+   */
+  const poke = useCallback(() => {
+    if (reducedMotion) return;
+    if (activeMotionRef.current || activeLandingRef.current) return;
+    if (reactionControllerRef.current.getState() !== null) return;
+    reactionControllerRef.current.start('poke');
+    invalidate();
+  }, [invalidate, reducedMotion]);
+
   useLayoutEffect(() => {
     if (!reaction || reaction.sequence === lastReactionSequenceRef.current) return;
     lastReactionSequenceRef.current = reaction.sequence;
@@ -567,6 +581,7 @@ export default function CharacterBillboard({
           definition={definition}
           playerColor={player.color}
           materialRef={spriteMaterialRef}
+          onPoke={poke}
         />
       </group>
     </group>

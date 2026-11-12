@@ -54,6 +54,7 @@ export function LobbySeat({
     'lobby-player',
     'lobby-player--occupied',
     player.connected ? '' : 'lobby-player--disconnected',
+    player.ready ? 'lobby-player--ready' : '',
     isSelf ? 'lobby-player--self' : '',
     isBot ? 'lobby-player--bot' : '',
     onKick ? 'lobby-player--kickable' : '',

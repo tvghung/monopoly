@@ -93,8 +93,7 @@ export default function JoinForm({
               {t('join.back')}
             </Button>
           ) : null}
-          <p className="join__brand" aria-hidden="true">OWN THE BLOCK</p>
-          <h1 id="join-title" className="join__title">{t('brand.subtitle')}</h1>
+          <h1 id="join-title" className="join__title">{t('brand.name')}</h1>
           <JoinHero />
           {/* Beside the title, not in the card: the card keeps every field and the join button on screen at 812x375. */}
           <HowToPlayButton variant="labelled" className="join__help" />

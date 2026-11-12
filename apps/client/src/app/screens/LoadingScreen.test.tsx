@@ -38,8 +38,8 @@ describe('LoadingScreen', () => {
 
   it('shows the brand lockup with the product name as real text and the tagline as decoration', () => {
     render(<LoadingScreen stage="loading-assets" />);
-    expect(screen.getByText('Phiên bản Việt Nam')).toBeTruthy();
-    expect(screen.getByText('OWN THE BLOCK').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('OWN THE BLOCK')).toBeTruthy();
+    expect(screen.queryByText(/Phiên bản Việt Nam|Vietnam Edition/u)).toBeNull();
   });
 
   it('decorates with all eight mascots, hidden from assistive technology and never named', () => {

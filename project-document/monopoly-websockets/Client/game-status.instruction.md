@@ -43,6 +43,14 @@
   phòng"/"Bắt đầu") mở hộp thoại hướng dẫn dùng chung; khi hẹp, các nút xuống dòng. Trong ván, nút "?" là ô đầu của
   toolbar; xem [how-to-play.instruction.md](./how-to-play.instruction.md).
 - `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
+  Mascot đang xem trượt vào từ phía nó đến (trước/sau) và nghiêng theo hướng đi; có thể vuốt ngang để xem mascot kế bên
+  (≥ 48 px hoặc ≥ 420 px/s, `getSwipeDirection`; cuộn dọc vẫn thuộc trang) và chạm vào để nó "cổ vũ". Khi server xác nhận
+  mascot hoặc màu mới, mascot cổ vũ một lần kèm loạt xu/sao trang trí (`MascotSparkles`, `aria-hidden`). Thumbnail vừa được
+  chọn "pop" một lần; dấu tích màu bật ra. Quyết định của owner: không mascot nào ở sảnh chuyển động khi hover (mascot đang
+  xem, hai mascot hai bên, thumbnail, mascot ở ghế) và mascot không nghiêng theo chuột. Dưới reduced motion: không vuốt,
+  không cổ vũ, không loạt xu; mũi tên, bàn phím và thumbnail vẫn đủ chức năng.
+  Ghế trong sảnh (`LobbySeat`): mascot nhảy mừng một lần khi người chơi chuyển sang Ready (`lobby-player--ready`; bot nhảy
+  khi ngồi vào vì luôn Ready); không loop, tắt dưới reduced motion.
   Mascot chỉ nhận diện bằng hình; localized `alt`/`aria-label` chỉ dùng cho công nghệ hỗ trợ.
   Người mới vào sảnh đã có Dog (hoặc mascot hợp lệ đầu tiên nếu Dog bị chiếm theo luật xuất hiện)
   từ room state server; picker và ghế hiển thị cùng lựa chọn đó, nhưng vẫn chưa Ready.

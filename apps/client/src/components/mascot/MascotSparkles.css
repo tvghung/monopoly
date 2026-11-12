@@ -1,0 +1,47 @@
+/*
+ * A one-shot burst of coins and stars around a mascot (landing hero, lobby mascot picker). The owner sets the burst origin and
+ * size with `--sparkle-origin-y` and `--sparkle-size`. Nothing is drawn unless motion is allowed by both the operating system
+ * and the game setting, and nothing loops.
+ */
+.mascot-sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  pointer-events: none;
+}
+
+.mascot-sparkles__item {
+  position: absolute;
+  top: var(--sparkle-origin-y, 30%);
+  left: 50%;
+  width: var(--sparkle-size, 22%);
+  aspect-ratio: 1;
+  opacity: 0;
+}
+
+.mascot-sparkles__item--coin {
+  border: 2px solid #334155;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff3b0 0 18%, #ffc400 22% 100%);
+}
+
+.mascot-sparkles__item--star {
+  background: #ffd84d;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+@keyframes mascot-sparkle-burst {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--sparkle-angle)) translateX(0) scale(0.3); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--sparkle-angle)) translateX(var(--sparkle-distance, 320%)) rotate(90deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .mascot-sparkles { display: block; }
+
+  :root:not([data-reduced-motion='true']) .mascot-sparkles__item {
+    animation: mascot-sparkle-burst 640ms var(--motion-ease-out) both;
+    animation-delay: 90ms;
+  }
+}
