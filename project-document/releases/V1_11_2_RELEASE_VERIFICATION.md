@@ -1,6 +1,6 @@
 # Own the Block v1.11.2 release verification
 
-Status: RELEASE PREPARATION — the Owner explicitly asks in the current chat to push, merge into main and release the next version (OWNER-REPORTED authorization). Publication is not verified until the tag pipeline and public asset checks below are recorded.
+Status: PUBLISHED AND VERIFIED — stable v1.11.2 is public, and all seven assets and the latest update feeds were independently verified. The Owner explicitly asked in the current chat to push, merge into main and release the next version (OWNER-REPORTED authorization). This is not manual UAT PASS for the items under "Preserved limits".
 
 ## Scope and compatibility
 
@@ -15,7 +15,28 @@ PR #40 local checks passed: typecheck, lint, full tests (client 2799, server 118
 
 ## Production verification
 
-Pending: preparation PR merge commit, annotated tag object/target, CI and tag pipeline runs, public release state and asset checks.
+- Preparation [PR #41](https://github.com/tvghung/monopoly/pull/41) merged at `0468ea345c596549852829bdf3d8dfe9dd5812de`; like PR #40 it had no CI runs, because Actions were not triggering for the repository.
+- The first push of annotated tag `v1.11.2` started no workflow. After the Owner re-enabled Actions, the tag was deleted and pushed again unchanged. Tag object `dbe3d28d04a3815f4512f7ab2bac43edb3f92733` targets that main commit.
+- [Tagged release pipeline](https://github.com/tvghung/monopoly/actions/runs/43171705788) completed successfully: release quality gates, Windows x64, macOS x64, macOS arm64 and Publish GitHub Release.
+- [Stable public v1.11.2](https://github.com/tvghung/monopoly/releases/tag/v1.11.2) was published at `2026-11-12T07:09:06Z`; it is neither draft nor prerelease.
+- All seven public assets were downloaded independently:
+  - Each SHA-256 matches its GitHub asset digest.
+  - The five entries in SHA256SUMS and every installer/Squirrel entry in the update manifest match the downloaded bytes.
+  - Windows RELEASES matches the full package name, size and SHA-1.
+- The latest manifest serves 1.11.2 / minimum 1.11.2 and is byte-identical to the tagged manifest. The latest Windows RELEASES feed is byte-identical to the tagged feed.
+- [Complete sizes, hashes, manifest and job evidence](./v1.11.2-public-assets.json).
+
+## Public asset inventory
+
+| Asset | Bytes |
+| --- | ---: |
+| `OwnTheBlock-1.11.2-macos-arm64.dmg` | 113303487 |
+| `OwnTheBlock-1.11.2-macos-x64.dmg` | 122541935 |
+| `OwnTheBlock-1.11.2-win32-x64-Setup.exe` | 156142592 |
+| `own_the_block-1.11.2-full.nupkg` | 155501963 |
+| `RELEASES` | 85 |
+| `SHA256SUMS.txt` | 478 |
+| `update-manifest.json` | 1096 |
 
 ## Preserved limits
 

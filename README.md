@@ -26,7 +26,7 @@ No database, Node.js, developer tools, port forwarding or VPN is required on pla
 
 ## Development
 
-**v1.11.2 release preparation:** OB-7 through OB-15 Power-up and Journal work plus the mascot artwork, die-cut border fix and interface animation polish, at protocol 18 / snapshot 16 / minimum 1.11.2. The Owner authorizes merge and production release. Mixed protocol-16/18 desktop apps must update together; browser guests use the renderer served by their host. See [release verification](project-document/releases/V1_11_2_RELEASE_VERIFICATION.md) for publication status; published v1.11.1 remains the latest verified release until then.
+**Latest verified published version: 1.11.2.** OB-7 through OB-15 Power-up and Journal work plus mascot artwork, the die-cut border fix and interface polish, at protocol 18 / snapshot 16 / minimum 1.11.2. v1.11.1 (protocol 16) desktops must update; browser guests use the renderer served by their host. See [release verification](project-document/releases/V1_11_2_RELEASE_VERIFICATION.md).
 
 Requires Node.js 24 and pnpm. From the repository root:
 
