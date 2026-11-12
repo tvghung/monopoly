@@ -126,7 +126,18 @@ A full Electron exit/relaunch and a remote browser reload on a separate device r
   and validation copy, focus returns to the card that opened a form, field border and hero motion CSS contracts.
 - [x] `[AUTO][CLIENT]` `Lobby.test.tsx`, `startReadiness.test.ts`, `MascotPicker.test.tsx`, `HostLanSharing.test.tsx`: four seat
   cards, a disabled "Bắt đầu" always has a written reason (first applicable wins), copy room code feedback, the picker follows
-  the effective reduced-motion setting, no visible mascot names.
+  the effective reduced-motion setting, no visible mascot names; swipe thresholds (`getSwipeDirection`), a confirmed new mascot
+  or color plays one `aria-hidden` burst without text, and none under reduced motion.
+- [x] `[AUTO][CLIENT]` `JoinForm.test.tsx`, `LoadingScreen.test.tsx`, `LanguageDocumentSync.test.tsx`: the page title, the
+  loading brand and `document.title` are "OWN THE BLOCK" alone, with no "Phiên bản Việt Nam" / "Vietnam Edition" line.
+- [x] `[AUTO][CLIENT]` `JoinHero.test.tsx`: no `:hover` rule and no pointer lean; a tapped hero mascot jumps (alternating
+  animation names, the image is not remounted) and throws one decorative burst that is cleared after its lifetime; the hero
+  stays without text, controls, `tabindex` or `title`; a secondary button does nothing; `JoinHero.css` and
+  `MascotSparkles.css` keep every animation behind the reduced-motion guard and never loop.
+- [ ] `[MANUAL]` Landing/launcher/lobby with a mouse, motion allowed: hovering or moving the mouse moves no mascot (hero,
+  picker, side previews, thumbnails, seats); a clicked hero mascot jumps and throws coins; launcher postcards straighten on
+  hover; the picker mascot slides in from the side it came from, can be swiped and cheers when tapped; a seat mascot cheers
+  once on Ready. With "Giảm chuyển động" on (or the OS setting) none of this moves and every control still works.
 - [x] `[AUTO][CLIENT]` `LoadingScreen.test.tsx`, `ErrorScreen.test.tsx`, `ConnectionOverlay.test.tsx`, `SpectatorBanner.test.tsx`:
   one loading screen for bootstrap and restoring (real stage text only), failure screens alert with their text (main landmark
   kept), the connection overlay is a status, the spectator pill has a working "Rời phòng".

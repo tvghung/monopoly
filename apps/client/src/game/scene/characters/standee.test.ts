@@ -17,7 +17,10 @@ import {
   STANDEE_BASE_RADIUS,
   STANDEE_FORESHORTENING,
   STANDEE_HEADING_Y,
+  STANDEE_ART_SIZE,
+  STANDEE_BORDER_PX,
   STANDEE_TEXTURE_RATIO,
+  STANDEE_TEXTURE_SIZE,
   createStandeeDepthMaterial,
   getStandeeFaceCenterY,
   getStandeeFaceMaterialProps,
@@ -53,11 +56,22 @@ describe('standee face', () => {
     expect(getStandeeFaceCenterY(1, 0.1)).toBeCloseTo(centerY + 0.1);
   });
 
-  it('is unlit and opaque with an alpha test, like the sprite it replaces was unlit', () => {
+  it('is unlit and opaque with an alpha test smoothed by alpha-to-coverage, like the sprite it replaces was unlit', () => {
     const texture = new THREE.Texture();
     expect(getStandeeFaceMaterialProps(texture)).toEqual({
-      map: texture, alphaTest: 0.5, transparent: false, toneMapped: false, side: THREE.FrontSide,
+      map: texture,
+      alphaTest: 0.5,
+      alphaToCoverage: true,
+      transparent: false,
+      toneMapped: false,
+      side: THREE.FrontSide,
     });
+  });
+
+  it('uses the baked texture layout: the card is the art plus the border margin', () => {
+    expect(STANDEE_TEXTURE_RATIO).toBeCloseTo(STANDEE_TEXTURE_SIZE / STANDEE_ART_SIZE);
+    expect(STANDEE_TEXTURE_SIZE).toBe(512);
+    expect(STANDEE_BORDER_PX / STANDEE_ART_SIZE).toBeGreaterThanOrEqual(0.03);
   });
 
   it('casts a shadow with the mascot silhouette: the depth material samples the same texture', () => {
@@ -87,10 +101,12 @@ describe('standee face', () => {
     expect(material.transparent).toBe(true);
     expect(material.opacity).toBe(0.4);
     expect(material.alphaTest).toBeLessThan(0.1);
+    expect(material.alphaToCoverage).toBe(false);
     applyStandeeOpacity(material, 1);
     expect(material.transparent).toBe(false);
     expect(material.opacity).toBe(1);
     expect(material.alphaTest).toBe(0.5);
+    expect(material.alphaToCoverage).toBe(true);
   });
 });
 

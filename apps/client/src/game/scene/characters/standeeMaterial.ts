@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { CAMERA_DIRECTION } from '../camera/cameraMath';
 import { CHARACTER_BILLBOARD_HEIGHT } from '../board/architecture/tileAnchors';
+import {
+  CHARACTER_ART_SIZE,
+  CHARACTER_BORDER_PX,
+  CHARACTER_TEXTURE_SIZE,
+} from '../../characters/characterTextureCache';
 
 /**
  * The mascot standee (plan 05 §8.4): the mascot art printed on a die-cut card that stands on a round base, in place of the
@@ -19,12 +24,12 @@ export const STANDEE_BASE_HEIGHT = 0.05;
 export const STANDEE_BASE_RADIUS = 0.3;
 
 /**
- * Raster size of the baked texture and of the mascot art inside it. The art keeps its 256 px; the rest is margin for the
- * white die-cut border, so the plane is larger than the sprite by this ratio.
+ * Raster size of the baked texture and of the mascot art inside it (owned by `characterTextureCache`). The rest is margin for
+ * the white die-cut border and its rim, so the plane is larger than the sprite by this ratio.
  */
-export const STANDEE_TEXTURE_SIZE = 320;
-export const STANDEE_ART_SIZE = 256;
-export const STANDEE_BORDER_PX = 6;
+export const STANDEE_TEXTURE_SIZE = CHARACTER_TEXTURE_SIZE;
+export const STANDEE_ART_SIZE = CHARACTER_ART_SIZE;
+export const STANDEE_BORDER_PX = CHARACTER_BORDER_PX;
 export const STANDEE_TEXTURE_RATIO = STANDEE_TEXTURE_SIZE / STANDEE_ART_SIZE;
 
 /** Width of the art as the old sprite drew it, before the border margin. */
@@ -56,16 +61,20 @@ export function getStandeeFaceCenterY(scale: number, verticalOffset: number): nu
 
 /**
  * Unlit like the sprite it replaces (`toneMapped: false`), so a mascot reads exactly as bright as before; a lit material would
- * put the camera-facing card in shade. Opaque with an alpha test: the border and the mascot are a hard silhouette.
+ * put the camera-facing card in shade. Opaque with an alpha test: the border and the mascot are a hard silhouette, and
+ * alpha-to-coverage smooths that cut wherever the canvas has MSAA (without MSAA it is the plain alpha test).
  */
 export function getStandeeFaceMaterialProps(texture: THREE.Texture): {
   map: THREE.Texture;
   alphaTest: number;
+  alphaToCoverage: boolean;
   transparent: false;
   toneMapped: false;
   side: THREE.Side;
 } {
-  return { map: texture, alphaTest: 0.5, transparent: false, toneMapped: false, side: THREE.FrontSide };
+  return {
+    map: texture, alphaTest: 0.5, alphaToCoverage: true, transparent: false, toneMapped: false, side: THREE.FrontSide,
+  };
 }
 
 /** Lets the card cast a shadow with the silhouette of the mascot instead of a rectangle. */

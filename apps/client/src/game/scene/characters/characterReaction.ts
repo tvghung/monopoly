@@ -4,6 +4,14 @@ import { getAnimationElapsedMs } from '../animationTime';
 
 export type { CharacterReactionKind } from '../../presentation/store/types';
 
+/**
+ * A reaction this client plays on its own, outside the presentation pipeline: 'poke' is the hop a mascot standee gives when the
+ * player points at it or clicks it. It never comes from game state, so it is not part of the presentation store types.
+ */
+export type CharacterLocalReactionKind = 'poke';
+export type AnyCharacterReactionKind = CharacterReactionKind | CharacterLocalReactionKind;
+export const CHARACTER_POKE_DURATION_MS = 560;
+
 export interface CharacterReactionSample {
   offsetY: number;
   rotationZ: number;
@@ -14,7 +22,7 @@ export interface CharacterReactionSample {
 }
 
 export interface CharacterReactionState {
-  kind: CharacterReactionKind;
+  kind: AnyCharacterReactionKind;
   elapsedMs: number;
   durationMs: number;
 }
@@ -33,10 +41,10 @@ export function getCharacterReactionDuration(kind: CharacterReactionKind): numbe
 }
 
 export function sampleCharacterReaction(
-  kind: CharacterReactionKind,
+  kind: AnyCharacterReactionKind,
   elapsedMs: number,
   reducedMotion = false,
-  durationMs = getCharacterReactionDuration(kind),
+  durationMs = kind === 'poke' ? CHARACTER_POKE_DURATION_MS : getCharacterReactionDuration(kind),
 ): CharacterReactionSample {
   if (reducedMotion) return IDLE_REACTION;
   const duration = Math.max(0, durationMs);
@@ -91,6 +99,21 @@ export function sampleCharacterReaction(
         spriteOpacity: 1,
         done: progress >= 1,
       };
+    case 'poke': {
+      // A small jump with a squash before and after it and a wiggle at the top; the card lands where it took off.
+      const hop = Math.max(0, Math.sin(Math.min(1, Math.max(0, (progress - 0.12) / 0.76)) * Math.PI));
+      const squash = progress < 0.12
+        ? Math.sin((progress / 0.12) * Math.PI)
+        : progress > 0.88 ? Math.sin(((progress - 0.88) / 0.12) * Math.PI) : 0;
+      return {
+        offsetY: hop * 0.22,
+        rotationZ: Math.sin(progress * Math.PI * 3) * 0.09 * hop,
+        scaleX: 1 + squash * 0.1 - hop * 0.04,
+        scaleY: 1 - squash * 0.12 + hop * 0.06,
+        spriteOpacity: 1,
+        done: progress >= 1,
+      };
+    }
     default:
       return IDLE_REACTION;
   }
@@ -100,7 +123,11 @@ export class CharacterReactionController {
   private active: CharacterReactionState | null = null;
   private startedAtMs = 0;
 
-  public start(kind: CharacterReactionKind, durationMs = getCharacterReactionDuration(kind), startedAtMs = performance.now()): void {
+  public start(
+    kind: AnyCharacterReactionKind,
+    durationMs = kind === 'poke' ? CHARACTER_POKE_DURATION_MS : getCharacterReactionDuration(kind),
+    startedAtMs = performance.now(),
+  ): void {
     this.startedAtMs = startedAtMs;
     this.active = { kind, elapsedMs: 0, durationMs: Math.max(0, durationMs) };
   }

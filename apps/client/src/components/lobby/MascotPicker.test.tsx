@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   cleanup, fireEvent, render, screen,
 } from '@testing-library/react';
@@ -7,7 +10,7 @@ import {
 } from 'vitest';
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { SettingsProvider } from '../../settings/SettingsProvider';
-import MascotPicker from './MascotPicker';
+import MascotPicker, { MASCOT_SWIPE_DISTANCE_PX, MASCOT_SWIPE_VELOCITY_PX_S, getSwipeDirection } from './MascotPicker';
 
 afterEach(() => {
   cleanup();
@@ -106,5 +109,54 @@ describe('MascotPicker controls', () => {
     const buttons = [...section.querySelectorAll('button')];
     expect(buttons.length).toBeGreaterThan(18);
     expect(buttons.every(button => button.disabled)).toBe(true);
+  });
+});
+
+describe('MascotPicker interactions', () => {
+  it('reads a sideways swipe as next (to the left) or previous (to the right), and a short drag as nothing', () => {
+    const still = { x: 0, y: 0 };
+    expect(getSwipeDirection({ offset: { x: -MASCOT_SWIPE_DISTANCE_PX, y: 0 }, velocity: still })).toBe(1);
+    expect(getSwipeDirection({ offset: { x: MASCOT_SWIPE_DISTANCE_PX, y: 0 }, velocity: still })).toBe(-1);
+    expect(getSwipeDirection({ offset: { x: -10, y: 0 }, velocity: { x: -MASCOT_SWIPE_VELOCITY_PX_S, y: 0 } })).toBe(1);
+    expect(getSwipeDirection({ offset: { x: 20, y: 80 }, velocity: { x: 100, y: 900 } })).toBe(0);
+  });
+
+  it('moves no mascot on hover, in the picker or on a seat', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../style/Lobby.css'), 'utf8');
+    const hoverSelectors = [...css.matchAll(/([^{}]*:hover[^{]*)\{/gu)].map(match => match[1]);
+    for (const selector of hoverSelectors) {
+      expect(selector).not.toMatch(/mascot-picker__(side|thumbnail|hero)|lobby-player__mascot|lobby-player--occupied:hover/u);
+    }
+  });
+
+  function renderWithRerender(reducedMotion: boolean) {
+    const props = makeProps();
+    const view = render(
+      <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, reducedMotion }}>
+        <MascotPicker {...props} />
+      </SettingsProvider>,
+    );
+    const update = (next: Partial<ComponentProps<typeof MascotPicker>>) => view.rerender(
+      <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, reducedMotion }}>
+        <MascotPicker {...props} {...next} />
+      </SettingsProvider>,
+    );
+    return { ...view, update };
+  }
+
+  it('celebrates a confirmed new mascot or color with a burst hidden from assistive technology', () => {
+    const { container, update } = renderWithRerender(false);
+    expect(container.querySelector('.mascot-sparkles')).toBeNull();
+    update({ selectedCharacterId: 'panda' });
+    const burst = container.querySelector('.mascot-sparkles');
+    expect(burst?.getAttribute('aria-hidden')).toBe('true');
+    expect(burst?.textContent).toBe('');
+  });
+
+  it('does not celebrate under reduced motion', () => {
+    const { container, update } = renderWithRerender(true);
+    update({ selectedCharacterId: 'panda' });
+    update({ playerColor: 'blue' });
+    expect(container.querySelector('.mascot-sparkles')).toBeNull();
   });
 });

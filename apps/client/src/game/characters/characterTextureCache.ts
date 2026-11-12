@@ -25,49 +25,102 @@ interface CacheEntry {
 
 const textureCache = new Map<string, CacheEntry>();
 let nextEntryId = 0;
-/** The mascot art keeps its 256 px; the canvas is larger so the white die-cut border of the standee fits around it (plan 05 §8.4). */
-const CHARACTER_ART_SIZE = 256;
-const CHARACTER_TEXTURE_RASTER_SIZE = 320;
-const CHARACTER_BORDER_PX = 6;
-const BORDER_DIRECTIONS = 16;
-
-function configureTexture(texture: THREE.Texture): void {
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-}
+/**
+ * The die-cut standee texture (plan 05 §8.4, reworked by the mascot polish pass): a power-of-two canvas so the GPU can build
+ * mipmaps, the art in the middle, a white border around its silhouette and a thin cardboard rim outside the border.
+ *
+ * The first bake (320² canvas, 6 px border from 16 offset copies, no mipmaps) drew a border about one screen pixel wide at
+ * board zoom. Sampled without mipmaps and cut by the alpha test, that border broke into dashes; the gaps between the 16
+ * offsets also notched it at sharp corners. The border is now about 3.4% of the art, filled as a solid disc, and mipmapped.
+ */
+export const CHARACTER_TEXTURE_SIZE = 512;
+export const CHARACTER_ART_SIZE = 416;
+export const CHARACTER_BORDER_PX = 14;
+export const CHARACTER_RIM_PX = 2;
+export const CHARACTER_BORDER_COLOR = '#ffffff';
+/** Opaque (the face is alpha-tested at 0.5): a light slate edge that keeps the white border readable on the cream tiles. */
+export const CHARACTER_RIM_COLOR = '#c3cad5';
+/** Largest gap between two neighbouring offsets on a dilation ring, in texture pixels. */
+const DILATION_MAX_STEP_PX = 2;
+/**
+ * Largest gap between two dilation rings. The outer ring alone draws the border of a solid shape; the inner rings only keep
+ * features thinner than the border (a whisker, a gap between two ears) from leaving holes, and the art strokes are 7 px.
+ */
+const DILATION_MAX_RING_GAP_PX = 5;
+const CHARACTER_TEXTURE_ANISOTROPY = 4;
 
 /**
- * Bakes the die-cut standee texture: the silhouette of the art grown by `CHARACTER_BORDER_PX` and filled white, with the art
- * itself on top. The grown silhouette is the art drawn at offsets on a circle, then turned white with `source-in`.
+ * Offsets that stamp a solid disc of `radius`: concentric rings at most `DILATION_MAX_RING_GAP_PX` apart, each with enough
+ * directions that neighbouring copies are at most `DILATION_MAX_STEP_PX` apart. The union of the copies of a silhouette is the
+ * silhouette grown by `radius` with round corners and no notches.
  */
-function createRasterizedCharacterTexture(image: HTMLImageElement): THREE.CanvasTexture {
-  const size = CHARACTER_TEXTURE_RASTER_SIZE;
-  const margin = (size - CHARACTER_ART_SIZE) / 2;
+export function getDilationOffsets(radius: number): ReadonlyArray<readonly [number, number]> {
+  const offsets: Array<readonly [number, number]> = [];
+  const rings = Math.max(1, Math.ceil(radius / DILATION_MAX_RING_GAP_PX));
+  for (let ring = 1; ring <= rings; ring += 1) {
+    const ringRadius = radius * ring / rings;
+    const directions = Math.max(8, Math.ceil((2 * Math.PI * ringRadius) / DILATION_MAX_STEP_PX));
+    for (let step = 0; step < directions; step += 1) {
+      const angle = step / directions * Math.PI * 2;
+      offsets.push([Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius]);
+    }
+  }
+  return offsets;
+}
+
+function createCanvas(size: number): { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D } {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Character texture rasterization requires a 2D canvas context');
   context.clearRect(0, 0, size, size);
+  return { canvas, context };
+}
 
-  for (let step = 0; step < BORDER_DIRECTIONS; step += 1) {
-    const angle = step / BORDER_DIRECTIONS * Math.PI * 2;
-    context.drawImage(
-      image,
-      margin + Math.cos(angle) * CHARACTER_BORDER_PX,
-      margin + Math.sin(angle) * CHARACTER_BORDER_PX,
-      CHARACTER_ART_SIZE,
-      CHARACTER_ART_SIZE,
-    );
-  }
+/** A texture-sized layer holding the silhouette of `source` (drawn at `x`, `y`) grown by `radius`, in one flat `color`. */
+function createDilatedSilhouette(
+  source: CanvasImageSource,
+  x: number,
+  y: number,
+  radius: number,
+  color: string,
+): HTMLCanvasElement {
+  const { canvas: layer, context } = createCanvas(CHARACTER_TEXTURE_SIZE);
+  getDilationOffsets(radius).forEach(([dx, dy]) => context.drawImage(source, x + dx, y + dy));
   context.globalCompositeOperation = 'source-in';
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, size, size);
+  context.fillStyle = color;
+  context.fillRect(0, 0, CHARACTER_TEXTURE_SIZE, CHARACTER_TEXTURE_SIZE);
   context.globalCompositeOperation = 'source-over';
+  return layer;
+}
 
-  context.drawImage(image, margin, margin, CHARACTER_ART_SIZE, CHARACTER_ART_SIZE);
+function configureTexture(texture: THREE.Texture): void {
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = CHARACTER_TEXTURE_ANISOTROPY;
+}
+
+/**
+ * Bakes the die-cut standee texture. The SVG is rasterized once into an art canvas. The border is that bitmap stamped on a disc
+ * of offsets and flattened to white (`source-in`); the rim is the border layer grown the same way by a few pixels. Rim, border
+ * and art are then layered in that order.
+ */
+function createRasterizedCharacterTexture(image: HTMLImageElement): THREE.CanvasTexture {
+  const size = CHARACTER_TEXTURE_SIZE;
+  const margin = (size - CHARACTER_ART_SIZE) / 2;
+  const { canvas: artCanvas, context: artContext } = createCanvas(CHARACTER_ART_SIZE);
+  artContext.drawImage(image, 0, 0, CHARACTER_ART_SIZE, CHARACTER_ART_SIZE);
+
+  const border = createDilatedSilhouette(artCanvas, margin, margin, CHARACTER_BORDER_PX, CHARACTER_BORDER_COLOR);
+  const rim = createDilatedSilhouette(border, 0, 0, CHARACTER_RIM_PX, CHARACTER_RIM_COLOR);
+  const { canvas, context } = createCanvas(size);
+  context.drawImage(rim, 0, 0);
+  context.drawImage(border, 0, 0);
+  context.drawImage(artCanvas, margin, margin);
+
   const texture = new THREE.CanvasTexture(canvas);
   configureTexture(texture);
   return texture;

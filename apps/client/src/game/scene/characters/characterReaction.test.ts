@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CHARACTER_POKE_DURATION_MS,
   CharacterReactionController,
   getCharacterReactionDuration,
   sampleCharacterReaction,
@@ -55,5 +56,37 @@ describe('character reactions', () => {
       scaleY: 1,
       done: true,
     });
+  });
+});
+
+describe('poke (a mascot answering the pointer)', () => {
+  it('hops clearly higher than a game reaction and lands where it took off', () => {
+    const peak = Math.max(...Array.from({ length: 41 }, (_, step) => (
+      sampleCharacterReaction('poke', (CHARACTER_POKE_DURATION_MS * step) / 40).offsetY
+    )));
+    const happyPeak = sampleCharacterReaction('happy', getCharacterReactionDuration('happy') / 2).offsetY;
+    expect(peak).toBeGreaterThan(happyPeak * 2);
+    const end = sampleCharacterReaction('poke', CHARACTER_POKE_DURATION_MS);
+    expect(end.done).toBe(true);
+    expect(end.offsetY).toBeCloseTo(0, 5);
+    expect(end.scaleX).toBeCloseTo(1, 5);
+    expect(end.scaleY).toBeCloseTo(1, 5);
+  });
+
+  it('crouches before the jump: wider and shorter, still on the ground', () => {
+    const crouch = sampleCharacterReaction('poke', CHARACTER_POKE_DURATION_MS * 0.06);
+    expect(crouch.offsetY).toBe(0);
+    expect(crouch.scaleX).toBeGreaterThan(1);
+    expect(crouch.scaleY).toBeLessThan(1);
+  });
+
+  it('uses its own duration in the controller and does nothing under reduced motion', () => {
+    const controller = new CharacterReactionController();
+    controller.start('poke', undefined, 0);
+    expect(controller.getState()).toMatchObject({ kind: 'poke', durationMs: CHARACTER_POKE_DURATION_MS });
+    expect(controller.advanceAt(CHARACTER_POKE_DURATION_MS / 2).offsetY).toBeGreaterThan(0);
+    controller.start('poke', undefined, 0);
+    expect(controller.advanceAt(100, true)).toMatchObject({ offsetY: 0, done: true });
+    expect(controller.getState()).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type Ref } from 'react';
+import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CharacterDefinition } from '../../characters/characterRegistry';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
@@ -17,6 +18,11 @@ interface CharacterStandeeProps {
   /** The player's color id, for the base. */
   playerColor: string;
   materialRef?: Ref<THREE.MeshBasicMaterial | null>;
+  /**
+   * Called when a mouse enters the card or anything clicks it, so the mascot can answer. The event is not stopped: the tile
+   * under the mascot still gets its hover and its click.
+   */
+  onPoke?: () => void;
 }
 
 let sharedPlane: THREE.PlaneGeometry | null = null;
@@ -27,7 +33,8 @@ function getFacePlane(): THREE.PlaneGeometry {
 
 /**
  * Fading a standee (bankruptcy) needs real transparency; at full opacity the card is an opaque alpha-tested silhouette, which
- * is also what lets it cast a mascot-shaped shadow. Below 1 the alpha test drops so the fade does not pop out at 0.5.
+ * is also what lets it cast a mascot-shaped shadow. Below 1 the alpha test drops so the fade does not pop out at 0.5, and the
+ * blended fade has no use for alpha-to-coverage.
  */
 export function applyStandeeOpacity(material: THREE.Material, opacity: number): void {
   const faded = opacity < 0.999;
@@ -36,6 +43,7 @@ export function applyStandeeOpacity(material: THREE.Material, opacity: number): 
   material.opacity = faded ? opacity : 1;
   material.transparent = faded;
   material.alphaTest = faded ? 0.04 : 0.5;
+  material.alphaToCoverage = !faded;
 }
 
 /**
@@ -43,7 +51,9 @@ export function applyStandeeOpacity(material: THREE.Material, opacity: number): 
  * card facing the camera's azimuth, plus an anchor that the instanced bases follow. Hop, lean, reactions and slot reflow are
  * the body group's, unchanged.
  */
-export default function CharacterStandee({ texture, definition, playerColor, materialRef }: CharacterStandeeProps) {
+export default function CharacterStandee({
+  texture, definition, playerColor, materialRef, onPoke,
+}: CharacterStandeeProps) {
   const { shadows } = useRenderQuality();
   const anchorRef = useRef<THREE.Object3D>(null);
   const size = getStandeeFaceSize(definition.scale);
@@ -70,6 +80,10 @@ export default function CharacterStandee({ texture, definition, playerColor, mat
             castShadow={shadows.enabled}
             customDepthMaterial={depthMaterial ?? undefined}
             dispose={null}
+            onPointerEnter={onPoke
+              ? (event: ThreeEvent<PointerEvent>) => { if (event.pointerType === 'mouse') onPoke(); }
+              : undefined}
+            onClick={onPoke ? () => onPoke() : undefined}
           >
             <meshBasicMaterial ref={materialRef} {...getStandeeFaceMaterialProps(texture)} />
           </mesh>

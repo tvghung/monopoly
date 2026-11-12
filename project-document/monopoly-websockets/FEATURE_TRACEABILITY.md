@@ -96,10 +96,10 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F03 Web join form
 - **Entry:** web `JOIN` phase; code or invitation link field.
 - **Docs:** [join-room][c-join], [socket-session][a-sess].
-- **Client:** `apps/client/src/components/JoinForm.tsx`, `apps/client/src/App.tsx` (`join room`).
+- **Client:** `apps/client/src/components/JoinForm.tsx`, `apps/client/src/components/JoinHero.tsx` (decorative interactive hero, shared with the launcher), `apps/client/src/components/mascot/MascotSparkles.tsx`, `apps/client/src/App.tsx` (`join room`).
 - **Server:** `apps/server/src/socket/session.ts` (`join room`).
 - **Shared:** `packages/shared/src/socketSchemas.ts` (`joinRoomRequestSchema`).
-- **Tests:** `apps/client/src/components/JoinForm.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/hostAdmission.integration.test.ts`.
+- **Tests:** `apps/client/src/components/JoinForm.test.tsx`, `apps/client/src/components/JoinHero.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/hostAdmission.integration.test.ts`.
 - **Manual:** [join checklist][t-join]. **Affects:** F04, F06, F39.
 
 ### F04 Session resume, reconnect, newest connection wins
@@ -155,7 +155,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F09 Lobby roster, Ready and appearance
 - **Entry:** `LOBBY` phase (player role).
 - **Docs:** [game-status][c-status], [socket-lobby][a-lobby]; foundation [client][fc].
-- **Client:** `apps/client/src/components/Lobby.tsx`, `apps/client/src/components/lobby/LobbySeat.tsx`, `apps/client/src/components/lobby/MascotPicker.tsx`.
+- **Client:** `apps/client/src/components/Lobby.tsx`, `apps/client/src/components/lobby/LobbySeat.tsx`, `apps/client/src/components/lobby/MascotPicker.tsx`, `apps/client/src/components/mascot/MascotSparkles.tsx`; mascot art `apps/client/src/game/characters/assets/` and die-cut bake `apps/client/src/game/characters/characterTextureCache.ts`.
 - **Server:** `apps/server/src/socket/lobby.ts` (`set ready`, `set appearance`).
 - **Shared:** `packages/shared/src/types.ts` (`SetAppearanceRequest`).
 - **Tests:** `apps/client/src/components/Lobby.test.tsx`, `apps/client/src/components/lobby/MascotPicker.test.tsx`, `apps/server/src/socket.integration.test.ts`.

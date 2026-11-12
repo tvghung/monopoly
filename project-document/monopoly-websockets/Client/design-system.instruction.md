@@ -154,6 +154,14 @@ registry khi plan sau chạm vào. `help` (Lucide `CircleQuestionMark`) là nút
   `<html data-reduced-motion="true|false">` từ `useEffectiveReducedMotion()` (setting **hoặc**
   OS). `motion.css` đưa mọi duration về `0ms` cho cả media query và thuộc tính này; hover/press
   của `Button`/`IconButton` bỏ transform khi thuộc tính là `true`.
+- `Button` v2 có thêm hai phản hồi tương tác: một vệt sáng lướt qua mặt nút mỗi lần hover (transition
+  `background-position` của một `background-image`, không loop; disabled reset background nên không có vệt) và icon "gật"
+  nhẹ khi hover, thu nhỏ khi nhấn. Cả hai bị bỏ dưới reduced motion (thuộc tính `data-reduced-motion` hoặc media query).
+  Hover v2 đặt `background-color` (không phải shorthand `background`) để không xoá vệt sáng.
+- Mascot trang trí (hero landing/launcher, picker, ghế lobby) chỉ chuyển động khi người chơi chạm/bấm/vuốt hoặc khi trạng
+  thái vừa đổi (một lần); không có hiệu ứng hover, không nghiêng theo con trỏ (quyết định của owner), không bao giờ loop, theo đúng guard
+  `@media (prefers-reduced-motion: no-preference) { :root:not([data-reduced-motion='true']) … }`. Loạt xu/sao dùng chung là
+  `apps/client/src/components/mascot/MascotSparkles.tsx`: `aria-hidden`, không chữ, ẩn hẳn (`display: none`) ngoài guard.
 
 ## Design Lab (dev-only)
 

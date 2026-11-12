@@ -37,8 +37,13 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
 - **Landing** (`JoinForm`): hero (tám mascot trên một board mini, trang trí, không tên) + thẻ vào phòng.
   Toggle **"Loại phòng"**: `Có mã phòng` (mặc định, hiện ô mã phòng) / `Phòng chung` (ẩn ô mã, gửi
   `LOBBY` — mọi người chọn Phòng chung vào cùng một phòng). Khi tên còn trống, nút "Vào phòng" bị disable
-  kèm lý do viết ra. `?room=` vẫn prefill, không bao giờ tự submit. Hero chỉ chào bằng hai cú nhảy lúc mở
-  (không loop; tắt khi reduced motion setting hoặc OS); border ô nhập dùng `--entry-field-border` đạt 3:1.
+  kèm lý do viết ra. `?room=` vẫn prefill, không bao giờ tự submit. Hero chỉ tự chào bằng hai cú nhảy lúc mở
+  (không loop; tắt khi reduced motion setting hoặc OS); sau đó nó chỉ chuyển động khi người chơi chạm/bấm một mascot: mascot
+  đó nhảy một lần và tung vài đồng xu/ngôi sao (`apps/client/src/components/mascot/MascotSparkles.tsx`, dùng chung với
+  picker). Quyết định của owner: không có hiệu ứng hover trên mascot và hàng mascot không nghiêng theo con trỏ chuột.
+  Tiêu đề trang (h1) chỉ là tên game **"OWN THE BLOCK"** (`brand.name`), không còn dòng "Phiên bản Việt Nam"; `document.title`
+  và màn hình tải cũng chỉ ghi "OWN THE BLOCK". Hero vẫn là trang trí: không focus được,
+  không role, không chữ, `aria-hidden`; mọi chuyển động nằm sau guard reduced motion (`JoinHero.css`, `MascotSparkles.css`); border ô nhập dùng `--entry-field-border` đạt 3:1.
   Nút "Hướng dẫn chơi" (có chữ) là phần tử cuối của cột hero, dưới hàng mascot; nó nằm ngoài thẻ nên thẻ vẫn vừa
   812×375 không cuộn, và không bao giờ submit form.
   **Trong app desktop** (V1.1 mục 3), form này là màn hình rơi về khi vào phòng thất bại: nó nhận `initialName` và
@@ -65,7 +70,8 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     landmark (`public/art/landmarks/{26,13,39,24,14}.svg`) trên tám mascot đứng trên bàn cờ mini (`JoinHero`). Tranh nằm ở bên phải;
     độ rộng `--scene-w` được tính từ cột menu nên không chạm cột. Dưới 40rem tranh ẩn; ở landscape thấp khi mở form tranh ẩn để form
     vừa 812×375 không cuộn. Hiệu ứng vào (bưu thiếp rơi xuống, nút trồi lên, mascot nhảy hai lần) chạy một lần, không lặp, và tắt
-    khi reduced motion từ hệ điều hành hoặc từ cài đặt (`data-reduced-motion`). Màu chữ trên nền là mực/đỏ sơn mài trên giấy (≥ 4.5:1).
+    khi reduced motion từ hệ điều hành hoặc từ cài đặt (`data-reduced-motion`). Tranh đáp lại chuột nhưng không phải điều khiển:
+    bưu thiếp được hover đứng thẳng và phóng to nhẹ, mascot chỉ phản ứng khi được bấm như ở landing; tranh vẫn không có `button`/`a`/`input`. Màu chữ trên nền là mực/đỏ sơn mài trên giấy (≥ 4.5:1).
   - **`Cài đặt`**: mở `SettingsPanel` hiện có. `SettingsProvider` nằm ở gốc renderer (`apps/client/src/index.tsx`, bọc cả
     `I18nProvider` và `AppBootstrap`), nên launcher, `bootstrap()` và game dùng chung một state cài đặt và cùng key lưu
     (`settings/storage.ts`); `AppBootstrap` render launcher **ngoài** `AudioProvider` và `ToastProvider` nên không có âm thanh nào tự chạy

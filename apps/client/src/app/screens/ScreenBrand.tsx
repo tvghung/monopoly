@@ -12,13 +12,12 @@ const MASCOT_ROW = CHARACTER_IDS.map((characterId, index) => ({
   src: characterSvgDataUri(CHARACTER_REGISTRY[characterId].svgSource, ROW_COLORS[index % ROW_COLORS.length]),
 }));
 
-/** The game's name as a lockup: the tagline above the product name. Decorative eyebrow; the product name is real text. */
+/** The game's name, OWN THE BLOCK, alone: no edition line under or over it. */
 export function BrandLockup() {
   const { t } = useTranslation();
   return (
     <div className="app-screen__brand">
-      <p className="app-screen__brand-mark" aria-hidden="true">OWN THE BLOCK</p>
-      <p className="app-screen__product-name">{t('brand.subtitle')}</p>
+      <p className="app-screen__product-name">{t('brand.name')}</p>
     </div>
   );
 }

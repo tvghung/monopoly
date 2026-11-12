@@ -215,7 +215,15 @@ players, and observed result.
 - [x] `[AUTO][CLIENT]` `LandmarkBanner.test.tsx`: "Khánh thành <landmark>!" only for a street reaching the hotel tier in live presentation; silent for houses, a hotel coming
   down, a hotel already on the board when the HUD mounts and after a snap, reconnect or reset; lifetime scaled by the animation speed; text only under reduced motion.
 - [x] `[AUTO][CLIENT]` `characters/standee.test.ts`, `characterTextureCache.test.ts`: the standee faces the camera azimuth only and is as tall on screen as the old sprite;
-  unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the 320 px die-cut bake.
+  unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the die-cut bake:
+  512 px power-of-two texture with mipmaps and anisotropy, the SVG rasterized once at 416 px, a solid-disc dilation (rings ≤ 5 px
+  apart, neighbouring offsets ≤ 2 px apart; the old 16-offset ring left ~2.4 px gaps) for a 14 px white border plus a 2 px rim,
+  border ≥ 3% of the art, and alpha-to-coverage on the opaque face (off while fading).
+- [x] `[AUTO][CLIENT]` `characters/characterReaction.test.ts`: the local `poke` reaction hops clearly higher than a game reaction,
+  crouches first, lands back at rest with scale 1, uses its own duration and is a no-op under reduced motion.
+- [ ] `[MANUAL]` Board, mouse: pointing at or clicking a resting mascot makes it hop once; a mascot that is moving or already
+  reacting ignores it; the tile under the mascot still highlights and its card still opens on click; nothing happens with
+  "Giảm chuyển động" on. At default zoom the white die-cut border is continuous around every mascot (no dashes or notches).
   Movement semantics (`characterMotion.test.ts`, `characterPlacement.test.ts`, `characterReaction.test.ts`) are unchanged.
 - [x] `[AUTO][CLIENT]` `special/taxStandeeClearance.test.ts`: the tax paper stack (tiles 4 and 38) stays at least 0.02 below the top of the round standee base for every
   occupant slot and inside the elevation of the shallow SVG badge art, so the player's coloured base is visible on a tax tile like on every other tile.

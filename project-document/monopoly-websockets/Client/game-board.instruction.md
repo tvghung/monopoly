@@ -395,14 +395,30 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   nằm dưới tab nhật ký): hiện cả bốn từ 1280×720 trở lên, ẩn cả bốn ở tablet và phone landscape, và ẩn ở tier low;
   không bao giờ dời xuống dưới HUD. Là trang trí, không có accessible name. Overlap checker của plan 03 kiểm cả vật
   phẩm (`PropScreenRectsPublisher`, `findHudPropOverlaps`, `findPropTileOverlaps`; sidecar `hudOverlap.props`).
-- **Standee linh vật (plan 05):** quân cờ là thẻ die-cut đứng thẳng (texture 320² gồm viền trắng 6 px quanh art 256²)
-  quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
+- **Standee linh vật (plan 05, bake lại ở đợt polish mascot):** quân cờ là thẻ die-cut đứng thẳng. Texture 512² (lũy thừa
+  của 2, mipmap `LinearMipmapLinearFilter`, anisotropy 4) gồm art 416² ở giữa, viền trắng 14 px và rim slate nhạt 2 px
+  (`#c3cad5`, đục để qua alpha test) bao ngoài viền. Viền là silhouette của art nong ra theo một đĩa đặc
+  (`getDilationOffsets`: các vòng cách nhau ≤ 5 px, hai bản sao kề nhau trên một vòng cách ≤ 2 px); SVG chỉ rasterize một
+  lần. `apps/client/src/game/characters/characterTextureCache.ts` sở hữu các kích thước, `standeeMaterial.ts` đọc lại.
+  Bake cũ (320², viền 6 px từ 16 bản sao, không mipmap) cho viền rộng khoảng 1 px màn hình ở zoom bàn cờ; bị alpha test cắt
+  nên viền thành nét đứt và có khía ở góc nhọn — đó là lỗi "viền trắng đứt gãy quanh mascot" đã sửa. Thẻ quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
   tròn `r 0.30` cao `0.05` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`; đế
   nằm trên mặt ô `+0.008`, đỉnh `+0.058`, nên art phẳng ở tâm ô như Tax stack phải thấp hơn mức này). Mặt thẻ là
-  `MeshBasicMaterial` unlit alpha-test `toneMapped: false`; bóng có hình dáng mascot nhờ `customDepthMaterial`;
+  `MeshBasicMaterial` unlit alpha-test `toneMapped: false` có `alphaToCoverage` (mép mượt khi canvas có MSAA; tắt khi thẻ
+  đang mờ dần vì lúc đó là blend thật); bóng có hình dáng mascot nhờ `customDepthMaterial`;
   contact shadow chỉ còn ở tier low. Hop, lean, reaction, slot reflow, jail transfer và snap vẫn do body group
   (`CharacterBillboard`) điều khiển, không đổi; body group dùng `rotation.order = 'YXZ'` với heading cố định nên
-  lean là nghiêng ngang thẻ.
+  lean là nghiêng ngang thẻ. **Poke:** khi chuột đi vào thẻ hoặc thẻ được bấm, mascot đang đứng yên nhảy nhẹ một lần
+  (reaction cục bộ `poke` trong `apps/client/src/game/scene/characters/characterReaction.ts`, 560 ms, không thuộc presentation
+  store). Không chạy khi mascot đang di chuyển/đáp/có reaction của game hoặc khi reduced motion. Sự kiện không bị
+  `stopPropagation`, nên hover/click của ô bên dưới giữ nguyên; chỉ dùng ref + `invalidate`, không re-render scene.
+- **Artwork mascot** (`apps/client/src/game/characters/assets/*.svg`, viewBox 256): cùng phong cách viền slate `#334155` đậm,
+  màu phẳng; mỗi con có đầu lớn, thân mặc áo màu người chơi (token `#FF00FF`/`#CC00CC`, đổ bóng cel bằng bản sao lệch trong
+  `clipPath`), hai tay ôm đồng xu vàng `#FFC400`, chân chạm đáy khung để đứng trên đế; mắt vừa phải với một điểm sáng nhỏ, mờ (`fill-opacity .6`, không có đốm phụ —
+  owner yêu cầu bớt long lanh để mascot không quá trẻ con/"nhựa"), má hồng, vệt sáng trên
+  đầu. Phụ kiện nhận diện: capybara đội quả cam, gấu trúc có lá tre, mèo có đuôi và ria, thỏ có nơ màu người chơi, vịt đội mũ
+  thủy thủ màu người chơi, voi vòi cong và ngà, chim cánh cụt mặt trắng mỏ cam. SVG chỉ dùng tham chiếu nội bộ
+  (`href="#id"`, `url(#id)`), không script, không URL ngoài; mỗi ảnh là một data URI riêng nên id không đụng nhau.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 
