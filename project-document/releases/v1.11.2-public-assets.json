@@ -1,0 +1,33 @@
+{
+  "release": "v1.11.2",
+  "url": "https://github.com/tvghung/monopoly/releases/tag/v1.11.2",
+  "publishedAt": "2026-11-12T07:09:06Z",
+  "draft": false,
+  "prerelease": false,
+  "tag": { "object": "dbe3d28d04a3815f4512f7ab2bac43edb3f92733", "target": "0468ea345c596549852829bdf3d8dfe9dd5812de" },
+  "workflowRun": {
+    "id": 43171705788,
+    "url": "https://github.com/tvghung/monopoly/actions/runs/43171705788",
+    "conclusion": "success",
+    "jobs": ["Release quality gates", "Windows x64", "macOS arm64", "macOS x64", "Publish GitHub Release"]
+  },
+  "assets": [
+    { "name": "OwnTheBlock-1.11.2-macos-arm64.dmg", "bytes": 113303487, "sha256": "6de224e2b5160639673b3deb4c98b622a68f328e38fdff6cc9dc5cd200bb88a1" },
+    { "name": "OwnTheBlock-1.11.2-macos-x64.dmg", "bytes": 122541935, "sha256": "4d7ddd8e816c28921f29b89543d569210e3ed6794634322c2c2501d03fb2fc49" },
+    { "name": "OwnTheBlock-1.11.2-win32-x64-Setup.exe", "bytes": 156142592, "sha256": "2ed4074cb75269aa0712211ebcbffb1685555ee2060cbe4da43c67334b6e654a" },
+    { "name": "own_the_block-1.11.2-full.nupkg", "bytes": 155501963, "sha256": "77e645958e19bad63daaebc9bb8b2273525b684b9d186cb638872b48d531df26", "sha1": "98cfdd621d1dd1c99e2d2e360563999cfb60cb8a" },
+    { "name": "RELEASES", "bytes": 85, "sha256": "d5a20fdef01088d5447976c0fc231aa7e1f564f48ba9391a8bee4aa0f790e3c1" },
+    { "name": "SHA256SUMS.txt", "bytes": 478, "sha256": "786fcb93cc7adfdd04addcee477c5fd6e78f5338f2969e6a3fefc7cf6ae1e013" },
+    { "name": "update-manifest.json", "bytes": 1096, "sha256": "cd5756835a6dbcb8883f7858204af039293e4059488d806cf4a3b11a76c46bca" }
+  ],
+  "checks": {
+    "downloadedHashesMatchGitHubDigests": true,
+    "sha256sumsMatchDownloads": true,
+    "manifestMatchesDownloads": true,
+    "manifestVersion": "1.11.2",
+    "manifestMinimumSupportedVersion": "1.11.2",
+    "windowsReleasesMatchesNupkgSha1AndSize": true,
+    "latestManifestByteIdenticalToTagged": true,
+    "latestReleasesByteIdenticalToTagged": true
+  }
+}
